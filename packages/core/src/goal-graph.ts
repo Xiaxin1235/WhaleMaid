@@ -66,7 +66,7 @@ export function readyTasks(tasks: readonly Task[]): Task[] {
 
 export type TaskSelection =
   | { task: Task; reason: 'selected' }
-  | { task: null; reason: 'no-ready-task' | 'write-slot-busy' | 'goal-not-active' }
+  | { task: null; reason: 'no-ready-task' | 'write-slot-busy' | 'goal-not-active' | 'invalid-graph' }
 
 const READ_ONLY_KINDS: readonly TaskKind[] = ['analyze', 'research']
 const HOLDS_WRITE_SLOT = new Set(['RUNNING', 'VERIFYING', 'WAITING_APPROVAL', 'UNKNOWN', 'PAUSED'])
@@ -79,7 +79,7 @@ export function selectNextTask(
   limits: Limits,
 ): TaskSelection {
   if (goal.status !== 'active') return { task: null, reason: 'goal-not-active' }
-  if (!validateDag(tasks).ok) return { task: null, reason: 'no-ready-task' }
+  if (!validateDag(tasks).ok) return { task: null, reason: 'invalid-graph' }
   const byId = new Map(tasks.map((task) => [task.id, task]))
   const inFlightIds = new Set(
     runningTasks.filter((task) => HOLDS_WRITE_SLOT.has(task.state)).map((task) => task.id),
@@ -110,17 +110,46 @@ export function taskKey(goalId: GoalId, normalizedTitle: string, kind: TaskKind)
   return JSON.stringify([goalId, title, kind])
 }
 
-/** Retain existing tasks and append novel proposals; never trust a model-supplied deduplication key. */
-export function mergeProposedTasks(existing: readonly Task[], proposed: readonly Task[]): Task[] {
+export interface TaskProposalMerge {
+  tasks: Task[]
+  rejected: { task: Task; reason: 'foreign-goal' | 'duplicate' | 'dangling-dependency' | 'cycle' }[]
+}
+
+/** Merge proposals in order, preserving a valid existing DAG and reporting each rejected proposal. */
+export function mergeProposedTasks(
+  goalId: GoalId,
+  existing: readonly Task[],
+  proposed: readonly Task[],
+): TaskProposalMerge {
   const keys = new Set(existing.map((task) => taskKey(task.goalId, task.title, task.kind)))
   const ids = new Set(existing.map((task) => task.id))
   const merged = [...existing]
+  const rejected: TaskProposalMerge['rejected'] = []
   for (const task of proposed) {
+    if (task.goalId !== goalId) {
+      rejected.push({ task, reason: 'foreign-goal' })
+      continue
+    }
     const key = taskKey(task.goalId, task.title, task.kind)
-    if (keys.has(key) || ids.has(task.id)) continue
+    if (keys.has(key) || ids.has(task.id)) {
+      rejected.push({ task, reason: 'duplicate' })
+      continue
+    }
+    const candidate: Task = { ...task, key, state: 'PENDING', attempts: 0, version: 0, createdBy: 'planner' }
+    const validation = validateDag([...merged, candidate])
+    if (!validation.ok) {
+      const reasons = {
+        'duplicate-task-id': 'duplicate',
+        'cross-goal-dependency': 'foreign-goal',
+        'dangling-dependency': 'dangling-dependency',
+        cycle: 'cycle',
+      } as const
+      rejected.push({ task, reason: reasons[validation.error.code] })
+      continue
+    }
     keys.add(key)
     ids.add(task.id)
-    merged.push({ ...task, key, state: 'PENDING', attempts: 0, version: 0, createdBy: 'planner' })
+    merged.push(candidate)
   }
-  return merged
+  return { tasks: merged, rejected }
 }

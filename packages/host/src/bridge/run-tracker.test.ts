@@ -23,6 +23,7 @@ test('watched round uses injected clock, counts calls and ends exactly once', ()
     sessionId: 's',
     status: 'running',
     endReason: null,
+    endSource: null,
     toolCalls: 2,
     startedAt: 101,
     endedAt: null,
@@ -36,6 +37,7 @@ test('watched round uses injected clock, counts calls and ends exactly once', ()
     sessionId: 's',
     status: 'ended',
     endReason: 'completed',
+    endSource: 'turn-end',
     toolCalls: 2,
     startedAt: 101,
     endedAt: 102,
@@ -59,20 +61,28 @@ test.each(['unknown', undefined] as const)('unknown or missing end reason is not
   const { tracker, ended, send } = setup()
   tracker.watch('s', 'run')
   send('turn-end', { endReason: reason })
-  expect(ended.mock.calls[0]![0].endReason).toBe('unknown')
+  expect(ended.mock.calls[0]![0]).toMatchObject({ endReason: 'unknown', endSource: 'turn-end' })
 })
 
-test('mid-run disposal ends as aborted without waiting for turn-end', () => {
+test('mid-run disposal preserves an unknown outcome and its source without waiting for turn-end', () => {
   const { tracker, ended, send } = setup()
   tracker.watch('s', 'run')
   send('tool-call')
   send('session-disposed')
-  expect(ended.mock.calls[0]![0]).toMatchObject({
+  expect(ended).toHaveBeenCalledExactlyOnceWith({
+    runId: 'run',
+    sessionId: 's',
     status: 'ended',
-    endReason: 'aborted',
+    endReason: 'unknown',
+    endSource: 'session-disposed',
     toolCalls: 1,
+    startedAt: 100,
     endedAt: 101,
   })
+  send('turn-end', { endReason: 'completed' })
+  send('session-disposed')
+  expect(ended).toHaveBeenCalledTimes(1)
+  expect(tracker.get('s')).toEqual(ended.mock.calls[0]![0])
 })
 
 test('watches are isolated; snapshots cannot change tracker; unwatch permits reuse', () => {

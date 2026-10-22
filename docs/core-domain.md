@@ -48,6 +48,7 @@ transition(
 可能包含环的后继。无效图不产生可调度候选。
 `readyTasks` 只返回依赖均 SUCCEEDED 的 PENDING 任务，调用方通过迁移将其提升为 READY。
 `selectNextTask` 只选择当前目标的 READY 任务，返回 `{ task, reason }`；无候选时 `task: null`。
+无效 DAG 的原因单独返回 `invalid-graph`，Host 应据此发出阻塞通知；正常空队列仍为 `no-ready-task`。
 按 `createdAt` 升序选择，同时间保持输入顺序。
 
 **`runningTasks` 必须由 Host 按项目根目录汇集，包含同项目所有目标的在途任务。**
@@ -58,6 +59,10 @@ P01 将写并发上限固定为 1，即使传入更大限制也不开放并行�
 
 `taskKey` 使用目标 ID、NFKC/空白/大小写规范化标题和 kind 的 JSON 数组，不依赖随机哈希。
 合并提议时保留现有记录，重新计算提议 key，丢弃重复 key 或复用 ID，不接受模型自行声明的 key 作为去重依据。
+`mergeProposedTasks(goalId, existing, proposed)` 返回 `{ tasks, rejected }`，按输入顺序逐条校验：
+异目标或跨目标依赖为 `foreign-goal`，重复为 `duplicate`，缺失依赖为 `dangling-dependency`，成环为 `cycle`。
+依赖必须已存在或已被接受，前向引用不等待后续提议；拒绝的条目不占用 key/ID，不阻断其余提议。
+调用前应确认 existing 为合法 DAG；在此前提下，返回 tasks 始终为合法 DAG。
 新增提议统一为 PENDING、planner 创建、零尝试和零版本，不能由模型自行声明已执行成功。
 
 ## 授权边界与 Host 责任

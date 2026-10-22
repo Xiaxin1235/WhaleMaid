@@ -222,6 +222,7 @@ const Config = Schema.object({ dataDir: Schema.string(), debugLogSignals: Schema
 ```
 
 WhaleDot 将 dataDir 的动态默认值在 apply 内计算，避免模块导入时固定 DSH_HOME。启动 mkdir 后写 status.json。
+F01 改用 `@deepseek-ai/dsh-atomic-write@0.2.1-rc.2` 的公开 `writeFileAtomic(path, content, { mode: 0o600 })`；出处：同版本 `.dsh-ref` 中该包 `README.md` 的 “Writing a file atomically” / “Write path”，同目录独占临时文件写完后 rename，原有写入队列保持顺序；该 API 不提供 fsync 崩溃持久性。
 settings 当前是 schema 派生表单，**不是任意 JSON KV 服务**；只暴露 `.volatile()` 字段。
 `describe(options?): SettingsDescriptor[]` 读值与 revision，`update(ns,patch,expectedRevision?)`、
 `replace(ns,section,expectedRevision?)`、`mutate(ns,ops,expectedRevision?)` 异步持久化配置。

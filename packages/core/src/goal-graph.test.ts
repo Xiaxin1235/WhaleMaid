@@ -56,7 +56,7 @@ describe('task dependency graph', () => {
     expect(readyTasks(tasks)).toEqual([])
     expect(selectNextTask(makeGoal(), tasks, [], DEFAULT_LIMITS)).toEqual({
       task: null,
-      reason: 'no-ready-task',
+      reason: 'invalid-graph',
     })
   })
   test('promotes only PENDING tasks whose dependencies all succeeded', () => {
@@ -78,6 +78,16 @@ describe('task dependency graph', () => {
 
 describe('task selection', () => {
   const goal = makeGoal()
+  test.each([
+    [makeTask('dangling', { state: 'READY', dependsOn: [id('missing')] })],
+    [makeTask('duplicate'), makeTask('duplicate')],
+    [
+      makeTask('foreign', { goalId: GoalIdSchema.parse('other') }),
+      makeTask('dependent', { dependsOn: [id('foreign')] }),
+    ],
+  ])('distinguishes corrupt graphs from an idle queue: %o', (...tasks) => {
+    expect(selectNextTask(goal, tasks, [], DEFAULT_LIMITS)).toEqual({ task: null, reason: 'invalid-graph' })
+  })
   test.each(['draft', 'paused', 'succeeded', 'cancelled'] as const)(
     'does not schedule %s goals',
     (status) => {
@@ -167,10 +177,14 @@ describe('proposal deduplication', () => {
       makeTask('a', { title: 'reused ID' }),
     ]
     const snapshot = structuredClone([existing, proposed])
-    const result = mergeProposedTasks(existing, proposed)
-    expect(result.map((task) => task.id)).toEqual(['a', 'c'])
-    expect(result[0]).toBe(existing[0])
-    expect(result[1]?.key).toBe(taskKey(goalId, 'New task', 'edit'))
+    const result = mergeProposedTasks(goalId, existing, proposed)
+    expect(result.tasks.map((task) => task.id)).toEqual(['a', 'c'])
+    expect(result.tasks[0]).toBe(existing[0])
+    expect(result.tasks[1]?.key).toBe(taskKey(goalId, 'New task', 'edit'))
+    expect(result.rejected).toEqual(
+      [proposed[0], proposed[2], proposed[3]].map((task) => ({ task, reason: 'duplicate' })),
+    )
+    expect(validateDag(result.tasks).ok).toBe(true)
     expect([existing, proposed]).toEqual(snapshot)
   })
   test('model proposals cannot declare execution success, user authorship or prior attempts', () => {
@@ -180,12 +194,68 @@ describe('proposal deduplication', () => {
       version: 99,
       createdBy: 'user',
     })
-    expect(mergeProposedTasks([], [proposed])[0]).toMatchObject({
+    const result = mergeProposedTasks(goalId, [], [proposed])
+    expect(result.tasks[0]).toMatchObject({
       state: 'PENDING',
       attempts: 0,
       version: 0,
       createdBy: 'planner',
     })
+    expect(result.rejected).toEqual([])
+    expect(validateDag(result.tasks).ok).toBe(true)
     expect(proposed.state).toBe('SUCCEEDED')
+  })
+  test('rejects foreign, dangling and cyclic proposals individually while accepting the remaining DAG', () => {
+    const existing = [makeTask('base', { state: 'SUCCEEDED', version: 4 })]
+    const proposed = [
+      makeTask('foreign', { goalId: GoalIdSchema.parse('other') }),
+      makeTask('bad-dependency', { dependsOn: [id('missing')] }),
+      makeTask('self-cycle', { dependsOn: [id('self-cycle')] }),
+      makeTask('valid', { dependsOn: [id('base')] }),
+      makeTask('valid-child', { dependsOn: [id('valid')] }),
+      makeTask('duplicate-child', { title: 'VALID-CHILD' }),
+      makeTask('valid-child', { title: 'Reused accepted ID' }),
+    ]
+    const before = structuredClone([existing, proposed])
+    expect(validateDag(existing).ok).toBe(true)
+    const result = mergeProposedTasks(goalId, existing, proposed)
+    expect(result.tasks.map((task) => task.id)).toEqual(['base', 'valid', 'valid-child'])
+    expect(result.tasks[0]).toBe(existing[0])
+    expect(result.rejected).toEqual([
+      { task: proposed[0], reason: 'foreign-goal' },
+      { task: proposed[1], reason: 'dangling-dependency' },
+      { task: proposed[2], reason: 'cycle' },
+      { task: proposed[5], reason: 'duplicate' },
+      { task: proposed[6], reason: 'duplicate' },
+    ])
+    expect(validateDag(result.tasks).ok).toBe(true)
+    expect([existing, proposed]).toEqual(before)
+  })
+  test('forward dependencies are rejected in order without reserving their key or ID', () => {
+    const proposed = [
+      makeTask('child', { dependsOn: [id('parent')] }),
+      makeTask('parent'),
+      makeTask('child', { dependsOn: [id('parent')] }),
+    ]
+    const result = mergeProposedTasks(goalId, [], proposed)
+    expect(result.rejected).toEqual([{ task: proposed[0], reason: 'dangling-dependency' }])
+    expect(result.tasks.map((task) => task.id)).toEqual(['parent', 'child'])
+    expect(validateDag(result.tasks).ok).toBe(true)
+  })
+  test('rejects a dependency on another goal without disturbing existing records', () => {
+    const existing = [makeTask('foreign', { goalId: GoalIdSchema.parse('other') })]
+    const proposed = [makeTask('dependent', { dependsOn: [id('foreign')] }), makeTask('independent')]
+    expect(validateDag(existing).ok).toBe(true)
+    const result = mergeProposedTasks(goalId, existing, proposed)
+    expect(result.rejected).toEqual([{ task: proposed[0], reason: 'foreign-goal' }])
+    expect(result.tasks.map((task) => task.id)).toEqual(['foreign', 'independent'])
+    expect(validateDag(result.tasks).ok).toBe(true)
+  })
+  test('an empty proposal batch retains a valid existing DAG', () => {
+    const existing = [makeTask('base')]
+    const result = mergeProposedTasks(goalId, existing, [])
+    expect(result).toEqual({ tasks: existing, rejected: [] })
+    expect(result.tasks).not.toBe(existing)
+    expect(validateDag(result.tasks).ok).toBe(true)
   })
 })

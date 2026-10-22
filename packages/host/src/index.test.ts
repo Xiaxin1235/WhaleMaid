@@ -1,6 +1,7 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { createRequire } from 'node:module'
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, expect, test, vi } from 'vitest'
 import { apply, Config, name } from './index.js'
@@ -41,6 +42,42 @@ test('loads through real Cordis and writes service availability', async () => {
   await expect
     .poll(async () => JSON.parse(await readFile(join(dir, 'status.json'), 'utf8')))
     .toMatchObject({ services: { userQuestions: true } })
+})
+
+test('status updates replace the file inode with a complete snapshot', async () => {
+  const { ctx, dir } = await setup()
+  const path = join(dir, 'status.json')
+  const previous = '{"previous":"complete snapshot"}\n'
+  await writeFile(path, previous)
+  const before = await stat(path, { bigint: true })
+  await apply(ctx, { dataDir: dir })
+  expect((await stat(path, { bigint: true })).ino).not.toBe(before.ino)
+  expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({
+    version: '0.0.0',
+    services: { gateway: false, commands: false, userQuestions: false },
+  })
+  expect(await readdir(dir)).toEqual(['status.json'])
+})
+
+test('atomic replacement failure is logged without rejecting startup or leaving temporary files', async () => {
+  const { ctx, dir } = await setup()
+  await mkdir(join(dir, 'status.json'))
+  await expect(apply(ctx, { dataDir: dir })).resolves.toBeUndefined()
+  expect(await readdir(dir)).toEqual(['status.json'])
+  expect(await readdir(join(dir, 'status.json'))).toEqual([])
+  expect(ctx.logger.buffer.some((row) => row.type === 'error' && row.args[0] === 'plugin degraded')).toBe(
+    true,
+  )
+})
+
+test('host declares compatible dependency ranges for home paths and schemastery', () => {
+  const manifest = createRequire(import.meta.url)('dsh-whaledot/package.json') as {
+    dependencies: Record<string, string>
+  }
+  expect(manifest.dependencies).toMatchObject({
+    '@deepseek-ai/dsh-home-paths': '^0.2.1-rc.2',
+    '@deepseek-ai/schemastery': '^3.18.4',
+  })
 })
 
 test('synchronous initialization error is contained even if logger is unavailable', async () => {

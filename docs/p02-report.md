@@ -6,14 +6,14 @@
 已实现 session 事件桥、只聚合被 watch 会话的 RunTracker、Config、dataDir/status.json、可选服务探测与启动异常降级。
 九项 API 查证见 [dsh-api-notes.md](dsh-api-notes.md)。本轮未实现 P03 面板、P04 通知、P08 会话创建/驱动。
 
-| 变更              | 行为                                                                                                                      |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| session-events.ts | 按真实 `{type,seq,time,data}` 映射四类会话事件和销毁；不复制原始消息、参数、结果内容；tool/result 无工具名故省略 toolName |
-| 结束原因          | 六种已支持原因原样保留；forked、未来值及缺失原因映射 unknown，不当作 completed                                            |
-| RunTracker        | watch/unwatch、快照、注入 Clock、计数、结束回调；销毁中断记 aborted；结束后重复事件不再回调                               |
-| 观察边界          | RunTracker 不为未登记会话保留内容或状态；debugLogSignals 默认 false，开启时仅输出窄结构信号                               |
-| status.json       | 插件版本、启动时间、gateway/commands/userQuestions 可用性；服务晚到及卸载时更新，异步写入按顺序完成                       |
-| 宿主隔离          | 测试仅在 `.dsh-dev/profiles/whaledot-p02`；没有复制用户配置/凭据，没有向用户 profile 安装插件                             |
+| 变更              | 行为                                                                                                                                      |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| session-events.ts | 按真实 `{type,seq,time,data}` 映射四类会话事件和销毁；不复制原始消息、参数、结果内容；tool/result 无工具名故省略 toolName                 |
+| 结束原因          | 六种已支持原因原样保留；forked、未来值及缺失原因映射 unknown，不当作 completed                                                            |
+| RunTracker        | watch/unwatch、快照、注入 Clock、计数、结束回调；销毁中断记 unknown，endSource 保留 turn-end / session-disposed；结束后重复事件不再回调   |
+| 观察边界          | RunTracker 不为未登记会话保留内容或状态；debugLogSignals 默认 false，开启时仅输出窄结构信号                                               |
+| status.json       | 插件版本、启动时间、gateway/commands/userQuestions 可用性；服务晚到及卸载时更新，异步写入按顺序完成；使用同目录临时文件 + rename 原子替换 |
+| 宿主隔离          | 测试仅在 `.dsh-dev/profiles/whaledot-p02`；没有复制用户配置/凭据，没有向用户 profile 安装插件                                             |
 
 实施时 P01 尚未合入，最初按 P02 允许方式使用 host 同名 Clock 接口。P01 随后已合入为
 `2d1e80d`，最终对接改用 `@whaledot/core` 的 Clock 类型，host 不再重复定义。
@@ -31,6 +31,7 @@
 
 映射测试夹具注释给出同版本声明来源；检查真实 payload 层级、全部已支持原因、forked/未来/缺失原因、忽略非目标事件、取消订阅及部分订阅失败回滚。
 初始化测试使用真实 Cordis，覆盖 status 文件、晚加载服务、同步 logger 异常和异步文件系统异常。
+F01 修正补充：会话销毁的 unknown 结果及结束来源、销毁后重复事件、状态文件原子替换和失败降级、依赖范围均有回归测试。
 覆盖率命令：`pnpm exec vitest run --project host --coverage.include=packages/host/src/bridge/run-tracker.ts --coverage.reporter=text --coverage.reportsDirectory=.dsh-dev/p02-coverage`。
 
 ## 真实宿主手工验收

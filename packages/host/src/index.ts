@@ -1,7 +1,8 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
+import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import Schema from '@deepseek-ai/schemastery'
 import { createRequire } from 'node:module'
 import { RunTracker } from './bridge/run-tracker.js'
@@ -42,7 +43,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     let writes = Promise.resolve()
     const saveStatus = (): Promise<void> => {
       const snapshot = JSON.stringify(status, null, 2) + '\n'
-      writes = writes.then(() => writeFile(join(dataDir, 'status.json'), snapshot)).catch(report)
+      writes = writes
+        .then(() => writeFileAtomic(join(dataDir, 'status.json'), snapshot, { mode: 0o600 }))
+        .catch(report)
       return writes
     }
     await mkdir(dataDir, { recursive: true })

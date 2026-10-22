@@ -7,6 +7,7 @@ export interface RunState {
   sessionId: string
   status: 'running' | 'ended'
   endReason: RunSignal['endReason'] | null
+  endSource: 'turn-end' | 'session-disposed' | null
   toolCalls: number
   startedAt: number
   endedAt: number | null
@@ -29,6 +30,7 @@ export class RunTracker {
       sessionId,
       status: 'running',
       endReason: null,
+      endSource: null,
       toolCalls: 0,
       startedAt: this.clock.now(),
       endedAt: null,
@@ -59,7 +61,8 @@ export class RunTracker {
       case 'turn-end':
       case 'session-disposed':
         run.status = 'ended'
-        run.endReason = signal.kind === 'session-disposed' ? 'aborted' : (signal.endReason ?? 'unknown')
+        run.endReason = signal.kind === 'session-disposed' ? 'unknown' : (signal.endReason ?? 'unknown')
+        run.endSource = signal.kind
         run.endedAt = this.clock.now()
         this.onRunEnded({ ...run })
         break
