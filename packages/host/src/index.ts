@@ -1,12 +1,16 @@
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
-import type { Context } from '@deepseek-ai/cordis'
+import type { Context, Volatile } from '@deepseek-ai/cordis'
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import Schema from '@deepseek-ai/schemastery'
 import { createRequire } from 'node:module'
 import { RunTracker } from './bridge/run-tracker.js'
 import { createSessionEventSource } from './bridge/session-events.js'
+import { installPanelApi } from './panel-api/index.js'
+import { LanguageSchema } from './panel-api/contract.js'
+import type { PanelStatus } from './panel-api/contract.js'
+import type { LanguageSetting } from '@whaledot/core'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -15,11 +19,17 @@ export const inject: string[] = []
 export interface Config {
   dataDir?: string
   debugLogSignals?: boolean
+  language?: Volatile<LanguageSetting>
 }
-export const Config: Schema<Config> = Schema.object({
-  dataDir: Schema.string().description('Data directory; defaults to <DSH_HOME>/whaledot'),
-  debugLogSignals: Schema.boolean().default(false),
-})
+export const Config: Schema<Omit<Config, 'language'> & { language?: LanguageSetting }, Config> =
+  Schema.object({
+    dataDir: Schema.string().description('Data directory; defaults to <DSH_HOME>/whaledot'),
+    debugLogSignals: Schema.boolean().default(false),
+    language: Schema.union(['auto', 'zh-CN', 'en'])
+      .default('auto')
+      .volatile()
+      .description('WhaleDot language / 语言'),
+  })
 
 /** All initialization paths, including optional-service callbacks and async IO, degrade locally. */
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
@@ -37,7 +47,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     const status = {
       version,
       startedAt: Date.now(),
-      services: { gateway: false, commands: false, userQuestions: false },
+      dataDir,
+      services: {
+        gateway: false,
+        commands: false,
+        userQuestions: false,
+        approval: false,
+        permissionPresets: false,
+        tools: false,
+      },
     }
     // Ordered snapshots prevent late service notifications overwriting newer availability.
     let writes = Promise.resolve()
@@ -50,6 +68,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
     await mkdir(dataDir, { recursive: true })
     await saveStatus()
+    installPanelApi(ctx, (): PanelStatus => ({
+      ...status,
+      services: { ...status.services },
+      coopanion: ctx.get('coopanion') !== undefined,
+      language: LanguageSchema.parse(config.language?.get() ?? 'auto'),
+    }))
     const clock = { now: () => Date.now() }
     const tracker = new RunTracker(clock, () => {})
     const source = createSessionEventSource(ctx, clock.now)
@@ -66,6 +90,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ['typertGateway', 'gateway'],
       ['commands', 'commands'],
       ['userQuestions', 'userQuestions'],
+      ['approval', 'approval'],
+      ['permissionPresets', 'permissionPresets'],
+      ['tools', 'tools'],
     ] as const) {
       const child = ctx.inject([service], (childCtx) => {
         try {

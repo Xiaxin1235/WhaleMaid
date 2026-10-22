@@ -27,7 +27,8 @@ test('loads through real Cordis and writes service availability', async () => {
   ctx.provide('typertGateway', {})
   await apply(ctx, { dataDir: dir })
   expect(name).toBe('whaledot')
-  expect(Config({})).toEqual({ debugLogSignals: false })
+  expect(Config({}).language?.get()).toBe('auto')
+  expect(Config({}).debugLogSignals).toBe(false)
   await expect
     .poll(async () => JSON.parse(await readFile(join(dir, 'status.json'), 'utf8')))
     .toMatchObject({

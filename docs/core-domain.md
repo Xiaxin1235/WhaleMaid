@@ -100,3 +100,12 @@ scope 哈希对 schema 默认值、路径别名、集合去重排序、递归键
 `pnpm --filter @whaledot/core test` 默认开启 V8 覆盖率，逐文件强制
 `task-state.ts`、`scope.ts` 行覆盖至少 90%。根 `pnpm test` 同样执行这一门槛。
 报告输出到被忽略的 `coverage/`，含文本、JSON 摘要和 HTML。
+
+## 语言范围（P03）
+
+`i18n/` 导出 `Locale = 'zh-CN' | 'en'`、`LanguageSetting`、`resolveLocale(setting, hostLocale)` 和
+`t(locale, key, params?)`；两份字典具有完全相同的 key 集合，由类型约束及运行测试共同检查。
+默认 auto 跟随 DSH，未知宿主语言回退 en；显式选择覆盖宿主语言。
+语言设置影响面板文案、WhaleDot 发给用户的通知/提问/选项文字，以及将来要求模型输出的用户可见摘要语言。
+它不影响 `ActionIntent`、日志、存储字段名和错误 code；这些继续使用英文标识符。
+本轮只交付面板文案，后续通知与摘要消费者必须复用此目录；当前不声称已经实现通知或模型摘要生成。

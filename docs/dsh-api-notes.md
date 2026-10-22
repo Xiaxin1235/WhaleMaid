@@ -269,3 +269,107 @@ ctx.inject(['userQuestions'], (child) => {
 
 不确定点：以上证据只覆盖目标版本；Cordis peer 的 ^4.0.4 表示依赖兼容范围，不表示所有 DSH 版本已验收。
 WhaleDot 必需 inject 为空：事件订阅由 Cordis 直接提供，三项服务仅探测，不阻断启动。
+
+## 10. 面板注册（P03）
+
+侧栏由 shell 声明 `sidebar.panellist`（root/list），中栏由 layout 声明 `main`（root/keyed）。
+分别注册相同的 id/key `whaledot`；侧栏仅贡献图标，shell 负责文字、选中状态、折叠形态和导航。
+通过 `ctx.slots.inject(seat, callback)` 等待声明，callback 返回注册 disposer；卸载由 fiber 收回。
+不替换 sidebar 根槽，不接管 conversation DOM。可直接调用 `ctx.layout.selectPanel('whaledot')`；
+shell 自己的面板行已经执行该操作，无须再绑定一个点击事件。
+
+```ts
+ctx.slots.inject('main', () =>
+  ctx.slots.register(
+    {
+      name: 'main',
+      key: 'whaledot',
+      inject: () => face,
+    },
+    Panel,
+  ),
+)
+ctx.slots.inject('sidebar.panellist', () =>
+  ctx.slots.register(
+    {
+      name: 'sidebar.panellist',
+      id: 'whaledot',
+      order: 30,
+      label: 'WhaleDot',
+    },
+    PanelIcon,
+  ),
+)
+```
+
+| 证据                              | 位置（参考树内）                                                                                                   |
+| --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| 中栏选择与缺失 key 行为           | `dsh-client-ui-layout/README.md:32,57`；`lib/types/client/index.d.ts:48-56`                                        |
+| 侧栏列表与同 id 配对              | `dsh-client-ui-sidebar/README.md:36-38`；`lib/types/client/contract/slots.d.ts:47-57`                              |
+| 注册和注入生命周期                | `dsh-client-ui-slots/lib/types/index.d.ts:793-806`、`inject` 声明；README 的 Slot ownership                        |
+| bundle 声明、共享 React、构建要求 | `dsh-client-modules/README.md:32-54`                                                                               |
+| 社区交叉检查                      | 本机 task-board 0.4.3 `src/client/native-panel.tsx`、`plugin-card-seat.ts`；coopanion 0.4.13 `src/client/index.ts` |
+
+`package.json` 增加 `./client` 和 `dsh.client`。浏览器文件必须是 ModuleLoader 的懒工厂，不能直接投放 tsc 的多文件 ESM；
+本项目用 esbuild 捆绑内部代码、Zod 和 core，只 external 宿主基线中的 React，不引入 UI 库。
+颜色取宿主 `--dsw-alias-*`，窗口留白取 `--dsh-frame-top-clearance`。
+本节新增声明来自同版本 npm（Desktop README 不变），来源留在 `.dsh-ref/0.2.1-rc.2/P03-NPM-TYPES.md`。
+
+## 11. client ↔ host 认证通道（P03）
+
+**推荐且实际采用：Connection 的 exact Fetch route，`ctx.connection.fetch.register()`，路径 `/api/whaledot/{status,goals,language}`。**
+客户端调用 `connection.rpc.call('/api', 'whaledot/status', {}, signal)`；没有自行创建 token，也没有依赖 loopback 判断身份。
+`webServer.register` 不用于 WhaleDot 业务路由。
+
+| 问题                    | 查证结论                                                                                                                                                                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 认证                    | DSH 根页面启动 token 仅兑换宿主签名、绑定 authority 的 Cookie；之后 `/api` 先做 Host/Origin 信任检查，再做浏览器或 API Peer 认证                                                                              |
+| 未认证如何拒绝          | 可信 Host 但无有效 Cookie → HTTP 401 `unauthorized`，发生在业务分发之前；Host/Origin 不可信 → 403                                                                                                             |
+| owner 边界              | shared Fetch handler 对 exact route 的非 owner Peer 先返回 403；WhaleDot handler 再检查 owner 和 peer 存活状态                                                                                                |
+| 身份获得                | exact route callback 只有 Request；调用宿主 `connection.admit(request)` 取得该 Cookie 对应的真实 `PeerScope`，读取 `peer.principal.kind` 和 `peer.signal`。不能从 JSON payload 推导 peer                      |
+| 注册/卸载               | 可选注入 `connection`，每个 route 的 disposer 归 child fiber 所有；没有该服务时不提供接口                                                                                                                     |
+| Gateway 与 Typert       | Gateway 独占 `/api` RPC interceptor；普通服务可用 TypertRemoteService + @Remote + 生成的 descriptor，通过 `ctx.invocation.peer` 取调用方。exact routes 与它共存，不争用 interceptor                           |
+| 另一公开 API 的实测限制 | `connection.rpc.handle('/whaledot', handler)` 声明支持独立认证通道，但 Desktop 插件环境实测在 Connection 内部报 `cannot get property "webServer" without inject`，即使调用插件注入 webServer 仍失败；未采用它 |
+
+出处：`dsh-client-connection/README.md:34,41-53`；`lib/types/rpc.d.ts:105-150,180-191,235-242`；
+`rpc-host.d.ts:35-39`；`dsh-api-gateway/README.md` 的 Host service；`dsh-typert-protocol/README.md` 的
+Exposing a Host method / Identifying the caller。peer 没有精细到“一个浏览器用户”：浏览器共享 owner Peer，
+API Cookie 则可对应独立 Peer。不能把它表述为逐用户账户隔离。
+
+运行时代码补查：Desktop asar 内同名同版本 Connection 的 `createSharedFetchHandler`、`register`、`admit` 与
+上述身份/拒绝路径一致；诊断记录在忽略的 `.dsh-dev/p03-host-diag.log`，诊断插桩仅临时作用于编译文件，最终 build 已清除。
+社区实际参照为 coopanion 0.4.13 `src/index.ts:185-196` 的 exact routes，而非复制它的业务操作。
+只读 `ctx.get('coopanion') !== undefined` 可探测其 `src/index.ts:88` 发布的服务，不调用桌宠方法。
+
+只读查看用户 `~/.dsh/profiles/web/cordis.patch.yml:12-21`，确有 managed remote-web-ui 的 `host: '0.0.0.0'`、port 3080。
+这说明配置有网络暴露意图，并不单凭文件断定当前监听状态；本轮未改动用户 profile。
+隔离验收绑定 127.0.0.1:3183/3184，认证仍须通过，不能将此绑定本身当作认证。
+
+请求载荷与三个成功响应都经过 Zod；非法 envelope HTTP 400 `{error:{code,message}}`，
+业务失败为 Connection 标准 server-response 内的 `{ok:false,error:{code,message,details:{}}}`。
+`details` 是宿主协议必需的兼容字段；code 保持稳定英文标识符。宿主 admission 层自己的 401/403 不改写。
+
+## 12. 界面语言与在线配置（P03）
+
+DSH 的 `@deepseek-ai/dsh-client-locale` 用 Host settings 的 `locale.preference` 持久化已选语言。
+内置 id 为 `zh`/`en`，浏览器可先用 navigator 推导 provisional locale，再由 Host 配置覆盖。
+client 读取 `ctx.locale.getSnapshot().active`，通过 `ctx.locale.subscribe(listener)` 监听，包括字典 revision；
+仅语言切换还可监听 `locale/change`。不要仅在注册时读一次，也不要只猜 navigator.language。
+依据：`dsh-client-locale/README.md` Choosing a language / Preference resolution；
+`lib/types/client/index.d.ts:123-144`，`locale-settings.d.ts:7-24`；task-board `client/locales.ts`、
+coopanion `src/client/locale-sync.ts` 和其 client 入口的订阅用法交叉核对。task-board 的 locales.ts 使用 document 语言而非 locale 服务，只参考其字典组织，不复制该读取策略。
+
+WhaleDot Config 的 language 为 `auto | zh-CN | en`，默认 auto，字段标记 `.volatile()`。
+**volatile 字段是稳定引用 `Volatile<T>`，必须 `.get()` 读当前值，不是普通字符串。**
+core `resolveLocale` 将宿主 `zh`/`zh-CN` 解析为 zh-CN、en 为 en，其他语言回退 en；显式设置覆盖宿主。
+纯数据目录和 `t` 同时供 host/client 使用，不引入 DSH 或浏览器依赖。
+
+面板语言写接口严格只接受 `{language}`，通过 ConfigEditor 的 `entries()` 找到 `entry.fiber === ctx.fiber` 的
+真实 Loader 条目，再从 `settings.describe()` 取得该 ns/revision 并 `settings.update(ns, patch, revision)`，
+从而复用设置页同一份持久化配置，避免写死 profile id 或修改其他字段。
+依据：`dsh-settings/lib/types/index.d.ts:96-102`，`dsh-config-editor/lib/types/index.d.ts:19-25`，
+schemastery `volatile()` 声明；coopanion Config 的 Volatile 使用也经核对。
+面板订阅宿主 locale，自己保存语言成功后立即更新；设置页或其他客户端修改则由面板每 2 秒的只读状态刷新同步。
+
+宿主 README 明确说目前没有 shipped client 自动渲染所有 autoGenerate 表单，因此只标 `.volatile()` 不保证用户能找到设置控件。
+WhaleDot 因此另在 `settings.section` 注册原生设置页，其语言下拉同样调用认证 language 方法；两处均写同一 Config。
