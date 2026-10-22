@@ -1,9 +1,6 @@
 import type { RunSignal, SessionEventSource } from './session-events.js'
-
-/** P01 is not merged yet; replace with @whaledot/core's Clock when available. */
-export interface Clock {
-  now(): number
-}
+import type { Clock } from '@whaledot/core'
+export type { Clock } from '@whaledot/core'
 
 export interface RunState {
   runId: string

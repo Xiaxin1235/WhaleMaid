@@ -15,8 +15,8 @@
 | status.json       | 插件版本、启动时间、gateway/commands/userQuestions 可用性；服务晚到及卸载时更新，异步写入按顺序完成                       |
 | 宿主隔离          | 测试仅在 `.dsh-dev/profiles/whaledot-p02`；没有复制用户配置/凭据，没有向用户 profile 安装插件                             |
 
-Clock 按 P02 允许方式暂留 host 同名结构接口 `{now():number}`。实施期间发现 P01 正在同目录并行写入，
-尚未合入当前提交，因此未将 P02 绑定到其未提交导出；P01 合入后可替换为 core 的 type import。
+实施时 P01 尚未合入，最初按 P02 允许方式使用 host 同名 Clock 接口。P01 随后已合入为
+`2d1e80d`，最终对接改用 `@whaledot/core` 的 Clock 类型，host 不再重复定义。
 
 ## 自动检查
 
