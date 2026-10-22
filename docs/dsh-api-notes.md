@@ -423,3 +423,39 @@ grant 暂不注册面板路由。撤销持久化后通过 Cordis emit 发布插�
 面板扩展 exact Fetch routes `set-paused` / `revoke-scope`；沿用 Connection admission + owner
 校验，strict 请求分别为 `{paused:boolean}` / `{scopeId}`。goals 从仓储读取；status 增加 store
 及 paused。pause 缺省 false，设置坏行/存储不可用时保守返回 true；只读模式禁用写控件。
+
+## 14. 目标草案无工具调用与确认（P07）
+
+选择优先方案 (a)，不通过 Agent loop 或 gateway 会话生成草案。依据来自 Desktop 同版本
+README，以及安装到开发依赖、复制到 `.dsh-ref/0.2.1-rc.2/@deepseek-ai/` 的 npm 同版声明：
+
+| API                                        | 出处                                                                                                      | 本次用法                                                                            |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `ctx.llm.stream(GenerateOptions)`          | dsh-llm README：Minimal composition、RequestUserInput；lib/types/index.d.ts 的 Context.llm 与 stream 声明 | 一次请求，tools=[]，只收 text-delta；finish 必须 stop；无自动重试                   |
+| `GenerateOptions` / StreamChunk            | dsh-llm/lib/types/types.d.ts:434-464,484-548                                                              | identity-free user input；signal、maxTokens；不提供任何工具，不解释模型输出中的动作 |
+| `ctx.agentDefaultModel.currentSelection()` | dsh-agent-default-model README：Read and change the default；lib/types/index.d.ts:40-47                   | 每次读取当前新会话默认 provider/model；不改模型设置，不借用另一个会话的模型状态     |
+| `ctx.get` 可选服务读取                     | Cordis 已有服务探测边界（第 8/11 节）                                                                     | 任一服务缺失或 provider/model 为空，返回 model-not-configured，面板可转手动表单     |
+
+没有绑定到某个聊天会话的面板使用当前部署的新会话模型选择；现有聊天的单独覆盖不作为
+WhaleDot 的模型来源。沿用 dsh-llm 文档支持的 RequestUserInput 一次性请求形态；草案状态、
+内容只在 Host 内存保留十分钟，不新增会话或持久化模型聊天，也不读取任何项目正文发送给模型。
+输入只有用户描述和确定性项目事实。真实模型链路已在隔离宿主验证；模型不拥有授权写入口。
+
+未找到第 10 节已查证的、可直接用于插件面板的目录选择器 API；采用文本路径输入，不猜测组件。
+Host 对目录 realpath/stat、Git 状态与候选脚本进行确定性只读探测（execFile + 参数数组），不运行
+候选命令。确认前再次探测，目录和授权路径必须是规范化的真实项目内路径；拒绝跨项目符号链接。
+为了让用户看到确认时的真实边界，项目根本身为符号链接/联接时拒绝并要求使用其真实目录。
+
+新增 owner 认证方法：draft-goal、draft-status、cancel-draft、project-facts（手动表单探测）、
+confirm-goal、goal-detail、set-goal-paused。请求均 strict 校验；draft-goal 立即返回 id，
+只允许一个在途请求，模型调用两分钟超时，十分钟自动清理；无工具、无任务执行、无 worktree。
+confirm-goal 只采信完整确认表单，在外层事务插入目标、调用 ScopeService.grant、插入 PENDING
+任务；仓储的内部事务使用保存点，因此任一步失败会回滚全部记录。确认后 goal 为 active。
+
+P07 同时修复 P06 锁恢复：超过六十秒的旧 reclaim 空目录在重新核对身份/时间后清理，再通过
+独占创建竞争；read-only 面板的 takeover-store 严格 `{confirm:true}`，要求 owner 明确确认，
+锁内容未变才接管并重开仓储，host.log 记录请求与完成。不会把存活 PID 自动判作陈旧。
+scope.hash 的作用仅为发现意外损坏/不一致，不是抵抗本机数据库写权限攻击者的安全边界。
+
+P07 的 `.env*` 是唯一新增的保护模式：仅允许路径末尾的 `.env*` 文件名前缀，不能用在
+allowedPaths，也不支持任意 glob。默认连同 `.git` 在确认表单展示；Host 拒绝删除这两项基础保护。

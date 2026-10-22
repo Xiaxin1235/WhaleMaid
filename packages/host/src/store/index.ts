@@ -43,6 +43,7 @@ export class WhaleStore {
   private readonly corrupt = new Set<string>()
   private readonly clock: Clock
   private readonly idGen: IdGen
+  private transactionDepth = 0
   readonly goals: GoalRepo
   readonly scopes: ScopeRepo
   readonly tasks: TaskRepo
@@ -161,15 +162,20 @@ export class WhaleStore {
   /** Synchronous transactions must contain no async work or external side effects. */
   transaction<T>(work: () => T): T {
     const db = this.writer()
-    db.exec('BEGIN IMMEDIATE')
+    const nested = this.transactionDepth > 0
+    const savepoint = `whaledot_${this.transactionDepth}`
+    db.exec(nested ? `SAVEPOINT ${savepoint}` : 'BEGIN IMMEDIATE')
+    this.transactionDepth++
     try {
       const result = work()
       if (result instanceof Promise) throw new Error('Async store transaction is not supported')
-      db.exec('COMMIT')
+      db.exec(nested ? `RELEASE ${savepoint}` : 'COMMIT')
       return result
     } catch (error) {
-      db.exec('ROLLBACK')
+      db.exec(nested ? `ROLLBACK TO ${savepoint}; RELEASE ${savepoint}` : 'ROLLBACK')
       throw error
+    } finally {
+      this.transactionDepth--
     }
   }
 

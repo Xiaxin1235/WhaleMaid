@@ -20,6 +20,7 @@ import {
 } from '../panel-api/contract.js'
 import { serviceRows, formatStartedAt } from './format.js'
 import styles from './panel.css'
+import { IntakeView, GoalDetailView } from './intake.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
@@ -39,6 +40,8 @@ function Panel({ ctx, connection }: Face) {
   const [saving, setSaving] = useState(false)
   const [pausing, setPausing] = useState(false)
   const [revision, refresh] = useState(0)
+  const [creating, setCreating] = useState(false)
+  const [selectedGoal, setSelectedGoal] = useState<string>()
   const locale = resolveLocale(status?.language ?? 'auto', hostLocale.active)
   const text = (key: Parameters<typeof t>[1]) => t(locale, key)
 
@@ -128,6 +131,36 @@ function Panel({ ctx, connection }: Face) {
       setSaving(false)
     }
   }
+
+  if (creating)
+    return h(
+      'main',
+      { className: 'whaledot-panel' },
+      h(IntakeView, {
+        connection,
+        locale,
+        onCancel: () => setCreating(false),
+        onCreated: (id: string) => {
+          setCreating(false)
+          setSelectedGoal(id)
+          refresh((value) => value + 1)
+        },
+      }),
+    )
+  if (selectedGoal)
+    return h(
+      'main',
+      { className: 'whaledot-panel' },
+      h(GoalDetailView, {
+        connection,
+        locale,
+        goalId: selectedGoal,
+        onBack: () => {
+          setSelectedGoal(undefined)
+          refresh((value) => value + 1)
+        },
+      }),
+    )
 
   return h(
     'main',
@@ -232,13 +265,25 @@ function Panel({ ctx, connection }: Face) {
         'div',
         { className: 'whaledot-section-title' },
         h('h2', null, text('goals')),
-        h('button', { disabled: true, title: text('afterP07') }, text('createGoal')),
+        h(
+          'button',
+          { disabled: status?.store.state !== 'ok', onClick: () => setCreating(true) },
+          text('createGoal'),
+        ),
       ),
       goals.length
         ? h(
             'ul',
             null,
-            goals.map((goal) => h('li', { key: goal.id }, goal.title)),
+            goals.map((goal) =>
+              h(
+                'li',
+                { key: goal.id },
+                h('button', { onClick: () => setSelectedGoal(goal.id) }, goal.title),
+                ' · ',
+                goal.status,
+              ),
+            ),
           )
         : h('p', { className: 'whaledot-empty' }, text('emptyGoals')),
     ),

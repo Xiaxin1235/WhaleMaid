@@ -7,6 +7,7 @@ import type {
   PeerScope,
 } from '@deepseek-ai/dsh-client-connection'
 import type { ProjectGoal, ScopeId } from '@whaledot/core'
+import type { GoalIntake } from '../goal-intake/service.js'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-config-editor'
 import {
@@ -16,7 +17,14 @@ import {
   RevokeScopeSchema,
   TakeoverSchema,
   StatusSchema,
+  PANEL_METHODS,
+  DraftStartedSchema,
+  DraftStatusSchema,
+  ProjectFactsSchema,
+  GoalDetailSchema,
+  ConfirmResultSchema,
 } from './contract.js'
+import type { PanelMethod } from './contract.js'
 import type { PanelStatus } from './contract.js'
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
@@ -27,6 +35,7 @@ export interface PanelRuntime {
   setPaused(paused: boolean): void
   revokeScope(scopeId: ScopeId, peer: PeerScope): void
   takeoverStore(): void
+  intake?: GoalIntake
 }
 
 /** Peer is supplied by Connection after admission, never accepted from a payload. */
@@ -42,6 +51,27 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'draft-goal':
+          result = DraftStartedSchema.parse(runtime.intake!.start(input, peer))
+          break
+        case 'draft-status':
+          result = DraftStatusSchema.parse(runtime.intake!.status(input, peer))
+          break
+        case 'cancel-draft':
+          result = runtime.intake!.cancel(input, peer)
+          break
+        case 'project-facts':
+          result = ProjectFactsSchema.parse(await runtime.intake!.project(input, peer))
+          break
+        case 'confirm-goal':
+          result = ConfirmResultSchema.parse(await runtime.intake!.confirm(input, peer))
+          break
+        case 'goal-detail':
+          result = GoalDetailSchema.parse(runtime.intake!.detail(input, peer))
+          break
+        case 'set-goal-paused':
+          result = GoalDetailSchema.parse(runtime.intake!.setPaused(input, peer))
+          break
         case 'status':
           result = status(input, runtime.snapshot())
           break
@@ -88,7 +118,7 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
 export function installPanelApi(
   ctx: Context,
   snapshot: () => PanelStatus,
-  storage: Pick<PanelRuntime, 'goals' | 'setPaused' | 'revokeScope' | 'takeoverStore'>,
+  storage: Pick<PanelRuntime, 'goals' | 'setPaused' | 'revokeScope' | 'takeoverStore' | 'intake'>,
 ): void {
   ctx.inject(['connection'], (child) => {
     const runtime: PanelRuntime = {
@@ -104,14 +134,7 @@ export function installPanelApi(
         await settings.update(form.ns, patch, form.revision)
       },
     }
-    for (const method of [
-      'status',
-      'goals',
-      'language',
-      'set-paused',
-      'revoke-scope',
-      'takeover-store',
-    ] as const) {
+    for (const method of PANEL_METHODS) {
       child.effect(() =>
         child.connection.fetch.register(
           createPanelRoute(method, runtime, (request) => child.connection.admit(request)),
@@ -123,7 +146,7 @@ export function installPanelApi(
 
 /** Exact Connection routes coexist with Gateway's exclusive /api interceptor. */
 export function createPanelRoute(
-  method: 'status' | 'goals' | 'language' | 'set-paused' | 'revoke-scope' | 'takeover-store',
+  method: PanelMethod,
   runtime: PanelRuntime,
   admit: HostConnectionHandle['admit'],
 ): ConnectionFetchRoute {

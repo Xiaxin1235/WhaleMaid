@@ -5,14 +5,15 @@
 
 ## 模型与错误
 
-| 文件            | 导出                                                                   |
-| --------------- | ---------------------------------------------------------------------- |
-| `infra.ts`      | `Clock`、`IdGen`、`ScopeHasher`、`Result`；测试用固定时钟、隔离序列 ID |
-| `model/ids.ts`  | 所有实体及会话 ID 的 Zod 品牌类型与 schema                             |
-| `model/*.ts`    | 11 个实体的 schema 与推导类型；12 种 `ActionIntent`                    |
-| `task-state.ts` | `TASK_TRANSITIONS`、`transition`                                       |
-| `goal-graph.ts` | DAG 校验、READY 候选、并发选择、提议去重                               |
-| `scope.ts`      | 路径边界、命令分类、动作门禁、规范化内容及注入哈希                     |
+| 文件            | 导出                                                                     |
+| --------------- | ------------------------------------------------------------------------ |
+| `infra.ts`      | `Clock`、`IdGen`、`ScopeHasher`、`Result`；测试用固定时钟、隔离序列 ID   |
+| `model/ids.ts`  | 所有实体及会话 ID 的 Zod 品牌类型与 schema                               |
+| `model/*.ts`    | 11 个实体的 schema 与推导类型；12 种 `ActionIntent`                      |
+| `task-state.ts` | `TASK_TRANSITIONS`、`transition`                                         |
+| `goal-graph.ts` | DAG 校验、READY 候选、并发选择、提议去重                                 |
+| `scope.ts`      | 路径边界、命令分类、动作门禁、规范化内容及注入哈希                       |
+| `goal-draft.ts` | P07 草案与完整确认表单 schema、提示词、JSON 解析、确认值转记录与提议去重 |
 
 品牌 ID 经对应 schema 解析取得，不能在 TypeScript 中混用不同实体的 ID。
 实体 schema 拒绝未知字段；可选时间字段与草案目标的 `scopeId` 使用缺省字段表示。
@@ -96,6 +97,10 @@ scope 哈希对 schema 默认值、路径别名、集合去重排序、递归键
 该摘要用于内容一致性比较，不是签名或授权来源证明；core 不调用 `node:crypto`。
 摘要与数据存在同一数据库，只能发现意外损坏或不一致，不是防篡改安全边界；拥有本机数据库
 写权限的人可以同时改数据并重算摘要，这类本机攻击者超出 WhaleDot 的防护范围。
+
+P07 为 protectedPaths 增加唯一的文件名前缀模式：末尾 `.env*`，表示该位置以 `.env` 开头的
+文件或目录；不支持任意 glob，allowedPaths 仍只接受普通绝对路径。Host 对模式去掉末尾星号后
+解析真实路径或最近存在父目录，再保留星号交给 core；默认 `.git` 与 `.env*` 都须显示在确认表单。
 
 ## 验证
 

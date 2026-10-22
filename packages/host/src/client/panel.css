@@ -123,3 +123,64 @@
   border-radius: 8px;
   margin-inline-start: 20px;
 }
+.whaledot-intake fieldset {
+  margin: 16px 0;
+  border: 1px solid var(--border-color, #555);
+  border-radius: 8px;
+  padding: 16px;
+}
+.whaledot-intake legend {
+  font-weight: 600;
+  padding: 0 8px;
+}
+.whaledot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+}
+.whaledot-field input,
+.whaledot-field textarea,
+.whaledot-intake select {
+  color: inherit;
+  background: var(--bg-secondary, #252525);
+  border: 1px solid var(--border-color, #666);
+  border-radius: 5px;
+  padding: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.whaledot-field textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+.whaledot-check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin: 8px 16px 8px 0;
+}
+.whaledot-task-editor,
+.whaledot-command {
+  border-top: 1px solid var(--border-color, #555);
+  padding: 12px 0;
+}
+.whaledot-task-editor small,
+.whaledot-detail small {
+  display: block;
+  margin: 8px 0;
+}
+.whaledot-summary {
+  padding: 16px;
+  border-left: 3px solid var(--accent-color, #88aaff);
+  background: var(--bg-secondary, #252525);
+  overflow-wrap: anywhere;
+}
+.whaledot-detail dd {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.whaledot-intake button,
+.whaledot-detail button {
+  margin: 6px 8px 6px 0;
+}

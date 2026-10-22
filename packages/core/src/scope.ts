@@ -22,13 +22,21 @@ function sortedSet(values: readonly string[]): string[] {
   return [...new Set(values)].sort()
 }
 
+function normalizeProtection(path: string): string | null {
+  if (/[\\/]\.env\*$/i.test(path)) {
+    const prefix = normalizeWindowsPath(path.slice(0, -1))
+    return prefix === null ? null : prefix + '*'
+  }
+  return normalizeWindowsPath(path)
+}
+
 /** Canonicalize scope fields, path aliases and set ordering, excluding the stored hash itself. */
 export function canonicalScopeContent(scope: ScopeContent): Result<string, ScopeHashError> {
   const content = Object.fromEntries(Object.entries(scope).filter(([key]) => key !== 'hash'))
   const parsed = ScopeContentSchema.safeParse(content)
   if (!parsed.success) return { ok: false, error: { code: 'invalid-scope-content' } }
   const allowedPaths = parsed.data.allowedPaths.map(normalizeWindowsPath)
-  const protectedPaths = parsed.data.protectedPaths.map(normalizeWindowsPath)
+  const protectedPaths = parsed.data.protectedPaths.map(normalizeProtection)
   if (allowedPaths.some((path) => path === null) || protectedPaths.some((path) => path === null)) {
     return { ok: false, error: { code: 'invalid-scope-path' } }
   }
@@ -59,9 +67,15 @@ export function isPathAllowed(scope: AuthorizationScope, absPath: string): boole
   const path = normalizeWindowsPath(absPath)
   if (path === null) return false
   const allowed = scope.allowedPaths.map(normalizeWindowsPath)
-  const protectedRoots = scope.protectedPaths.map(normalizeWindowsPath)
+  const protectedRoots = scope.protectedPaths.map(normalizeProtection)
   if (allowed.some((root) => root === null) || protectedRoots.some((root) => root === null)) return false
-  if (protectedRoots.some((root) => root !== null && isWithinPath(path, root))) return false
+  if (
+    protectedRoots.some(
+      (root) =>
+        root !== null && (root.endsWith('*') ? path.startsWith(root.slice(0, -1)) : isWithinPath(path, root)),
+    )
+  )
+    return false
   return allowed.some((root) => root !== null && isWithinPath(path, root))
 }
 

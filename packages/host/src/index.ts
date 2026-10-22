@@ -14,6 +14,8 @@ import type { LanguageSetting } from '@whaledot/core'
 import { DebugLog } from './debug-log.js'
 import { WhaleStore } from './store/index.js'
 import { createScopeService } from './scope-service.js'
+import { GoalIntake } from './goal-intake/service.js'
+import { dshDraftModel } from './goal-intake/model.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -75,6 +77,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     const store = new WhaleStore(dataDir, { log: (message, error) => debug.host(message, error) })
     ctx.effect(() => () => store.close())
     const scopes = createScopeService(ctx, store, (message, error) => debug.host(message, error))
+    const intake = new GoalIntake(store, scopes, dshDraftModel(ctx))
+    ctx.effect(() => () => intake.dispose())
     await saveStatus()
     installPanelApi(
       ctx,
@@ -93,6 +97,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         goals: () => store.goals.list(),
         setPaused: (paused) => store.setPaused(paused),
         takeoverStore: () => store.takeover(),
+        intake,
         revokeScope: (scopeId, peer) => {
           scopes.revoke(scopeId, peer)
         },

@@ -1,5 +1,12 @@
 import { z } from 'zod'
-import { ProjectGoalSchema, ScopeIdSchema } from '@whaledot/core'
+import {
+  ProjectGoalSchema,
+  ScopeIdSchema,
+  GoalDraftSchema,
+  TaskSchema,
+  AuthorizationScopeSchema,
+  StateTransitionSchema,
+} from '@whaledot/core'
 
 export const LanguageSchema = z.enum(['auto', 'zh-CN', 'en'])
 export const EmptyRequestSchema = z.strictObject({})
@@ -7,6 +14,59 @@ export const LanguageRequestSchema = z.strictObject({ language: LanguageSchema }
 export const PausedSchema = z.strictObject({ paused: z.boolean() })
 export const RevokeScopeSchema = z.strictObject({ scopeId: ScopeIdSchema })
 export const TakeoverSchema = z.strictObject({ confirm: z.literal(true) })
+export const PANEL_METHODS = [
+  'status',
+  'goals',
+  'language',
+  'set-paused',
+  'revoke-scope',
+  'takeover-store',
+  'draft-goal',
+  'draft-status',
+  'cancel-draft',
+  'project-facts',
+  'confirm-goal',
+  'goal-detail',
+  'set-goal-paused',
+] as const
+export type PanelMethod = (typeof PANEL_METHODS)[number]
+export const ProjectFactsSchema = z.strictObject({
+  projectRoot: z.string(),
+  isGit: z.boolean(),
+  clean: z.boolean(),
+  branch: z.string().nullable(),
+  candidateCommands: z.array(
+    z.strictObject({
+      command: z.string(),
+      class: z.enum(['safe', 'needs-approval', 'forbidden']),
+      reasons: z.array(z.string()),
+    }),
+  ),
+})
+export const DraftStatusSchema = z.strictObject({
+  state: z.enum(['running', 'ready', 'failed']),
+  draft: GoalDraftSchema.optional(),
+  projectFacts: ProjectFactsSchema.optional(),
+  error: z.string().optional(),
+})
+export const DraftStartedSchema = z.strictObject({ draftId: z.string() })
+export const GoalDetailSchema = z.strictObject({
+  goal: ProjectGoalSchema,
+  scope: AuthorizationScopeSchema.nullable(),
+  activeScope: AuthorizationScopeSchema.nullable(),
+  tasks: z.array(TaskSchema),
+  transitions: z.array(StateTransitionSchema),
+})
+export const ConfirmResultSchema = z.strictObject({
+  goal: ProjectGoalSchema,
+  scope: AuthorizationScopeSchema,
+  rejected: z.array(
+    z.strictObject({
+      task: TaskSchema,
+      reason: z.enum(['foreign-goal', 'duplicate', 'dangling-dependency', 'cycle']),
+    }),
+  ),
+})
 export const ServicesSchema = z.strictObject({
   gateway: z.boolean(),
   commands: z.boolean(),
