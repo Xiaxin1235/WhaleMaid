@@ -4,6 +4,7 @@ import {
   t,
   classifyCommand,
   DEFAULT_LIMITS,
+  DEFAULT_PROTECTED_NAMES,
   DEFAULT_INTAKE_ACTIONS,
   IntakeActionSchema,
   ConfirmedGoalFormSchema,
@@ -113,6 +114,7 @@ export function IntakeView({
           /^[a-z]:[\\/]/i.test(path) ? path : pathAt(next.projectRoot, path),
         ),
       ],
+      protectedNames: [...DEFAULT_PROTECTED_NAMES],
       permissionPreset: 'read-only',
       allowedActions: [...DEFAULT_INTAKE_ACTIONS],
       verifyCommands: [],
@@ -385,6 +387,16 @@ export function IntakeView({
               text('protectedPaths'),
               form.protectedPaths.join('\n'),
               (value) => edit({ protectedPaths: lines(value) }),
+              true,
+            ),
+            h('p', null, `${text('defaultProtectedNames')}: ${DEFAULT_PROTECTED_NAMES.join(', ')}`),
+            field(
+              text('protectedNames'),
+              form.protectedNames
+                .filter((name) => !DEFAULT_PROTECTED_NAMES.some((item) => item === name))
+                .join('\n'),
+              (value) =>
+                edit({ protectedNames: [...DEFAULT_PROTECTED_NAMES, ...lines(value).filter(Boolean)] }),
               true,
             ),
             h(
@@ -741,6 +753,10 @@ export function GoalDetailView({
                     [text('permissionPreset')]: scope.permissionPreset,
                     [text('allowedPaths')]: scope.allowedPaths.join('\n'),
                     [text('protectedPaths')]: scope.protectedPaths.join('\n'),
+                    [text('protectedNames')]: scope.protectedNames.join(', '),
+                    ...(scope.legacyAuthorization
+                      ? { [text('permissionPreset') + ' ⚠']: text('legacyAuthorization') }
+                      : {}),
                     [text('allowedActions')]: scope.allowedActions.join(', '),
                     [text('verifyCommands')]: scope.verifyCommands.join('\n') || text('none'),
                     [text('executionLimits')]: Object.entries(scope.limits)

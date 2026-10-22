@@ -1,3 +1,4 @@
+import { DEFAULT_PROTECTED_NAMES } from '../src/model/authorization.js'
 import { DEFAULT_LIMITS } from '../src/model/limits.js'
 import { DEFAULT_INTAKE_ACTIONS } from '../src/goal-draft.js'
 import type { GoalDraft, ConfirmedGoalForm } from '../src/goal-draft.js'
@@ -28,6 +29,7 @@ export function confirmed(projectRoot = 'C:\\proj'): ConfirmedGoalForm {
     projectRoot,
     allowedPaths: [projectRoot],
     protectedPaths: [projectRoot + '\\.git', projectRoot + '\\.env*'],
+    protectedNames: [...DEFAULT_PROTECTED_NAMES],
     allowedActions: [...DEFAULT_INTAKE_ACTIONS],
     permissionPreset: 'read-only',
     verifyCommands: [],

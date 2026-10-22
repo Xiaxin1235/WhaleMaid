@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { AuthorizationScopeSchema, DEFAULT_PROTECTED_NAMES, hashScope } from '@whaledot/core'
 import type { DatabaseSync } from 'node:sqlite'
 
 export interface Migration {
@@ -39,6 +41,26 @@ export const MIGRATIONS: readonly Migration[] = [
         CREATE TABLE suggestions (id TEXT PRIMARY KEY, data TEXT NOT NULL);
         CREATE TABLE kv_settings (id TEXT PRIMARY KEY, data TEXT NOT NULL);
       `)
+    },
+  },
+  {
+    version: 2,
+    up(db) {
+      for (const row of db.prepare('SELECT id,data FROM scopes').all()) {
+        const input: unknown = JSON.parse(String(row.data))
+        if (!input || typeof input !== 'object' || 'protectedNames' in input) continue
+        const scope = AuthorizationScopeSchema.parse({
+          ...input,
+          protectedNames: [...DEFAULT_PROTECTED_NAMES],
+          legacyAuthorization: true,
+        })
+        const digest = hashScope(scope, { hash: (value) => createHash('sha256').update(value).digest('hex') })
+        if (!digest.ok) throw new Error('scope-migration-invalid')
+        db.prepare('UPDATE scopes SET data=? WHERE id=?').run(
+          JSON.stringify({ ...scope, hash: digest.value }),
+          String(row.id),
+        )
+      }
     },
   },
 ]

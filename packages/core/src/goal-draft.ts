@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { ProtectedNamesSchema, DEFAULT_PROTECTED_NAMES } from './model/authorization.js'
 import type { Clock, IdGen, Result } from './infra.js'
 import { GoalIdSchema, TaskIdSchema } from './model/ids.js'
 import { TaskKindSchema } from './model/common.js'
@@ -66,6 +67,10 @@ export const ConfirmedGoalFormSchema = z
     projectRoot: text(2000),
     allowedPaths: z.array(text(2000)).min(1).max(30),
     protectedPaths: z.array(text(2000)).max(30),
+    protectedNames: ProtectedNamesSchema.refine(
+      (names) => DEFAULT_PROTECTED_NAMES.every((item) => names.some((name) => name.toLowerCase() === item)),
+      'default-protections-required',
+    ),
     allowedActions: z.array(IntakeActionSchema).max(8),
     permissionPreset: z.enum(['read-only', 'workspace-write']),
     verifyCommands: z
@@ -181,6 +186,7 @@ export function draftToRecords(
     goalId: id,
     allowedPaths: form.allowedPaths,
     protectedPaths: form.protectedPaths,
+    protectedNames: form.protectedNames,
     allowedActions: form.allowedActions,
     forbiddenActions: [],
     verifyCommands: form.verifyCommands,

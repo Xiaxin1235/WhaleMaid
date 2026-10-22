@@ -46,6 +46,7 @@ export function canonicalScopeContent(scope: ScopeContent): Result<string, Scope
       ...parsed.data,
       allowedPaths: sortedSet(allowedPaths as string[]),
       protectedPaths: sortedSet(protectedPaths as string[]),
+      protectedNames: sortedSet(parsed.data.protectedNames.map((name) => name.toLowerCase())),
       allowedActions: sortedSet(parsed.data.allowedActions),
       forbiddenActions: sortedSet(parsed.data.forbiddenActions),
       verifyCommands: sortedSet(parsed.data.verifyCommands),
@@ -66,6 +67,24 @@ export function isPathAllowed(scope: AuthorizationScope, absPath: string): boole
   if (scope.status !== 'active') return false
   const path = normalizeWindowsPath(absPath)
   if (path === null) return false
+  if (
+    scope.protectedNames.some((pattern) => {
+      const expression = new RegExp(
+        '^' +
+          pattern
+            .split('*')
+            .map((part) => part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+            .join('.*') +
+          '$',
+        'i',
+      )
+      return path
+        .slice(3)
+        .split('\\')
+        .some((part) => expression.test(part))
+    })
+  )
+    return false
   const allowed = scope.allowedPaths.map(normalizeWindowsPath)
   const protectedRoots = scope.protectedPaths.map(normalizeProtection)
   if (allowed.some((root) => root === null) || protectedRoots.some((root) => root === null)) return false

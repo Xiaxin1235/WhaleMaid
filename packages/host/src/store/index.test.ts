@@ -4,9 +4,10 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, expect, test, vi } from 'vitest'
-import { fixedClock, sequenceIdGen, RunSchema } from '@whaledot/core'
+import { fixedClock, sequenceIdGen, RunSchema, DEFAULT_PROTECTED_NAMES, hashScope } from '@whaledot/core'
 import { makeGoal, makeTask } from '../../../core/tests/fixtures.js'
-import { WhaleStore } from './index.js'
+import { makeScope } from '../../../core/tests/fixtures.js'
+import { WhaleStore, sha256 } from './index.js'
 import { MIGRATIONS } from './migrations.js'
 import type { Migration } from './migrations.js'
 
@@ -68,7 +69,9 @@ test('migrations are ordered/idempotent; PRAGMAs and all required tables exist',
         'kv_settings',
       ].sort(),
     )
-    expect(db.prepare('SELECT version FROM schema_migrations').all()).toEqual([{ version: 1 }])
+    expect(db.prepare('SELECT version FROM schema_migrations').all()).toEqual(
+      MIGRATIONS.map(({ version }) => ({ version })),
+    )
   })
   store.close()
   expect(open(dir).store.status().state).toBe('ok')
@@ -152,7 +155,7 @@ test('migration failure rolls back schema and data, closes DB, releases lock and
   store.goals.insert(makeGoal())
   store.close()
   const bad: Migration = {
-    version: 2,
+    version: MIGRATIONS.length + 1,
     up(db) {
       db.exec('CREATE TABLE should_rollback(id TEXT); DELETE FROM goals;')
       throw new Error('migration failed')
@@ -165,7 +168,9 @@ test('migration failure rolls back schema and data, closes DB, releases lock and
   sql(dir, (db) => {
     expect(db.prepare("SELECT 1 FROM sqlite_master WHERE name='should_rollback'").get()).toBeUndefined()
     expect(db.prepare('SELECT COUNT(*) AS n FROM goals').get()?.n).toBe(1)
-    expect(db.prepare('SELECT version FROM schema_migrations').all()).toEqual([{ version: 1 }])
+    expect(db.prepare('SELECT version FROM schema_migrations').all()).toEqual(
+      MIGRATIONS.map(({ version }) => ({ version })),
+    )
   })
   expect(open(dir).store.status().state).toBe('ok')
   const backups = readdirSync(join(dir, 'backups'))
@@ -186,7 +191,7 @@ test('pending migrations back up committed WAL data and retain only five recent 
     const migrations = [
       ...MIGRATIONS,
       ...Array.from({ length: version - 1 }, (_, i) => ({
-        version: i + 2,
+        version: i + MIGRATIONS.length + 1,
         up(db: DatabaseSync) {
           db.exec(`CREATE TABLE extra_${i + 2}(id TEXT)`)
         },
@@ -210,7 +215,7 @@ test('migration backup includes data that is still in a committed WAL', () => {
       .prepare('INSERT INTO goals(id,version,data) VALUES(?,?,?)')
       .run(makeGoal().id, 0, JSON.stringify(makeGoal()))
     expect(readFileSync(join(dir, 'whaledot.db-wal')).length).toBeGreaterThan(0)
-    const migrated = open(dir, [...MIGRATIONS, { version: 2, up() {} }]).store
+    const migrated = open(dir, [...MIGRATIONS, { version: MIGRATIONS.length + 1, up() {} }]).store
     expect(migrated.status().state).toBe('ok')
     const filename = readdirSync(join(dir, 'backups'))[0]!
     const backup = new DatabaseSync(join(dir, 'backups', filename), { readOnly: true })
@@ -280,4 +285,22 @@ test('bad JSON, schema-invalid rows, and mismatched indexes are skipped and coun
   sql(dir, (db) => db.prepare("INSERT INTO kv_settings VALUES('autopilot.paused','\"false\"')").run())
   expect(store.paused()).toBe(true)
   expect(store.status().corruptRows).toBe(4)
+})
+
+test('v1 scopes receive nested secret defaults, an audit marker and a valid recomputed hash', () => {
+  const { store, dir } = open(directory(), MIGRATIONS.slice(0, 1))
+  seed(store)
+  const old = { ...makeScope() } as Record<string, unknown>
+  delete old.protectedNames
+  sql(dir, (db) =>
+    db
+      .prepare('INSERT INTO scopes(id,goal_id,status,data) VALUES(?,?,?,?)')
+      .run('scope_1', 'goal_1', 'active', JSON.stringify(old)),
+  )
+  store.close()
+  const migrated = open(dir).store
+  const scope = migrated.scopes.get(makeScope().id)!
+  expect(scope.protectedNames).toEqual([...DEFAULT_PROTECTED_NAMES])
+  expect(scope.legacyAuthorization).toBe(true)
+  expect(hashScope(scope, sha256)).toEqual({ ok: true, value: scope.hash })
 })
