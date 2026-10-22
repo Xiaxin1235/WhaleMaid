@@ -10,4 +10,5 @@ dist/
 coverage/
 *.tsbuildinfo
 .dsh-dev/
+.dsh-ref/
 *.tgz

@@ -3,6 +3,7 @@ lib/
 dist/
 coverage/
 .dsh-dev/
+.dsh-ref/
 pnpm-lock.yaml
 # Preserve supplied plans and implementation prompts.
 prompts/
