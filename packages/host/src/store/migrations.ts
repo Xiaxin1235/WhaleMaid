@@ -63,4 +63,12 @@ export const MIGRATIONS: readonly Migration[] = [
       }
     },
   },
+  {
+    version: 3,
+    up(db) {
+      db.exec(
+        'CREATE TABLE verifications (id TEXT PRIMARY KEY REFERENCES runs(id), task_id TEXT NOT NULL REFERENCES tasks(id), data TEXT NOT NULL)',
+      )
+    },
+  },
 ]

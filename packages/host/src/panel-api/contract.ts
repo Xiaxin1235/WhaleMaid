@@ -1,6 +1,10 @@
 import { z } from 'zod'
 import {
   ProjectGoalSchema,
+  VerificationSchema,
+  NotificationSchema,
+  TaskIdSchema,
+  DecisionChoiceSchema,
   GoalIdSchema,
   RunSchema,
   CheckpointSchema,
@@ -24,7 +28,22 @@ export const ExecuteResultSchema = z.strictObject({
   reason: z.string(),
   runId: z.string().optional(),
 })
+export const VerifyTaskSchema = z.strictObject({ taskId: TaskIdSchema })
+export const ResolveDecisionSchema = z.strictObject({
+  notificationId: z.string().min(1),
+  choice: DecisionChoiceSchema,
+})
+export const VerificationLogSchema = z.strictObject({
+  runId: z.string().min(1),
+  phase: z.enum(['baseline', 'current']),
+  index: z.int().nonnegative(),
+})
 export const PANEL_METHODS = [
+  'verify-task',
+  'reconcile-task',
+  'resolve-decision',
+  'verification-log',
+
   'execute-next',
   'status',
   'goals',
@@ -70,6 +89,8 @@ export const GoalDetailSchema = z.strictObject({
   runs: z.array(RunSchema).default([]),
   checkpoints: z.array(CheckpointSchema).default([]),
   evidence: z.array(EvidenceSchema).default([]),
+  verifications: z.array(VerificationSchema).default([]),
+  notifications: z.array(NotificationSchema).default([]),
 })
 export const ConfirmResultSchema = z.strictObject({
   goal: ProjectGoalSchema,

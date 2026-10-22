@@ -175,6 +175,10 @@ export class GoalIntake {
       tasks,
       runs: tasks.flatMap((task) => this.store.runs.list(task.id)),
       checkpoints: this.store.checkpoints.list(goalId),
+      verifications: this.store.verifications
+        .list()
+        .filter((item) => tasks.some((task) => task.id === item.taskId)),
+      notifications: this.store.notifications.list().filter((item) => item.goalId === goal.id),
       evidence: tasks
         .flatMap((task) => this.store.runs.list(task.id))
         .flatMap((run) => this.store.evidence.list(run.run_id)),

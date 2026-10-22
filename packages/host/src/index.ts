@@ -1,3 +1,5 @@
+import { TaskVerifier } from './verify/verify-task.js'
+import { observeSession } from './verify/reconcile.js'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Context, Volatile } from '@deepseek-ai/cordis'
@@ -92,6 +94,9 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       (message, error) => debug.host(message, error),
     )
     ctx.effect(() => () => execution.dispose())
+    const verification = new TaskVerifier(store, scopes, dataDir, observeSession(ctx), () =>
+      resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale),
+    )
     installToolGate(
       ctx,
       new ToolGate(
@@ -123,6 +128,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         takeoverStore: () => store.takeover(),
         intake,
         execution,
+        verification,
         revokeScope: (scopeId, peer) => {
           scopes.revoke(scopeId, peer)
         },

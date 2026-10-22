@@ -21,6 +21,7 @@ export const RunSchema = z.strictObject({
   status: z.enum(['running', 'ended']).default('ended'),
   runScope: RunScopeSchema.optional(),
   reason: z.string().optional(),
+  finalReplyNonempty: z.boolean().optional(),
   toolCalls: z.number().int().nonnegative().default(0),
   deniedCalls: z.number().int().nonnegative().default(0),
   outcome: VerdictSchema.default('UNKNOWN'),
@@ -40,7 +41,7 @@ export const CheckpointSchema = z.strictObject({
   commit: TextSchema,
   files: z.array(z.string()).default([]),
   diffStat: z.string().default(''),
-  kind: z.enum(['baseline', 'progress', 'verified', 'rollback']),
+  kind: z.enum(['baseline', 'progress', 'verified', 'rollback', 'reconciled']),
   createdAt: TimestampSchema,
 })
 export type Run = z.infer<typeof RunSchema>

@@ -30,6 +30,7 @@ export interface TaskRepo {
   get(id: TaskId): Task | undefined
   list(goalId: GoalId): Task[]
   insert(task: Task): void
+  update(task: Task, expectedVersion: number): void
   transition(
     id: TaskId,
     to: TaskState,

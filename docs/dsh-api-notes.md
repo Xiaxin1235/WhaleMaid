@@ -524,3 +524,19 @@ allowedPaths，也不支持任意 glob。默认连同 `.git` 在确认表单展�
 | todo_write / web_fetch / web_search                                 | todos[] / url / queries[]                                                                             |
 
 界面会话导航另经 `dsh-client-ui-workspace/README.md` 的 Navigation 和同版本 `lib/types/client/navigation.d.ts:16–22` 查证，用 `uiWorkspace.openSession(sessionId)`，不臆造 HTTP 聊天路由。Cordis 的未声明注入上下文使用 `ctx.get('sessions')` 查询服务，避免直接属性访问触发注入检查。
+
+## 19. P09：只读核对、运行状态与最终报告
+
+2026-10-22 查阅 Desktop 同版本 README，并补充 npm `0.2.1-rc.2` 的声明；`dsh-agent`、`dsh-session-persistence` 只加入开发期类型依赖，生产代码不导入其运行时。
+
+| 接口                                            | 查证位置                                                                        | 使用边界                                                                                                                                                |
+| ----------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sessionController.inspect(sessionId, signal?)` | `dsh-api-session-controller/lib/types/index.d.ts:72–79`                         | 读取 attached / persisted Session，不激活 Agent；不调用 resolveAgent、resume、prompt                                                                    |
+| `SessionInspection.events`                      | `dsh-session-persistence/lib/types/index.d.ts:57–60`                            | 完整且验证过的事件序列；只查询已经登记的 Run.sessionId                                                                                                  |
+| `agents.get(id)` / `Agent.status`               | `dsh-agent/README.md` 的 registry/lifecycle；`lib/types/runtime-types.d.ts:147` | `running` 包含等待回答/审批；idle 与没有 live Agent 分开处理                                                                                            |
+| 最终文本                                        | `dsh-session/lib/types/types.d.ts` 的 `assistant/message` 与 `turn/end`         | 只取原始首回合结束前最后一条非 interrupted、非 tool-call assistant/message 的非空 text；只保留布尔值。分析按 report-only 规则验收，编辑仍须独立命令证据 |
+| 不存在                                          | `dsh-session-persistence/lib/types/errors.d.ts:9–13`                            | 只把稳定的 NotFound 错误当作不存在；其他 IO/格式问题不猜成停止                                                                                          |
+
+真实隔离宿主验证：读取 P08 已卸载会话得到 report-only PASS；对 P08 重启 UNKNOWN 的冷会话核对后得到空报告的待决状态，Run 数前后均为 3，没有激活或重发。门禁用真实会话的三次 pwsh 调用另证，见 `p09-report.md`。
+
+P09 的独立验收是明确的例外：Windows 通过 `execFile(cmd.exe, ['/d','/s','/c', '"' + exactCommand + '"'], {windowsVerbatimArguments:true})` 传递确认的命令，外层引号只用于 cmd 的传输封装。额外测试核对带空格的引号参数和 `node -e` 超时，防止反斜杠转义把可执行脚本变成普通字符串。其他 Git 操作仍使用 argv，禁用 hooks/fsmonitor。Connection 手工验收经官方 root-token 到 HttpOnly cookie 的交换，再调用既有认证面板接口，不伪造 owner。

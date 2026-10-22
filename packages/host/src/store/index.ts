@@ -11,6 +11,9 @@ import {
   RunSchema,
   CheckpointSchema,
   EvidenceSchema,
+  VerificationSchema,
+  NotificationSchema,
+  SuggestionSchema,
   hashScope,
   transition,
 } from '@whaledot/core'
@@ -62,6 +65,10 @@ export class WhaleStore {
   readonly evidence: EvidenceRepo
   readonly runs: RunRepo
 
+  readonly verifications
+  readonly notifications
+  readonly suggestions
+
   constructor(
     private readonly dataDir: string,
     private readonly options: StoreOptions,
@@ -90,7 +97,63 @@ export class WhaleStore {
       get: (id) => this.one('scopes', id, AuthorizationScopeSchema),
       list: (id) => this.rows('scopes', AuthorizationScopeSchema, 'goal_id', id),
     }
+    this.verifications = {
+      get: (id: string) => this.one('verifications', id, VerificationSchema),
+      list: () => this.rows('verifications', VerificationSchema),
+      insert: (input: import('@whaledot/core').Verification) => {
+        const row = VerificationSchema.parse(input)
+        this.writer()
+          .prepare(
+            'INSERT INTO verifications(id,task_id,data) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data',
+          )
+          .run(row.id, row.taskId, JSON.stringify(row))
+      },
+    }
+    this.notifications = {
+      get: (id: string) => this.one('notifications', id, NotificationSchema),
+      list: () => this.rows('notifications', NotificationSchema),
+      insert: (input: import('@whaledot/core').Notification) => {
+        const row = NotificationSchema.parse(input)
+        this.writer()
+          .prepare('INSERT INTO notifications(id,data) VALUES(?,?)')
+          .run(row.id, JSON.stringify(row))
+      },
+      update: (input: import('@whaledot/core').Notification) => {
+        const row = NotificationSchema.parse(input)
+        this.writer().prepare('UPDATE notifications SET data=? WHERE id=?').run(JSON.stringify(row), row.id)
+      },
+    }
+    this.suggestions = {
+      list: () => this.rows('suggestions', SuggestionSchema),
+      insert: (input: import('@whaledot/core').Suggestion) => {
+        const row = SuggestionSchema.parse(input)
+        this.writer().prepare('INSERT INTO suggestions(id,data) VALUES(?,?)').run(row.id, JSON.stringify(row))
+      },
+      consume: (notificationId: string, at: number) => {
+        for (const row of this.rows('suggestions', SuggestionSchema).filter(
+          (row) => row.notificationId === notificationId,
+        ))
+          this.writer()
+            .prepare('UPDATE suggestions SET data=? WHERE id=?')
+            .run(JSON.stringify({ ...row, consumedAt: at }), row.id)
+      },
+    }
     this.tasks = {
+      update: (input, expectedVersion) => {
+        const row = TaskSchema.parse(input)
+        const old = this.tasks.get(row.id)
+        if (
+          !old ||
+          row.version !== expectedVersion + 1 ||
+          row.state !== old.state ||
+          row.goalId !== old.goalId
+        )
+          throw new Error('stale-version')
+        const result = this.writer()
+          .prepare('UPDATE tasks SET version=?,data=? WHERE id=? AND version=?')
+          .run(row.version, JSON.stringify(row), row.id, expectedVersion)
+        if (result.changes !== 1) throw new Error('stale-version')
+      },
       get: (id) => this.one('tasks', id, TaskSchema),
       list: (id) => this.rows('tasks', TaskSchema, 'goal_id', id),
       insert: (input) => {

@@ -7,6 +7,8 @@ import type {
   PeerScope,
 } from '@deepseek-ai/dsh-client-connection'
 import type { ProjectGoal, ScopeId } from '@whaledot/core'
+import type { TaskVerifier } from '../verify/verify-task.js'
+import { VerifyTaskSchema, ResolveDecisionSchema, VerificationLogSchema } from './contract.js'
 import type { TaskExecutor } from '../execution/execute-task.js'
 import type { GoalIntake } from '../goal-intake/service.js'
 import type {} from '@deepseek-ai/dsh-settings'
@@ -38,6 +40,7 @@ export interface PanelRuntime {
   setPaused(paused: boolean): void
   revokeScope(scopeId: ScopeId, peer: PeerScope): void
   takeoverStore(): void
+  verification?: TaskVerifier
   execution?: TaskExecutor
   intake?: GoalIntake
 }
@@ -55,6 +58,23 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'verify-task':
+          result = await runtime.verification!.verifyTask(VerifyTaskSchema.parse(input).taskId)
+          break
+        case 'reconcile-task':
+          result = await runtime.verification!.reconcileTask(VerifyTaskSchema.parse(input).taskId)
+          break
+        case 'resolve-decision': {
+          const { notificationId, choice } = ResolveDecisionSchema.parse(input)
+          result = await runtime.verification!.resolveDecision(notificationId, choice)
+          break
+        }
+        case 'verification-log': {
+          const { runId, phase, index } = VerificationLogSchema.parse(input)
+          result = await runtime.verification!.logTail(runId, phase, index)
+          break
+        }
+
         case 'execute-next': {
           const { goalId } = ExecuteNextSchema.parse(input)
           result = ExecuteResultSchema.parse(
@@ -131,7 +151,7 @@ export function installPanelApi(
   snapshot: () => PanelStatus,
   storage: Pick<
     PanelRuntime,
-    'goals' | 'setPaused' | 'revokeScope' | 'takeoverStore' | 'intake' | 'execution'
+    'goals' | 'setPaused' | 'revokeScope' | 'takeoverStore' | 'intake' | 'execution' | 'verification'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {

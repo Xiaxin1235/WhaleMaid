@@ -27,6 +27,7 @@ export const TASK_TRANSITIONS: Readonly<Record<TaskState, readonly TaskState[]>>
     'WAITING_APPROVAL', // Active execution needs a user decision.
   ] as const),
   VERIFYING: Object.freeze([
+    'WAITING_APPROVAL', // Independent acceptance needs an owner decision.
     'SUCCEEDED', // Independent acceptance established success.
     'FAILED', // Independent acceptance established failure.
     'UNKNOWN', // Acceptance cannot establish the external result.
@@ -34,6 +35,7 @@ export const TASK_TRANSITIONS: Readonly<Record<TaskState, readonly TaskState[]>>
     'PAUSED', // Suspend acceptance without inventing a verdict.
   ] as const),
   WAITING_APPROVAL: Object.freeze([
+    'SUCCEEDED', // Explicit manual owner acceptance, with source=user.
     'READY', // Approval permits a new preflight, never direct execution.
     'VERIFYING', // A decision permits verification of existing execution.
     'BLOCKED', // A decision leaves a prerequisite unsatisfied.
@@ -46,6 +48,8 @@ export const TASK_TRANSITIONS: Readonly<Record<TaskState, readonly TaskState[]>>
     'CANCELLED', // Abandon blocked work after necessary cleanup.
   ] as const),
   FAILED: Object.freeze([
+    'WAITING_APPROVAL', // Exhausted repair budget needs a decision.
+    'SUCCEEDED', // Explicit manual owner acceptance.
     'READY', // A confirmed failure may retry after host budget checks.
     'PAUSED', // Defer any repair decision.
     'CANCELLED', // Abandon the confirmed failed task.

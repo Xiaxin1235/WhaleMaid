@@ -49,3 +49,24 @@ test.each([
 ])('ambiguous grammar is not read-only: %s', (cmd) => {
   expect(readOnlyCommandPaths(cmd, 'C:/proj')).toEqual({ unparsable: true })
 })
+
+test('relative parent reads use the actual cwd; unknown grammar requires exact write-scope command confirmation', () => {
+  expect(
+    checkAction(makeScope({ permissionPreset: 'read-only' }), {
+      type: 'run-command',
+      cwd: 'C:/proj/sub',
+      cmdline: 'cat ../file.txt',
+    }).decision,
+  ).toBe('allow')
+  expect(
+    checkAction(makeScope({ verifyCommands: ['node verify.mjs'] }), {
+      type: 'run-command',
+      cwd: 'C:/proj',
+      cmdline: 'node verify.mjs',
+    }).decision,
+  ).toBe('allow')
+  expect(
+    checkAction(makeScope(), { type: 'run-command', cwd: 'C:/proj', cmdline: 'Get-Content -Raw file.txt' })
+      .decision,
+  ).toBe('ask')
+})

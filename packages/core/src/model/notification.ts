@@ -1,3 +1,4 @@
+import { DecisionChoiceSchema } from '../verify/model.js'
 import { z } from 'zod'
 import { ActionIntentSchema } from './action.js'
 import { TextSchema, TimestampSchema, VersionSchema } from './common.js'
@@ -18,6 +19,12 @@ export const NotificationSchema = z.strictObject({
   taskId: TaskIdSchema.optional(),
   channel: z.enum(['dsh-question', 'panel', 'system']),
   createdAt: TimestampSchema,
+  runId: z.string().optional(),
+  taskVersion: VersionSchema.optional(),
+  reason: z.string().optional(),
+  choices: z.array(DecisionChoiceSchema).optional(),
+  expiresAt: TimestampSchema.optional(),
+  resolvedAt: TimestampSchema.optional(),
   deliveredAt: TimestampSchema.optional(),
   snoozedUntil: TimestampSchema.optional(),
   readAt: TimestampSchema.optional(),
@@ -26,7 +33,10 @@ export const SuggestionSchema = z.strictObject({
   id: SuggestionIdSchema,
   notificationId: NotificationIdSchema,
   label: TextSchema,
-  intent: ActionIntentSchema,
+  intent: z.union([
+    ActionIntentSchema,
+    z.strictObject({ type: z.literal('panel-decision'), choice: DecisionChoiceSchema }),
+  ]),
   riskLevel: z.enum(['low', 'medium', 'high']),
   expiresAt: TimestampSchema,
   bindTo: z.strictObject({

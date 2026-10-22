@@ -15,6 +15,7 @@ export const GoalSchema = z.strictObject({
   scopeId: ScopeIdSchema.optional(),
   createdAt: TimestampSchema,
   confirmedAt: TimestampSchema.optional(),
+  stalled: z.int().nonnegative().optional(),
   version: VersionSchema,
 })
 export const ProjectGoalSchema = GoalSchema

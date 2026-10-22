@@ -107,7 +107,7 @@ export interface CommandClass {
 const LOCAL_TEST_COMMAND = /^(?:pnpm|npm)\s+(?:test|run\s+(?:test|build|lint|typecheck))(?:\s+--run)?$/i
 
 /** Classify known hazards; only a small literal allowlist is safe and all unknown shell syntax asks. */
-export function classifyCommand(cmdline: string): CommandClass {
+export function classifyCommand(cmdline: string, cwd = 'C:/'): CommandClass {
   const line = cmdline.trim()
   if (line.length === 0 || [...line].some((char) => char.charCodeAt(0) < 32 && !'\t\r\n'.includes(char))) {
     return { class: 'forbidden', reasons: ['invalid-command'] }
@@ -154,7 +154,7 @@ export function classifyCommand(cmdline: string): CommandClass {
   // No shell composition, interpolation, redirection, control blocks, glob expansion or dynamic invocation is automatic.
   if (/[;&|<>$`\r\n(){}*?]/.test(line))
     return { class: 'needs-approval', reasons: ['compound-or-dynamic-command'] }
-  if ('paths' in readOnlyCommandPaths(line, 'C:/') || LOCAL_TEST_COMMAND.test(line))
+  if ('paths' in readOnlyCommandPaths(line, cwd) || LOCAL_TEST_COMMAND.test(line))
     return { class: 'safe', reasons: [] }
   return { class: 'needs-approval', reasons: ['unrecognized-command'] }
 }
@@ -200,7 +200,7 @@ export function checkAction(scope: AuthorizationScope, action: ActionIntent): Ga
     case 'run-command': {
       if (!isPathAllowed(scope, action.cwd))
         return decision('deny', 'path-outside-scope', 'Command working directory is not authorized')
-      const command = classifyCommand(action.cmdline)
+      const command = classifyCommand(action.cmdline, action.cwd)
       if (command.class === 'forbidden')
         return decision('deny', 'command-forbidden', command.reasons.join(', '))
       const read = readOnlyCommandPaths(action.cmdline, action.cwd)
@@ -209,7 +209,13 @@ export function checkAction(scope: AuthorizationScope, action: ActionIntent): Ga
       if (scope.permissionPreset === 'read-only' && !('paths' in read)) {
         return decision('deny', 'read-only-preset', 'Command is not a known read-only operation')
       }
-      if (command.class === 'needs-approval')
+      if (
+        command.class === 'needs-approval' &&
+        !(
+          scope.verifyCommands.includes(action.cmdline) &&
+          command.reasons.every((reason) => reason === 'unrecognized-command')
+        )
+      )
         return decision('ask', 'command-approval', command.reasons.join(', '))
       if ('paths' in read)
         return decision('allow', 'read-command-allowed', 'Known read-only command in authorized directory')

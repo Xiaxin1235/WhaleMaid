@@ -1,3 +1,4 @@
+import { verificationBusy } from '../verify/runner.js'
 import { createHash } from 'node:crypto'
 import { realpath } from 'node:fs/promises'
 import {
@@ -59,6 +60,7 @@ export class TaskExecutor {
   ): Promise<{ started: boolean; reason: string; runId?: RunId }> {
     const goalId = GoalIdSchema.parse(input)
     if (this.disposed) throw new Error('executor-disposed')
+    if (verificationBusy()) return { started: false, reason: 'verification-busy' }
     if (this.locks.has(goalId)) return { started: false, reason: 'run-already-active' }
     this.locks.add(goalId)
     let projectLock: string | undefined

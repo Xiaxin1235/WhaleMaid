@@ -1,3 +1,4 @@
+import { VerificationView } from './verification.js'
 import { createElement as h, useEffect, useState } from 'react'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import {
@@ -818,6 +819,13 @@ export function GoalDetailView({
               ),
             ),
           ),
+          h(VerificationView, {
+            detail,
+            locale,
+            saving,
+            write,
+            call: (method: string, input: unknown) => intakeCall(connection, method, input),
+          }),
           h('h3', null, text('checkpoints')),
           h(
             'ul',
