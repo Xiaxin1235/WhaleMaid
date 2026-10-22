@@ -1,25 +1,49 @@
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import { afterEach, expect, test, vi } from 'vitest'
-import { apply, name } from './index.js'
+import { apply, Config, name } from './index.js'
 
-afterEach(() => {
+const cleanup: (() => Promise<unknown>)[] = []
+afterEach(async () => {
+  for (const dispose of cleanup.splice(0).reverse()) await dispose()
   vi.restoreAllMocks()
 })
-
-test('host scaffold logs loading through the Cordis context', () => {
+async function setup() {
+  const dir = await mkdtemp(join(tmpdir(), 'whaledot-'))
   const ctx = new Context()
+  cleanup.push(
+    () => rm(dir, { recursive: true, force: true }),
+    () => ctx.fiber.dispose(),
+  )
+  return { dir, ctx }
+}
 
-  apply(ctx)
-
+test('loads through real Cordis and writes service availability', async () => {
+  const { ctx, dir } = await setup()
+  ctx.provide('commands', {})
+  ctx.provide('typertGateway', {})
+  await apply(ctx, { dataDir: dir })
   expect(name).toBe('whaledot')
-  expect(ctx.logger.buffer.at(-1)).toMatchObject({
-    name: 'whaledot',
-    type: 'info',
-    args: ['plugin loaded'],
-  })
+  expect(Config({})).toEqual({ debugLogSignals: false })
+  await expect
+    .poll(async () => JSON.parse(await readFile(join(dir, 'status.json'), 'utf8')))
+    .toMatchObject({
+      version: '0.0.0',
+      services: { gateway: true, commands: true, userQuestions: false },
+    })
+  expect(ctx.logger.buffer.some((row) => row.name === 'whaledot' && row.args[0] === 'plugin loaded')).toBe(
+    true,
+  )
+  // Optional availability is updated when a service appears after apply.
+  ctx.provide('userQuestions', {})
+  await expect
+    .poll(async () => JSON.parse(await readFile(join(dir, 'status.json'), 'utf8')))
+    .toMatchObject({ services: { userQuestions: true } })
 })
 
-test('initialization errors are recorded without escaping apply', () => {
+test('synchronous initialization error is contained even if logger is unavailable', async () => {
   const error = new Error('logger unavailable')
   const ctx = {
     logger() {
@@ -27,7 +51,16 @@ test('initialization errors are recorded without escaping apply', () => {
     },
   } as unknown as Context
   const report = vi.spyOn(console, 'error').mockImplementation(() => {})
-
-  expect(() => apply(ctx)).not.toThrow()
+  await expect(apply(ctx)).resolves.toBeUndefined()
   expect(report).toHaveBeenCalledWith('[whaledot] failed to load plugin', error)
+})
+
+test('async filesystem failure degrades without rejecting startup', async () => {
+  const { ctx, dir } = await setup()
+  const file = join(dir, 'file')
+  await writeFile(file, '')
+  await expect(apply(ctx, { dataDir: join(file, 'child') })).resolves.toBeUndefined()
+  expect(ctx.logger.buffer.some((row) => row.type === 'error' && row.args[0] === 'plugin degraded')).toBe(
+    true,
+  )
 })
