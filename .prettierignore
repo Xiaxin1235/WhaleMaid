@@ -1,0 +1,10 @@
+node_modules/
+lib/
+dist/
+coverage/
+.dsh-dev/
+pnpm-lock.yaml
+# Preserve supplied plans and implementation prompts.
+prompts/
+docs/架构与开发路线.md
+项目规划.txt

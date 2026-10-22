@@ -1,0 +1,29 @@
+{
+  "name": "whaledot",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.19"
+  },
+  "packageManager": "pnpm@11.22.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "test": "vitest run",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "pnpm -r typecheck && tsc -p tsconfig.json",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.4",
+    "@types/node": "24.19.2",
+    "eslint": "9.39.4",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "3.9.10",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "8.72.0",
+    "vitest": "4.1.12"
+  }
+}
