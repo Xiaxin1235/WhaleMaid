@@ -112,6 +112,7 @@ test('revoke is immediate, owner-only, durable, emits after commit and denies ev
     { type: 'rollback-to-checkpoint', checkpointId: 'checkpoint_1' },
     { type: 'reply-to-session', sessionId: 'session_1', text: 'continue' },
     { type: 'open-workbench' },
+    { type: 'spawn-subagent' },
     { type: 'expand-scope', goalId: draft.goalId, patch: { allowedPaths: ['C:/'] } },
   ].map((value) => ActionIntentSchema.parse(value))
   expect(actions.map((action) => action.type).sort()).toEqual([...ActionKindSchema.options].sort())

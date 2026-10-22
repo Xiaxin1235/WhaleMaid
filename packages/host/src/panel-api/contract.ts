@@ -1,6 +1,10 @@
 import { z } from 'zod'
 import {
   ProjectGoalSchema,
+  GoalIdSchema,
+  RunSchema,
+  CheckpointSchema,
+  EvidenceSchema,
   ScopeIdSchema,
   GoalDraftSchema,
   TaskSchema,
@@ -14,7 +18,14 @@ export const LanguageRequestSchema = z.strictObject({ language: LanguageSchema }
 export const PausedSchema = z.strictObject({ paused: z.boolean() })
 export const RevokeScopeSchema = z.strictObject({ scopeId: ScopeIdSchema })
 export const TakeoverSchema = z.strictObject({ confirm: z.literal(true) })
+export const ExecuteNextSchema = z.strictObject({ goalId: GoalIdSchema })
+export const ExecuteResultSchema = z.strictObject({
+  started: z.boolean(),
+  reason: z.string(),
+  runId: z.string().optional(),
+})
 export const PANEL_METHODS = [
+  'execute-next',
   'status',
   'goals',
   'language',
@@ -56,6 +67,9 @@ export const GoalDetailSchema = z.strictObject({
   activeScope: AuthorizationScopeSchema.nullable(),
   tasks: z.array(TaskSchema),
   transitions: z.array(StateTransitionSchema),
+  runs: z.array(RunSchema).default([]),
+  checkpoints: z.array(CheckpointSchema).default([]),
+  evidence: z.array(EvidenceSchema).default([]),
 })
 export const ConfirmResultSchema = z.strictObject({
   goal: ProjectGoalSchema,

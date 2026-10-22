@@ -459,3 +459,68 @@ scope.hash 的作用仅为发现意外损坏/不一致，不是抵抗本机数�
 
 P07 的 `.env*` 是唯一新增的保护模式：仅允许路径末尾的 `.env*` 文件名前缀，不能用在
 allowedPaths，也不支持任意 glob。默认连同 `.git` 在确认表单展示；Host 拒绝删除这两项基础保护。
+
+## 15. P08：直接会话服务与后台身份
+
+结论：本机可信插件可调用 `ctx.sessionController.create(request)`、`rename(request)`、`prompt(request, signal)`；这些方法没有 peer 参数。gateway 的 `invoke` 仍需连接 peer，不能据此推断直接服务也需要。P08 面板由 Connection admit 的 owner peer 验证本次请求；执行器只在 launch 栈上使用它，不写库、不留作后台身份。`via: {kind:'background'}` 通过相同的可信宿主服务调用，可供 P10 复用；这不意味着本阶段已实现调度。
+出处：同版本 `.dsh-ref/0.2.1-rc.2/@deepseek-ai/dsh-api-session-controller/lib/types/index.d.ts` 的 create/rename/prompt/cancel 声明；`types.d.ts:284–374`。create 接收 cwd、可选 sessionId/agentPreset，返回实际 sessionId；prompt 接收 requestId、sessionId、mode、content，返回 accepted:true。注册运行之前回读 `permissionPresets.current(session)`，未匹配则不发送。
+不确定点：没有找到供第三方插件任意铸造的“系统 principal”公共 API，故不构造 principal。提示词发送发生后即使回执丢失，也只能 UNKNOWN，不重发。直接服务的可用性及预设名称由当前 profile 决定，缺失时阻断。
+
+## 16. P08：中止与结束原因
+
+`sessionController.cancel({sessionId})` 返回 accepted:true，是取消已获接纳的回执，不是执行结果；create/rename/prompt 与 cancel 都是直接服务的公共方法。`dsh-session/lib/types/types.d.ts` 的 turn/end reason 包含 completed、error、max-tokens、blocked、interrupted、aborted、forked。P08 延续 session-events 适配，未识别原因（包括 forked）、销毁与超时一律 UNKNOWN。撤销/超时先写入停止原因使门禁关闭，再 cancel；无论随后回合是否报告 completed，停止原因优先。宿主卸载时请求 cancel，保留 running 供重启核对。
+出处：上述 controller types 的 SessionCancelRequest/Value；session 的 TurnEndReason；`dsh-agent` 声明的取消传播及 `docs/dsh-api-notes.md` 第 7 节。具体 abort/interrupted 分支取决于宿主当时的回合状态，不能仅凭 cancel accepted 推定。
+
+## 17. P08：已核实工具表与保守映射
+
+同版本各 `dsh-tool-*/README.md` 的 The tools / Model Experience 为出处；这是一张组成能力表，工具是否实际可见由 preset、平台及服务决定，不把包的存在当作默认全部启用。`tool-intent.ts` 只接受明确形状，未知字段、后台启动、提权参数和不能表达为当前授权意图的操作拒绝；宿主原有策略仍继续执行。
+
+| 工具                                                                | 关键参数 / 影响                                                  | P08 策略                                                                     |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| read / read_image                                                   | file_path；read 的 offset/limit                                  | read-file，运行 cwd 解析相对路径                                             |
+| write                                                               | file_path、content                                               | write-file                                                                   |
+| edit                                                                | file_path、old_string、new_string、replace_all                   | read-file + write-file                                                       |
+| str_replace_editor                                                  | command、path；file_text/old_str/new_str/insert_line/view_range  | view 读；create 写；其余读写                                                 |
+| glob / grep                                                         | pattern、path?；grep include?                                    | read-file；宿主递归检查搜索树，遇保护文件、链接或扫描预算不足拒绝            |
+| bash / pwsh                                                         | command、workdir?、timeoutMs?、run_in_background?、description?  | run-command；literal cat/Get-Content/type 额外产生 read-file，后台与提权拒绝 |
+| web_fetch / web_search                                              | url / queries[]                                                  | network，现有范围默认未授予，仍需拒绝                                        |
+| subagent                                                            | prompt 与提供者可选模型/preset 参数                              | spawn-subagent；默认不授予，当前无独立子运行隔离能力时始终拒绝               |
+| ask_user_question                                                   | questions[{id,question,header,options?,multi_select?}]、timeout? | 经结构校验可通过；回答不扩大授权                                             |
+| todo_write                                                          | todos[{content,status}]                                          | 只影响本会话清单，校验后通过                                                 |
+| working_directory                                                   | 新的 cwd                                                         | 拒绝，避免改变后续相对路径解释                                               |
+| bash/pwsh persistent、terminal_open/send/read/signal/close/list     | 持久 shell/终端 id、输入、cwd                                    | 拒绝，无法用当前无状态命令意图约束跨调用状态                                 |
+| job_output/list/kill                                                | 作业 id、wait/timeout                                            | 拒绝；P08 不创建后台作业                                                     |
+| create/get/update_goal                                              | objective、goal_id/revision/action                               | 拒绝，避免宿主续跑目标扩大本次单任务边界                                     |
+| schedule_create/list/update/delete                                  | prompt、title、id、时间选择器                                    | 拒绝，避免持久后台执行                                                       |
+| session_search/event_search/trace/event_trace/event_read            | query、session/event id                                          | 拒绝，未授权读取其他会话                                                     |
+| send_message / interrupt_agent / list_agents / list_subagent_models | child id、消息                                                   | 拒绝；无已授权子运行                                                         |
+| ralph / workflow / run_code                                         | 复合执行、程序化工具分派                                         | 拒绝；不能绕过已知工具映射                                                   |
+| skill / present / load_workspace_dependencies / Cordis 管理类工具   | 动态资源、渲染或组件安装                                         | 当前未知/不可表达意图，失败即拒绝                                            |
+
+补充：文件名保护作用于任意路径段，realpath 前后均校验。搜索工具检查根目录本身不足以保护后代内容，因此保守检查目录树（最多 10000 项）；rg 明确忽略的 .git/.hg/.svn 内部不扫描，其他隐藏/ignored 文件仍检查。shell 读取文件不能只检查 cwd。上述限制会拒绝部分宿主合法操作，是本阶段安全边界，不自动转交交互审批。
+
+## 18. P08：执行树与子会话归属
+
+`dsh-tools/lib/types/index.d.ts:216–288`：exec.agent 是当前调用的 agent，其 session.id 是直接所属会话；`parent` 是不透明 `ToolExecutionToken`，不能按对象读取 parent.agent。注册表维护 token→根 session 与 rootCallId→根 session，覆盖程序化嵌套工具分派。`dsh-session/lib/types/types.d.ts:59–89`：`session.header.parentSession` 提供持久 fork lineage；通过 sessions.get 逐级寻找登记根，防循环。根 run 结束后保留归属索引，后续调用不能变成“普通会话”而逃过门禁。
+委派工具在 P08 默认拒绝（即便未来 scope 显式包含 spawn-subagent，仍需独立子运行约束后才能放行），故不存在默许未登记远程子 agent 的通路。未登记普通会话先返回 next，不读取 arguments、不计数、不写证据。不确定点：远程 provider 未必有本地 fork lineage；其启动因此仍拒绝，不能据 rootCallId 猜测远端 I/O 已受控。
+
+### 17 补充：真实默认 Standard preset 的参数核对
+
+2026-10-22 在隔离 profile 的真实 request/header.tools 中复核了 31 个可见工具（证据 `.dsh-dev/p08-evidence/native-tools.json`，不含消息和凭据）。参数以该轮绑定的 schema 为准；尤其 `pwsh` 是 `timeoutMs`，提问是 `multi_select`，header/options.description 非必填。该层不能用其他工具链的相似拼写替代。已将映射和测试同步。
+
+| 当前可见工具                                                        | 参数字段（省略空对象）                                                                                |
+| ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| ask_user_question                                                   | questions[].id/question/header?/options[].label/description?/multi_select?                            |
+| create_goal / get_goal / update_goal                                | objective,max_goal_rounds? / 空 / goal_id,revision,action,objective?,max_goal_rounds?,blocked_reason? |
+| read / read_image / write / edit                                    | 与上表一致；写入的 sandbox_permissions 为扩大模式，WhaleDot 拒绝                                      |
+| exit_plan_mode                                                      | plan；计划模式转换属于未授权管理操作，拒绝                                                            |
+| glob / grep                                                         | pattern,path? / pattern,path?,include?                                                                |
+| pwsh                                                                | description,command,timeoutMs?,workdir?,run_in_background?,sandbox_permissions?,justification?        |
+| subagent / subagent_fork                                            | description,prompt,cwd?；均产生 spawn-subagent                                                        |
+| send_message / interrupt_agent / list_agents                        | agent_id,message / agent_id / scope?                                                                  |
+| job_output / job_kill / job_list                                    | job_id,wait?,timeout_ms? / job_id,reason? / 空                                                        |
+| schedule_create / schedule_update / schedule_delete / schedule_list | prompt,title,时间选择器 / id,title?,prompt?,时间选择器 / id / 空                                      |
+| skill / present / workflow / working_directory                      | name / files / script,meta,args?,run_in_background? / cd?                                             |
+| todo_write / web_fetch / web_search                                 | todos[] / url / queries[]                                                                             |
+
+界面会话导航另经 `dsh-client-ui-workspace/README.md` 的 Navigation 和同版本 `lib/types/client/navigation.d.ts:16–22` 查证，用 `uiWorkspace.openSession(sessionId)`，不臆造 HTTP 聊天路由。Cordis 的未声明注入上下文使用 `ctx.get('sessions')` 查询服务，避免直接属性访问触发注入检查。

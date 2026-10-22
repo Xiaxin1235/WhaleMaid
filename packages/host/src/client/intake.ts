@@ -2,6 +2,7 @@ import { createElement as h, useEffect, useState } from 'react'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import {
   t,
+  executionReason,
   classifyCommand,
   DEFAULT_LIMITS,
   DEFAULT_PROTECTED_NAMES,
@@ -14,6 +15,7 @@ import {
 } from '@whaledot/core'
 import type { ConfirmedGoalForm, GoalDraft, Locale, MessageKey } from '@whaledot/core'
 import {
+  ExecuteResultSchema,
   ConfirmResultSchema,
   DraftStartedSchema,
   DraftStatusSchema,
@@ -671,11 +673,13 @@ export function GoalDetailView({
   locale,
   goalId,
   onBack,
+  onOpenSession,
 }: {
   connection: ConnectionHandle
   locale: Locale
   goalId: string
   onBack(): void
+  onOpenSession(id: string): void
 }) {
   const [detail, setDetail] = useState<Detail>(),
     [error, setError] = useState(''),
@@ -683,21 +687,34 @@ export function GoalDetailView({
   const text = (key: MessageKey) => t(locale, key)
   useEffect(() => {
     let disposed = false
-    void intakeCall(connection, 'goal-detail', { goalId })
-      .then((value) => {
-        if (!disposed) setDetail(GoalDetailSchema.parse(value))
-      })
-      .catch((error) => {
-        if (!disposed) setError(String(error))
-      })
+    const refresh = () =>
+      intakeCall(connection, 'goal-detail', { goalId })
+        .then((value) => {
+          if (!disposed) setDetail(GoalDetailSchema.parse(value))
+        })
+        .catch((error) => {
+          if (!disposed) setError(String(error))
+        })
+    void refresh()
+    const timer = setInterval(() => {
+      void refresh()
+    }, 2000)
     return () => {
       disposed = true
+      clearInterval(timer)
     }
   }, [connection, goalId])
   async function write(method: string, payload: unknown) {
     setSaving(true)
     try {
-      await intakeCall(connection, method, payload)
+      const result = await intakeCall(connection, method, payload)
+      if (method === 'execute-next') {
+        const execution = ExecuteResultSchema.parse(result)
+        if (!execution.started)
+          throw new Error(
+            t(locale, 'executionBlocked', { reason: executionReason(locale, execution.reason) }),
+          )
+      }
       setDetail(GoalDetailSchema.parse(await intakeCall(connection, 'goal-detail', { goalId })))
       setError('')
     } catch (error) {
@@ -736,6 +753,90 @@ export function GoalDetailView({
             },
             text(detail.goal.status === 'paused' ? 'resumeGoal' : 'pauseGoal'),
           ),
+          h(
+            'button',
+            {
+              disabled:
+                saving ||
+                !detail.activeScope ||
+                detail.goal.status !== 'active' ||
+                detail.runs.some((run) => run.status === 'running'),
+              onClick: () => {
+                void write('execute-next', { goalId })
+              },
+            },
+            text('executeNext'),
+          ),
+          h('h3', null, text('runHistory')),
+          h(
+            'table',
+            null,
+            h(
+              'thead',
+              null,
+              h(
+                'tr',
+                null,
+                ...[
+                  text('task'),
+                  text('status'),
+                  text('sessionLink'),
+                  text('elapsed'),
+                  text('permissionPreset'),
+                  text('toolCalls'),
+                  text('deniedCalls'),
+                ].map((label) => h('th', { key: label }, label)),
+              ),
+            ),
+            h(
+              'tbody',
+              null,
+              ...detail.runs.map((run) =>
+                h(
+                  'tr',
+                  { key: run.run_id },
+                  h('td', null, detail.tasks.find((task) => task.id === run.taskId)?.title),
+                  h('td', null, `${run.status} · ${executionReason(locale, run.reason ?? '')}`),
+                  h(
+                    'td',
+                    null,
+                    h(
+                      'button',
+                      { onClick: () => onOpenSession(run.sessionId), title: text('sessionLink') },
+                      run.sessionId.slice(0, 8),
+                    ),
+                  ),
+                  h(
+                    'td',
+                    null,
+                    Math.max(0, Math.floor(((run.endedAt ?? Date.now()) - run.startedAt) / 1000)),
+                  ),
+                  h('td', null, run.runScope?.permissionPreset ?? text('none')),
+                  h('td', null, run.toolCalls),
+                  h('td', null, run.deniedCalls),
+                ),
+              ),
+            ),
+          ),
+          h('h3', null, text('checkpoints')),
+          h(
+            'ul',
+            null,
+            ...detail.checkpoints.map((item) =>
+              h(
+                'li',
+                { key: item.id },
+                `${item.commit.slice(0, 10)} · ${item.kind} · ${item.files.length}`,
+                h('pre', null, item.diffStat),
+              ),
+            ),
+          ),
+          h(
+            'details',
+            null,
+            h('summary', null, text('evidence')),
+            ...detail.evidence.map((item) => h('pre', { key: item.id }, `${item.kind}: ${item.summary}`)),
+          ),
           h('h3', null, text('authorization')),
           scope
             ? h(
@@ -753,7 +854,7 @@ export function GoalDetailView({
                     [text('permissionPreset')]: scope.permissionPreset,
                     [text('allowedPaths')]: scope.allowedPaths.join('\n'),
                     [text('protectedPaths')]: scope.protectedPaths.join('\n'),
-                    [text('protectedNames')]: scope.protectedNames.join(', '),
+                    [text('protectedNamesAll')]: scope.protectedNames.join(', '),
                     ...(scope.legacyAuthorization
                       ? { [text('permissionPreset') + ' ⚠']: text('legacyAuthorization') }
                       : {}),
@@ -801,7 +902,11 @@ export function GoalDetailView({
             'ul',
             null,
             ...detail.transitions.map((record) =>
-              h('li', { key: record.id }, `${record.from} → ${record.to}: ${record.reason}`),
+              h(
+                'li',
+                { key: record.id },
+                `${record.from} → ${record.to}: ${executionReason(locale, record.reason)}`,
+              ),
             ),
           ),
         ),

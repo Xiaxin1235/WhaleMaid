@@ -3,7 +3,7 @@
 WhaleDot is a Project Autopilot plugin for DeepSeek Harness (DSH).
 
 WhaleDot 在用户授权范围内推进长期项目，计划提供目标与任务管理、独立验收、进度与决策通知。
-状态：**早期开发中**。已具备仓库脚手架与 core 领域基元；完整自主推进闭环尚未实现。
+状态：**早期开发中**。已具备目标录入、授权存储与手动隔离执行；独立验收和自动推进闭环尚未实现。
 
 推荐搭配 [`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion) 获得鲸鱼桌宠。
 它是独立的 **AGPL-3.0** 项目；WhaleDot 为 **MIT**，不包含其代码或素材，也不直接依赖它。
@@ -14,7 +14,7 @@ WhaleDot 在用户授权范围内推进长期项目，计划提供目标与任�
 | 路径            | 用途                                                           |
 | --------------- | -------------------------------------------------------------- |
 | `packages/core` | `@whaledot/core`，纯 TypeScript 模型、状态机、依赖图与范围策略 |
-| `packages/host` | `dsh-whaledot`，Cordis 插件；预留 `src/client/` 面板目录       |
+| `packages/host` | `dsh-whaledot`，Cordis 插件、执行通道与 `src/client/` 面板     |
 | `docs/`         | 架构与开发文档                                                 |
 | `prompts/`      | 分阶段实现提示词                                               |
 
@@ -40,3 +40,12 @@ pnpm format:check
 构建产物为各包的 `lib/index.js`、source map 与 `lib/types/index.d.ts`。
 
 DSH 隔离联调步骤见 [docs/dev-dsh.md](docs/dev-dsh.md)。协作约定见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+
+## 手动执行（P08）
+
+在 WhaleDot 面板确认目标与授权后，目标详情可“执行下一个任务”。Git 项目使用仓库顶层目录，
+在插件数据目录创建独立 worktree；不会修改原工作区或推送分支。analyze/research 强制只读，
+正常结束进入 VERIFYING；独立验收为后续 P09。撤销、超时或重启后不明确的运行进入 UNKNOWN，
+不会自动重发。凭据文件名在任意嵌套目录中受保护；未知工具、越界操作及未确认脚本被拒绝。
+
+实现、测试与手工验收边界见 [P08 报告](docs/p08-report.md)。

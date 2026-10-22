@@ -9,11 +9,21 @@ import {
   TaskSchema,
   StateTransitionSchema,
   RunSchema,
+  CheckpointSchema,
+  EvidenceSchema,
   hashScope,
   transition,
 } from '@whaledot/core'
 import type { AuthorizationScope, Clock, IdGen, ScopeHasher } from '@whaledot/core'
-import type { GoalRepo, ScopeRepo, TaskRepo, TransitionRepo, RunRepo } from './repos.js'
+import type {
+  GoalRepo,
+  ScopeRepo,
+  TaskRepo,
+  TransitionRepo,
+  RunRepo,
+  CheckpointRepo,
+  EvidenceRepo,
+} from './repos.js'
 import { acquireWriterLock } from './lock.js'
 import { MIGRATIONS } from './migrations.js'
 import type { Migration } from './migrations.js'
@@ -48,6 +58,8 @@ export class WhaleStore {
   readonly scopes: ScopeRepo
   readonly tasks: TaskRepo
   readonly transitions: TransitionRepo
+  readonly checkpoints: CheckpointRepo
+  readonly evidence: EvidenceRepo
   readonly runs: RunRepo
 
   constructor(
@@ -116,7 +128,26 @@ export class WhaleStore {
         }),
     }
     this.transitions = { list: (id) => this.rows('state_transitions', StateTransitionSchema, 'task_id', id) }
+    this.checkpoints = {
+      list: (id) => this.rows('checkpoints', CheckpointSchema, 'goal_id', id),
+      insert: (input) => {
+        const row = CheckpointSchema.parse(input)
+        this.writer()
+          .prepare('INSERT INTO checkpoints(id,goal_id,task_id,data) VALUES(?,?,?,?)')
+          .run(row.id, row.goalId, row.taskId, JSON.stringify(row))
+      },
+    }
+    this.evidence = {
+      list: (id) => this.rows('evidence', EvidenceSchema, 'run_id', id),
+      insert: (input) => {
+        const row = EvidenceSchema.parse(input)
+        this.writer()
+          .prepare('INSERT INTO evidence(id,run_id,data) VALUES(?,?,?)')
+          .run(row.id, row.runId, JSON.stringify(row))
+      },
+    }
     this.runs = {
+      all: () => this.rows('runs', RunSchema),
       get: (id) => this.one('runs', id, RunSchema),
       list: (id) => this.rows('runs', RunSchema, 'task_id', id),
       insert: (input) => {
@@ -390,4 +421,12 @@ export class WhaleStore {
   }
 }
 
-export type { GoalRepo, ScopeRepo, TaskRepo, TransitionRepo, RunRepo } from './repos.js'
+export type {
+  GoalRepo,
+  ScopeRepo,
+  TaskRepo,
+  TransitionRepo,
+  RunRepo,
+  CheckpointRepo,
+  EvidenceRepo,
+} from './repos.js'

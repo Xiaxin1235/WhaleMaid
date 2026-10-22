@@ -1,4 +1,6 @@
 import type {
+  Checkpoint,
+  Evidence,
   AuthorizationScope,
   GoalId,
   ProjectGoal,
@@ -37,7 +39,16 @@ export interface TaskRepo {
 export interface TransitionRepo {
   list(taskId: TaskId): StateTransition[]
 }
+export interface CheckpointRepo {
+  list(goalId: GoalId): Checkpoint[]
+  insert(checkpoint: Checkpoint): void
+}
+export interface EvidenceRepo {
+  list(runId: RunId): Evidence[]
+  insert(evidence: Evidence): void
+}
 export interface RunRepo {
+  all(): Run[]
   get(id: RunId): Run | undefined
   list(taskId: TaskId): Run[]
   insert(run: Run): void

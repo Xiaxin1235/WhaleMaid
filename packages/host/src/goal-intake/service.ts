@@ -173,6 +173,11 @@ export class GoalIntake {
       scope: (goal.scopeId ? this.store.scopes.get(goal.scopeId) : undefined) ?? null,
       activeScope: this.scopes.activeScopeFor(goalId) ?? null,
       tasks,
+      runs: tasks.flatMap((task) => this.store.runs.list(task.id)),
+      checkpoints: this.store.checkpoints.list(goalId),
+      evidence: tasks
+        .flatMap((task) => this.store.runs.list(task.id))
+        .flatMap((run) => this.store.evidence.list(run.run_id)),
       transitions: tasks
         .flatMap((task) => this.store.transitions.list(task.id))
         .sort((a, b) => b.at - a.at)

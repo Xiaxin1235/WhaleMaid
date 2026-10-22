@@ -124,6 +124,31 @@ export const en = {
   scopeActive: 'Active',
   scopeRevoked: 'Revoked or no active authorization',
   revokeScope: 'Revoke authorization',
+  protectedNamesAll: 'Protected names',
+  evidence: 'Execution evidence',
+  gateOutside:
+    'Outside WhaleDot authorization: {rule}. Stop this operation; only the owner can change authorization in the panel.',
+  executionBlocked: 'Cannot execute: {reason}',
+  reasonGitRoot: 'Select the Git repository root as project root',
+  reasonExternalStorage: 'Execution storage must be outside the project',
+  reasonWorktree: 'The worktree was externally modified',
+  reasonRevoked: 'Authorization revoked',
+  reasonRestarted: 'Host restarted; outcome needs reconciliation',
+  reasonConcurrent: 'A run is already active',
+  reasonScope: 'No active authorization',
+  reasonPaused: 'Execution is paused',
+  reasonNoReady: 'No eligible task; dependencies may still await acceptance',
+  reasonLimit: 'Execution limit reached',
+  reasonService: 'Execution services or permission preset unavailable',
+  reasonCompleted: 'Turn completed; acceptance pending',
+  reasonTimeout: 'Run timed out; outcome unknown',
+  executeNext: 'Execute next task',
+  runHistory: 'Run history',
+  checkpoints: 'Checkpoints',
+  toolCalls: 'Tool calls',
+  deniedCalls: 'Denied calls',
+  elapsed: 'Elapsed (seconds)',
+  sessionLink: 'Open session',
   recentTransitions: 'Recent state transitions',
 } as const
 
@@ -249,6 +274,30 @@ export const zhCN: Record<MessageKey, string> = {
   scopeActive: '有效',
   scopeRevoked: '已撤销或无有效授权',
   revokeScope: '撤销授权',
+  protectedNamesAll: '保护名称',
+  evidence: '执行证据',
+  gateOutside: '这超出了 WhaleDot 授权范围：{rule}。请停止该操作；只能由用户在面板调整授权。',
+  executionBlocked: '无法执行：{reason}',
+  reasonGitRoot: '请使用 Git 仓库顶层目录作为项目根',
+  reasonExternalStorage: '执行存储目录必须在项目之外',
+  reasonWorktree: 'worktree 被外部修改',
+  reasonRevoked: '授权已撤销',
+  reasonRestarted: '宿主已重启，需要核对执行结果',
+  reasonConcurrent: '已有运行进行中',
+  reasonScope: '没有有效授权',
+  reasonPaused: '执行已暂停',
+  reasonNoReady: '没有可执行任务；依赖可能仍在等待验收',
+  reasonLimit: '已达到执行限制',
+  reasonService: '执行服务或权限预设不可用',
+  reasonCompleted: '回合已结束，等待独立验收',
+  reasonTimeout: '运行超时，结果未知',
+  executeNext: '执行下一个任务',
+  runHistory: '运行历史',
+  checkpoints: '检查点',
+  toolCalls: '工具调用数',
+  deniedCalls: '门禁拒绝数',
+  elapsed: '运行时长（秒）',
+  sessionLink: '打开会话',
   recentTransitions: '最近状态迁移',
 }
 
@@ -264,4 +313,29 @@ export function t(locale: Locale, key: MessageKey, params: Record<string, string
   return messages[locale][key].replace(/\{(\w+)\}/g, (token, name: string) =>
     Object.hasOwn(params, name) ? String(params[name]) : token,
   )
+}
+
+/** Localize known execution rule codes while preserving unknown diagnostics for inspection. */
+export function executionReason(locale: Locale, reason: string): string {
+  const keys: Record<string, MessageKey> = {
+    'worktree-external-modification': 'reasonWorktree',
+    'git-project-root-required': 'reasonGitRoot',
+    'worktree-must-be-external': 'reasonExternalStorage',
+    'scope-revoked': 'reasonRevoked',
+    'host-restarted': 'reasonRestarted',
+    'run-already-active': 'reasonConcurrent',
+    'write-slot-busy': 'reasonConcurrent',
+    'no-active-scope': 'reasonScope',
+    'globally-paused': 'reasonPaused',
+    'goal-not-active': 'reasonPaused',
+    'no-ready-task': 'reasonNoReady',
+    'daily-run-limit': 'reasonLimit',
+    'changed-file-limit-exceeded': 'reasonLimit',
+    'permission-preset-mismatch': 'reasonService',
+    'execution-services-unavailable': 'reasonService',
+    completed: 'reasonCompleted',
+    'run-timeout': 'reasonTimeout',
+  }
+  const key = keys[reason]
+  return key ? t(locale, key) : reason
 }

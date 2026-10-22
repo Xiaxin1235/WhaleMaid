@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { RunScopeSchema } from '../run-scope.js'
 import { TextSchema, TimestampSchema, VerdictSchema } from './common.js'
 import {
   AttemptIdSchema,
@@ -17,6 +18,11 @@ export const RunSchema = z.strictObject({
   baseCommit: TextSchema,
   startedAt: TimestampSchema,
   endedAt: TimestampSchema.optional(),
+  status: z.enum(['running', 'ended']).default('ended'),
+  runScope: RunScopeSchema.optional(),
+  reason: z.string().optional(),
+  toolCalls: z.number().int().nonnegative().default(0),
+  deniedCalls: z.number().int().nonnegative().default(0),
   outcome: VerdictSchema.default('UNKNOWN'),
 })
 export const AttemptSchema = z.strictObject({
@@ -32,6 +38,8 @@ export const CheckpointSchema = z.strictObject({
   goalId: GoalIdSchema,
   taskId: TaskIdSchema,
   commit: TextSchema,
+  files: z.array(z.string()).default([]),
+  diffStat: z.string().default(''),
   kind: z.enum(['baseline', 'progress', 'verified', 'rollback']),
   createdAt: TimestampSchema,
 })

@@ -1,4 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { UiWorkspace } from '@deepseek-ai/dsh-client-ui-workspace/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
@@ -155,6 +157,8 @@ function Panel({ ctx, connection }: Face) {
         connection,
         locale,
         goalId: selectedGoal,
+        onOpenSession: (id: string) =>
+          (ctx.get('uiWorkspace') as UiWorkspace | undefined)?.openSession(id as SessionId),
         onBack: () => {
           setSelectedGoal(undefined)
           refresh((value) => value + 1)

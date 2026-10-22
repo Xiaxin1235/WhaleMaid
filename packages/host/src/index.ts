@@ -5,7 +5,11 @@ import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { writeFileAtomic } from '@deepseek-ai/dsh-atomic-write'
 import Schema from '@deepseek-ai/schemastery'
 import { createRequire } from 'node:module'
-import { RunTracker } from './bridge/run-tracker.js'
+import { TaskExecutor } from './execution/execute-task.js'
+import { dshRunner } from './execution/dsh-runner.js'
+import { ToolGate, installToolGate } from './execution/tool-gate.js'
+import { resolveLocale } from '@whaledot/core'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createSessionEventSource } from './bridge/session-events.js'
 import { installPanelApi } from './panel-api/index.js'
 import { LanguageSchema } from './panel-api/contract.js'
@@ -79,6 +83,26 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     const scopes = createScopeService(ctx, store, (message, error) => debug.host(message, error))
     const intake = new GoalIntake(store, scopes, dshDraftModel(ctx))
     ctx.effect(() => () => intake.dispose())
+    const execution = new TaskExecutor(
+      store,
+      scopes,
+      dshRunner(ctx),
+      dataDir,
+      () => resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale),
+      (message, error) => debug.host(message, error),
+    )
+    ctx.effect(() => () => execution.dispose())
+    installToolGate(
+      ctx,
+      new ToolGate(
+        execution.registry,
+        () => resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale),
+        (id) =>
+          (ctx.get('sessions') as Context['sessions'] | undefined)?.get(id as SessionId)?.header
+            .parentSession,
+      ),
+    )
+    ctx.on('whaledot/scope-revoked', (id) => execution.revoke(id))
     await saveStatus()
     installPanelApi(
       ctx,
@@ -98,17 +122,17 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         setPaused: (paused) => store.setPaused(paused),
         takeoverStore: () => store.takeover(),
         intake,
+        execution,
         revokeScope: (scopeId, peer) => {
           scopes.revoke(scopeId, peer)
         },
       },
     )
     const clock = { now: () => Date.now() }
-    const tracker = new RunTracker(clock, () => {})
     const source = createSessionEventSource(ctx, clock.now)
     const stop = source.subscribe((signal) => {
       try {
-        tracker.accept(signal)
+        execution.accept(signal)
         debug.signal(signal)
       } catch (error) {
         report(error)

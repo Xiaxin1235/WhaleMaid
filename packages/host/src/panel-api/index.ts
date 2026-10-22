@@ -7,10 +7,13 @@ import type {
   PeerScope,
 } from '@deepseek-ai/dsh-client-connection'
 import type { ProjectGoal, ScopeId } from '@whaledot/core'
+import type { TaskExecutor } from '../execution/execute-task.js'
 import type { GoalIntake } from '../goal-intake/service.js'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-config-editor'
 import {
+  ExecuteNextSchema,
+  ExecuteResultSchema,
   PANEL_CHANNEL,
   PANEL_PREFIX,
   PausedSchema,
@@ -35,6 +38,7 @@ export interface PanelRuntime {
   setPaused(paused: boolean): void
   revokeScope(scopeId: ScopeId, peer: PeerScope): void
   takeoverStore(): void
+  execution?: TaskExecutor
   intake?: GoalIntake
 }
 
@@ -51,6 +55,13 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'execute-next': {
+          const { goalId } = ExecuteNextSchema.parse(input)
+          result = ExecuteResultSchema.parse(
+            await runtime.execution!.executeNextTask(goalId, { kind: 'panel', peer }),
+          )
+          break
+        }
         case 'draft-goal':
           result = DraftStartedSchema.parse(runtime.intake!.start(input, peer))
           break
@@ -118,7 +129,10 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
 export function installPanelApi(
   ctx: Context,
   snapshot: () => PanelStatus,
-  storage: Pick<PanelRuntime, 'goals' | 'setPaused' | 'revokeScope' | 'takeoverStore' | 'intake'>,
+  storage: Pick<
+    PanelRuntime,
+    'goals' | 'setPaused' | 'revokeScope' | 'takeoverStore' | 'intake' | 'execution'
+  >,
 ): void {
   ctx.inject(['connection'], (child) => {
     const runtime: PanelRuntime = {

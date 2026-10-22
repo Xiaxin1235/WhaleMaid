@@ -208,6 +208,8 @@ export function checkAction(scope: AuthorizationScope, action: ActionIntent): Ga
       }
       if (command.class === 'needs-approval')
         return decision('ask', 'command-approval', command.reasons.join(', '))
+      if (READ_ONLY_COMMAND.test(action.cmdline.trim()))
+        return decision('allow', 'read-command-allowed', 'Known read-only command in authorized directory')
       if (!scope.verifyCommands.includes(action.cmdline))
         return decision('ask', 'command-not-confirmed', 'Exact command has not been confirmed by the user')
       return decision('allow', 'command-allowed', 'Exact command and working directory are authorized')
@@ -227,6 +229,12 @@ export function checkAction(scope: AuthorizationScope, action: ActionIntent): Ga
         'Git requires a verified worktree and command binding',
       )
     }
+    case 'spawn-subagent':
+      return decision(
+        'deny',
+        'subagent-isolation-required',
+        'Delegation requires an independently constrained child runtime',
+      )
     case 'network':
       if (!/^https?:\/\//i.test(action.url))
         return decision('deny', 'network-protocol', 'Only HTTP(S) network proposals are supported')
