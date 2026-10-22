@@ -6,7 +6,21 @@
 
 WhaleDot 不做桌宠动画（由 dsh-coopanion 负责），所以这里**不需要**把事件投影成动画状态，也**不需要**任何对外 WebSocket。
 
+## 第零部分：P00 遗留修正（先做）
+
+1. **Cordis 版本**：目标宿主是 DSH Desktop 0.2.1-rc.2，内置 `@deepseek-ai/cordis@4.0.5`。`packages/host/package.json` 现在 peer 精确锁定 `4.0.4`，会导致与宿主版本不匹配。改为 `peerDependencies: "^4.0.4"`，`devDependencies` 对齐 `4.0.5`。
+2. **DSH 参考副本**：新增 `scripts/extract-dsh-ref.cjs`，必须用 Desktop 自带的 Electron 以 Node 模式运行（它能透明读取 asar）：
+   ```powershell
+   $env:ELECTRON_RUN_AS_NODE = '1'
+   & "$env:LOCALAPPDATA\Programs\DeepSeek Harness\DeepSeek Harness.exe" scripts/extract-dsh-ref.cjs
+   ```
+   脚本把 `resources/app.asar/dsh/node_modules/@deepseek-ai/*` 下每个包的 `package.json`、`README*.md`、`lib/types/**` 复制到 `.dsh-ref/<version>/@deepseek-ai/<pkg>/`（**只复制这些文件，不复制 lib 实现代码**），并写一个 `.dsh-ref/<version>/INDEX.md` 列出包名与版本。`.dsh-ref/` 加入 `.gitignore`、ESLint 与 Prettier 忽略列表。DSH 是 MIT 许可，但参考副本仍不入库。
+3. **`docs/dev-dsh.md`**：把联调用的 CLI 改成 Desktop 自带的 `resources\runtime\cli\bin\dsh.cmd`（0.2.1-rc.2）；保留独立 `DSH_HOME=.dsh-dev` 的做法。说明隔离 home 里没有用户凭据：手工联调需要在**该终端**设置模型 API Key 的环境变量（变量名以 DSH 文档为准），不要复制用户的配置或凭据文件。dsh-coopanion 那一节改为“本机 Desktop 0.2.1-rc.2 在其兼容列表内”。
+4. 提交：`chore: target DSH Desktop 0.2.1-rc.2 and add DSH reference extractor`。
+
 ## 第一部分：查证（先做，写进 `docs/dsh-api-notes.md`）
+
+**查证依据一律是 `.dsh-ref/0.2.1-rc.2/` 中的 README 与 `.d.ts`**；社区插件源码作为用法参考，但它们可能基于旧版 DSH，结论冲突时以 0.2.1-rc.2 的类型定义为准，并在笔记中注明差异。本机已确认 0.2.1-rc.2 内有 `dsh-user-questions`、`dsh-user-approval`、`dsh-permission-presets`、`dsh-host-webserver`、`dsh-client-modules`、`dsh-api-gateway`、`dsh-tools` 等包。
 
 对每一项写：**结论 + 出处（包名/文件路径/行号或 URL）+ 最小代码片段 + 不确定点**。查不到就写“未找到”，不要猜。
 
@@ -18,7 +32,7 @@ WhaleDot 不做桌宠动画（由 dsh-coopanion 负责），所以这里**不需
 6. **向用户提问 / 审批**：`userQuestions` 服务（dsh-coopanion 注入了它）的 API——**插件能否在某个会话里主动发起一个带选项的问题并拿到回答**？审批请求是哪个事件/服务？这决定 WhaleDot 的决策通知能否出现在鲸鱼的小信封里。
 7. **Web UI 半区**：一个插件包如何同时提供 client 半区（面板/页面）与 host 路由（`ctx.webServer.register` 等）；参考 task-board 的 `src/client/*`、`host-routes.ts`、`package.json` 的 `dsh.client` 字段（若有）与 dsh-pet。
 8. **插件配置与持久化目录**：`Config`（schemastery）写法；DSH 主目录解析（dsh-pet/task-board 都有 `dsh-home.ts`）；`settings` 服务读写。
-9. **兼容性**：本机 DSH CLI 版本 0.1.7-rc.2；查本机 DSH Desktop 版本（`%LOCALAPPDATA%\Programs` 或安装目录、`dsh --version`），并记录 dsh-coopanion 要求的 ≥ 0.2.0-rc.2 是否满足。
+9. **兼容性**：已知本机 DSH Desktop 为 0.2.1-rc.2（在 dsh-coopanion 兼容列表内）。记录 WhaleDot 依赖的每个服务/事件在 0.2.1-rc.2 中的所在包与版本，作为后续 `package.json` 兼容声明的依据。
 
 ## 第二部分：实现
 
