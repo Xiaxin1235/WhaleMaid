@@ -14,5 +14,13 @@ export const VerificationSchema = z.strictObject({
   decision: DecisionSchema,
 })
 export type Verification = z.infer<typeof VerificationSchema>
-export const DecisionChoiceSchema = z.enum(['retry', 'accept', 'rollback', 'pause-goal', 'view-diff'])
+export const DecisionChoiceSchema = z.enum([
+  'retry',
+  'accept',
+  'rollback',
+  'pause-goal',
+  'view-diff',
+  'verify',
+  'resume-goal',
+])
 export type DecisionChoice = z.infer<typeof DecisionChoiceSchema>

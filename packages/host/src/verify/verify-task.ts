@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { goalNotice } from '../goal-notices.js'
 import { realpath, lstat } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import {
@@ -255,6 +256,7 @@ export class TaskVerifier {
       attempts: task.attempts,
       limits: run.runScope.limits,
       stalled: goal.stalled ?? 0,
+      unknownVerifications: task.unknownVerifications ?? 0,
       tampered: judgment.reasons.includes('acceptance-tampering'),
     })
     const record: Verification = {
@@ -267,7 +269,7 @@ export class TaskVerifier {
       judgment,
       decision,
     }
-    if (decision.type === 'rollback-and-retry') await this.rollback(run, task, checkpoint)
+    if (decision.taskOutcome === 'rollback-and-retry') await this.rollback(run, task, checkpoint)
     this.store.transaction(() => {
       const fresh = this.store.tasks.get(id)
       if (fresh?.version !== task!.version || fresh.state !== 'VERIFYING') throw new Error('stale-version')
@@ -300,9 +302,14 @@ export class TaskVerifier {
         outcome: judgment.verdict,
         finalReplyNonempty: observation?.finalReplyNonempty ?? run.finalReplyNonempty ?? false,
       })
+      this.store.tasks.update(
+        { ...task!, unknownVerifications: decision.unknownVerifications, version: task!.version + 1 },
+        task!.version,
+      )
+      task = this.store.tasks.get(id)!
       const reason = judgment.reasons.join('; ')
-      if (decision.type === 'succeed') task = this.move(task!, 'SUCCEEDED', reason, run)
-      else if (decision.type === 'retry' || decision.type === 'rollback-and-retry') {
+      if (decision.taskOutcome === 'succeed') task = this.move(task!, 'SUCCEEDED', reason, run)
+      else if (decision.taskOutcome === 'retry' || decision.taskOutcome === 'rollback-and-retry') {
         task = this.move(task!, 'FAILED', reason, run)
         this.store.tasks.update(
           {
@@ -314,7 +321,7 @@ export class TaskVerifier {
           task.version,
         )
         task = this.move(this.store.tasks.get(id)!, 'READY', 'bounded-auto-retry: ' + reason, run)
-      } else if (decision.type === 'reconcile') task = this.move(task!, 'UNKNOWN', reason, run)
+      } else if (decision.taskOutcome === 'reconcile') task = this.move(task!, 'UNKNOWN', reason, run)
       else {
         task = this.move(task!, 'WAITING_APPROVAL', reason, run)
         this.notify(task, run, decision.reason, reason)
@@ -324,11 +331,13 @@ export class TaskVerifier {
         {
           ...freshGoal,
           stalled: decision.goalProgress,
-          ...(decision.type === 'pause-goal' ? { status: 'paused' as const } : {}),
+          ...(decision.goalAction === 'pause' ? { status: 'paused' as const } : {}),
           version: freshGoal.version + 1,
         },
         freshGoal.version,
       )
+      if (decision.goalAction === 'pause')
+        goalNotice(this.store, this.store.goals.get(goal.id)!, 'stalled', this.locale())
     })
     return record
   }
@@ -371,16 +380,19 @@ export class TaskVerifier {
     )
       return
     const id = NotificationIdSchema.parse(productionIdGen.next('notification'))
-    const choices: DecisionChoice[] = [
-      'retry',
-      'accept',
-      ...(run.baseCommit !== 'non-git' &&
-      this.scopes.activeScopeFor(task.goalId)?.permissionPreset === 'workspace-write'
-        ? ['rollback' as const]
-        : []),
-      'pause-goal',
-      'view-diff',
-    ]
+    const choices: DecisionChoice[] =
+      type === 'verification-unknown'
+        ? ['verify', 'accept', 'pause-goal']
+        : [
+            'retry',
+            'accept',
+            ...(run.baseCommit !== 'non-git' &&
+            this.scopes.activeScopeFor(task.goalId)?.permissionPreset === 'workspace-write'
+              ? ['rollback' as const]
+              : []),
+            'pause-goal',
+            'view-diff',
+          ]
     const expiresAt = Date.now() + 86400000
     this.store.notifications.insert({
       id,
@@ -461,6 +473,32 @@ export class TaskVerifier {
   ): Promise<{ state: string; files?: string[]; stat?: string }> {
     return verificationBatch(async () => {
       const notification = this.store.notifications.get(notificationId)
+      if (notification && !notification.taskId) {
+        if (
+          notification.resolvedAt !== undefined ||
+          (notification.expiresAt ?? 0) <= Date.now() ||
+          !notification.choices?.includes(choice) ||
+          !['resume-goal', 'pause-goal'].includes(choice)
+        )
+          throw new Error('decision-stale-or-consumed')
+        this.store.transaction(() => {
+          const goal = this.store.goals.get(notification.goalId)
+          if (!goal || this.store.notifications.get(notificationId)?.resolvedAt !== undefined)
+            throw new Error('decision-stale-or-consumed')
+          this.store.goals.update(
+            {
+              ...goal,
+              status: choice === 'pause-goal' ? 'paused' : 'active',
+              ...(choice === 'resume-goal' ? { stalled: 0 } : {}),
+              version: goal.version + 1,
+            },
+            goal.version,
+          )
+          this.store.notifications.update({ ...notification, resolvedAt: Date.now(), resolvedChoice: choice })
+          this.store.suggestions.consume(notification.id, Date.now())
+        })
+        return { state: this.store.goals.get(notification.goalId)!.status }
+      }
       const task = notification?.taskId && this.store.tasks.get(notification.taskId)
       if (
         !notification ||
@@ -491,6 +529,18 @@ export class TaskVerifier {
         if (choice === 'pause-goal') {
           const goal = this.store.goals.get(task.goalId)!
           this.store.goals.update({ ...goal, status: 'paused', version: goal.version + 1 }, goal.version)
+        } else if (choice === 'verify') {
+          this.store.tasks.update(
+            { ...task, unknownVerifications: 0, version: task.version + 1 },
+            task.version,
+          )
+          this.move(
+            this.store.tasks.get(task.id)!,
+            'VERIFYING',
+            'user-approved-verification-retry',
+            run,
+            'user',
+          )
         } else
           this.move(
             task,
@@ -501,7 +551,7 @@ export class TaskVerifier {
             run,
             'user',
           )
-        this.store.notifications.update({ ...notification, resolvedAt: Date.now() })
+        this.store.notifications.update({ ...notification, resolvedAt: Date.now(), resolvedChoice: choice })
         this.store.suggestions.consume(notification.id, Date.now())
       })
       return { state: this.store.tasks.get(task.id)!.state }
@@ -515,6 +565,8 @@ export class TaskVerifier {
   }
 }
 const choiceLabels = {
+  verify: 'retryVerification',
+  'resume-goal': 'resumeDecision',
   retry: 'decisionRetry',
   accept: 'decisionAccept',
   rollback: 'decisionRollback',

@@ -146,27 +146,50 @@ const decision = (
     ...patch,
   })
 test('every next-decision branch and stall accounting', () => {
-  expect(decision('PASS', 'improved', { stalled: 2 })).toMatchObject({ type: 'succeed', goalProgress: 0 })
-  expect(decision('PASS')).toMatchObject({ type: 'succeed', goalProgress: 1 })
+  expect(decision('PASS', 'improved', { stalled: 2 })).toMatchObject({
+    taskOutcome: 'succeed',
+    goalProgress: 0,
+  })
+  expect(decision('PASS')).toMatchObject({ taskOutcome: 'succeed', goalProgress: 1 })
   expect(decision('FAIL', 'unchanged', { stalled: 1 })).toMatchObject({
-    type: 'retry',
+    taskOutcome: 'retry',
     attempts: 1,
     goalProgress: 1,
     failureSummary: 'reason',
   })
-  expect(decision('FAIL', 'regressed').type).toBe('rollback-and-retry')
+  expect(decision('FAIL', 'regressed').taskOutcome).toBe('rollback-and-retry')
   expect(decision('FAIL', 'regressed', { attempts: 2 }).reason).toBe('fix-rounds-exhausted')
   expect(decision('FAIL', 'regressed', { tampered: true })).toMatchObject({
-    type: 'ask-user',
+    taskOutcome: 'ask-user',
     reason: 'tampering',
     attempts: 0,
   })
   expect(decision('NOT_SCORABLE').reason).toBe('not-scorable')
   expect(decision('INSUFFICIENT_EVIDENCE').reason).toBe('insufficient-evidence')
-  expect(decision('UNKNOWN').type).toBe('reconcile')
+  expect(decision('UNKNOWN').taskOutcome).toBe('reconcile')
   expect(decision('PASS', 'unchanged', { stalled: 2 })).toMatchObject({
-    type: 'pause-goal',
-    reason: 'stalled',
+    taskOutcome: 'succeed',
+    goalAction: 'pause',
     goalProgress: 3,
+  })
+})
+
+test('neutral progress does not add or clear stalls; two unknown verifications require an owner', () => {
+  expect(decision('PASS', 'neutral', { stalled: 2 })).toMatchObject({
+    taskOutcome: 'succeed',
+    goalAction: 'continue',
+    goalProgress: 2,
+  })
+  expect(decision('UNKNOWN', 'unknown', { unknownVerifications: 1 })).toMatchObject({
+    taskOutcome: 'ask-user',
+    reason: 'verification-unknown',
+    unknownVerifications: 2,
+  })
+  expect(decision('FAIL', 'unchanged', { unknownVerifications: 1 })).toMatchObject({
+    unknownVerifications: 0,
+  })
+  expect(judge(input({ kind: 'doc', baseline: [result('passed')] }))).toMatchObject({
+    verdict: 'PASS',
+    progress: 'neutral',
   })
 })

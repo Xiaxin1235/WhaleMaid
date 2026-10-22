@@ -5,6 +5,8 @@ import type { z } from 'zod'
 import type { GoalDetailSchema } from '../panel-api/contract.js'
 
 const labels = {
+  verify: 'retryVerification',
+  'resume-goal': 'resumeDecision',
   retry: 'decisionRetry',
   accept: 'decisionAccept',
   rollback: 'decisionRollback',

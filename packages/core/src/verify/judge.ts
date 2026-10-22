@@ -6,7 +6,7 @@ import type { CommandResult } from './parse.js'
 export const JudgmentSchema = z.strictObject({
   verdict: VerdictSchema,
   reasons: z.array(z.string()),
-  progress: z.enum(['improved', 'unchanged', 'regressed', 'unknown']),
+  progress: z.enum(['improved', 'unchanged', 'regressed', 'unknown', 'neutral']),
 })
 export type Judgment = z.infer<typeof JudgmentSchema>
 export interface ChangedFile {
@@ -104,7 +104,7 @@ export function judge(input: JudgeInput): Judgment {
   if (['analyze', 'research'].includes(input.kind)) {
     if (input.changedFiles.length) return result('FAIL', 'analysis-changed-files', 'regressed')
     return input.finalReplyNonempty
-      ? result('PASS', 'report-only', 'unchanged')
+      ? result('PASS', 'report-only', 'neutral')
       : result('INSUFFICIENT_EVIDENCE', 'empty-report')
   }
   if (!input.verifyCommands.length) return result('NOT_SCORABLE', 'no-verification-commands')
@@ -140,7 +140,11 @@ export function judge(input: JudgeInput): Judgment {
     return result(
       'PASS',
       improved ? 'verification-improved' : 'verification-passed',
-      improved ? 'improved' : 'unchanged',
+      improved
+        ? 'improved'
+        : input.kind === 'doc' && baseline.every((item) => item.status === 'passed')
+          ? 'neutral'
+          : 'unchanged',
     )
   return result('FAIL', 'verification-still-failing', 'unchanged')
 }

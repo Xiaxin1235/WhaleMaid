@@ -24,6 +24,7 @@ export const NotificationSchema = z.strictObject({
   reason: z.string().optional(),
   choices: z.array(DecisionChoiceSchema).optional(),
   expiresAt: TimestampSchema.optional(),
+  resolvedChoice: DecisionChoiceSchema.optional(),
   resolvedAt: TimestampSchema.optional(),
   deliveredAt: TimestampSchema.optional(),
   snoozedUntil: TimestampSchema.optional(),
@@ -39,12 +40,15 @@ export const SuggestionSchema = z.strictObject({
   ]),
   riskLevel: z.enum(['low', 'medium', 'high']),
   expiresAt: TimestampSchema,
-  bindTo: z.strictObject({
-    goalId: GoalIdSchema,
-    taskId: TaskIdSchema,
-    taskVersion: VersionSchema,
-    sessionId: SessionIdSchema,
-  }),
+  bindTo: z.union([
+    z.strictObject({ goalId: GoalIdSchema }),
+    z.strictObject({
+      goalId: GoalIdSchema,
+      taskId: TaskIdSchema,
+      taskVersion: VersionSchema,
+      sessionId: SessionIdSchema,
+    }),
+  ]),
   consumedAt: TimestampSchema.optional(),
 })
 export type Notification = z.infer<typeof NotificationSchema>

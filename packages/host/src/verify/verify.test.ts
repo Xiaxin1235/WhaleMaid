@@ -192,7 +192,7 @@ test('tampering never executes acceptance code or automatically retries; choices
 test('regression preserves failed ref, rolls back only WhaleDot branch, and records bounded retry', async () => {
   const f = await setup({ before: 'good', after: 'bad' })
   const report = await f.verifier.verifyTask(f.task.id)
-  expect(report.decision.type).toBe('rollback-and-retry')
+  expect(report.decision.taskOutcome).toBe('rollback-and-retry')
   expect(await f.git.git(f.run.worktreePath, ['rev-parse', 'refs/whaledot/failed/run_1'])).toBe(f.cp.commit)
   expect(await f.git.git(f.run.worktreePath, ['rev-parse', 'HEAD'])).toBe(f.original)
   expect(f.store.tasks.get(f.task.id)).toMatchObject({
@@ -342,18 +342,28 @@ test('verification timeout produces UNKNOWN and reconciliation never resubmits e
 test('unchanged failing commands retry with summary; exhausted budget and stalls ask the owner', async () => {
   const f = await setup({ after: 'different-bad' })
   const report = await f.verifier.verifyTask(f.task.id)
-  expect(report.decision.type).toBe('retry')
+  expect(report.decision.taskOutcome).toBe('retry')
   expect(f.store.tasks.get(f.task.id)).toMatchObject({
     state: 'READY',
     attempts: 1,
     failureSummary: 'verification-still-failing',
   })
-  const g = await setup({ kind: 'analyze', commands: [] })
+  const g = await setup({
+    kind: 'edit',
+    before: 'good',
+    after: 'still-good',
+    commands: ['node -e "process.exit(0)"'],
+  })
   const goal = g.store.goals.get(g.goal.id)!
   g.store.goals.update({ ...goal, stalled: 2, version: goal.version + 1 }, goal.version)
-  expect((await g.verifier.verifyTask(g.task.id)).decision.type).toBe('pause-goal')
+  expect((await g.verifier.verifyTask(g.task.id)).decision.goalAction).toBe('pause')
+  expect(g.store.tasks.get(g.task.id)?.state).toBe('SUCCEEDED')
+  expect(g.store.notifications.list()[0]?.taskId).toBeUndefined()
   expect(g.store.goals.get(g.goal.id)?.status).toBe('paused')
   expect(g.store.notifications.list()[0]?.reason).toContain('stalled')
+  await g.verifier.resolveDecision(g.store.notifications.list()[0]!.id, 'resume-goal')
+  expect(g.store.goals.get(g.goal.id)).toMatchObject({ status: 'active', stalled: 0 })
+  expect(g.store.tasks.get(g.task.id)?.state).toBe('SUCCEEDED')
 })
 
 test('owner rollback preserves evidence and does not consume automatic repair budget', async () => {
@@ -408,4 +418,21 @@ test('unreadable final report remains UNKNOWN rather than being treated as an em
     reasons: ['session-observation-unavailable'],
   })
   expect(f.store.tasks.get(f.task.id)?.state).toBe('UNKNOWN')
+})
+
+test('two consecutive unknown verifications stop the reconcile loop until explicit retry', async () => {
+  const f = await setup({
+    after: 'good',
+    commands: ['node -e "setInterval(()=>{},1000)"'],
+    limits: { maxRunMinutes: 0.002 },
+  })
+  await f.verifier.verifyTask(f.task.id)
+  expect(f.store.tasks.get(f.task.id)).toMatchObject({ state: 'UNKNOWN', unknownVerifications: 1 })
+  await f.verifier.reconcileTask(f.task.id)
+  expect(f.store.tasks.get(f.task.id)).toMatchObject({ state: 'WAITING_APPROVAL', unknownVerifications: 2 })
+  const n = f.store.notifications.list()[0]!
+  expect(n.choices).toEqual(['verify', 'accept', 'pause-goal'])
+  await expect(f.verifier.reconcileTask(f.task.id)).rejects.toThrow('task-not-unknown')
+  await f.verifier.resolveDecision(n.id, 'verify')
+  expect(f.store.tasks.get(f.task.id)).toMatchObject({ state: 'VERIFYING', unknownVerifications: 0 })
 })

@@ -116,3 +116,11 @@ P07 为 protectedPaths 增加唯一的文件名前缀模式：末尾 `.env*`，�
 语言设置影响面板文案、WhaleDot 发给用户的通知/提问/选项文字，以及将来要求模型输出的用户可见摘要语言。
 它不影响 `ActionIntent`、日志、存储字段名和错误 code；这些继续使用英文标识符。
 本轮只交付面板文案，后续通知与摘要消费者必须复用此目录；当前不声称已经实现通知或模型摘要生成。
+
+## P10 验收与目标进展
+
+任务验收和目标停滞是两个结论。Decision.taskOutcome 只决定任务成功、有限修复、等待决定或核对；goalAction 独立决定继续或暂停目标。PASS 始终迁移为 SUCCEEDED，即使同轮触及停滞上限，也只暂停目标并生成不绑定任务的 stalled 决策。
+
+progress 包含 improved / unchanged / regressed / unknown / neutral。report-only 分析、研究任务以及基线与当前全部通过的 doc 任务为 neutral，连续无进展计数既不加一也不清零；improved 清零；PASS + unchanged 加一；其他结论保留原值。
+
+每个任务持久记录 unknownVerifications：连续 UNKNOWN 验收达到两次后进入 WAITING_APPROVAL，选项仅重试验收、人工接受、暂停目标。重试验收只验证已有 Run，不重发提示词；确定结论或显式重试验收将计数清零。旧版 Decision 报告通过只读转换保留可读性，不回改历史任务结论。

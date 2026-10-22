@@ -12,6 +12,7 @@ export const TaskSchema = z.strictObject({
   state: TaskStateSchema,
   acceptance: z.array(TextSchema),
   failureSummary: z.string().optional(),
+  unknownVerifications: z.int().nonnegative().optional(),
   attempts: z.int().nonnegative(),
   createdBy: z.enum(['user', 'planner']),
   createdAt: TimestampSchema,
