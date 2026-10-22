@@ -3,6 +3,7 @@ import { ActionIntentSchema } from './model/action.js'
 import type { ActionIntent } from './model/action.js'
 import { AuthorizationScopeSchema, ScopeContentSchema, ScopeHashSchema } from './model/authorization.js'
 import type { AuthorizationScope, ScopeContent } from './model/authorization.js'
+import { readOnlyCommandPaths } from './read-only-command.js'
 import { isWithinPath, normalizeWindowsPath } from './windows-path.js'
 
 export type ScopeHashError = { code: 'invalid-scope-content' | 'invalid-scope-path' }
@@ -103,8 +104,6 @@ export interface CommandClass {
   reasons: string[]
 }
 
-const READ_ONLY_COMMAND =
-  /^(?:git(?:\.exe)?\s+(?:status(?:\s+--short)?|diff\s+--(?:stat|name-only)|log\s+--oneline)|(?:pwd|Get-Location|Get-Date|Get-ChildItem|ls|dir)(?:\.exe)?|(?:Get-Content|cat|type)\s+(?:[a-z]:[\\/][\w.\\/-]+|'[^'\r\n]+'|"[^"\r\n]+"))$/i
 const LOCAL_TEST_COMMAND = /^(?:pnpm|npm)\s+(?:test|run\s+(?:test|build|lint|typecheck))(?:\s+--run)?$/i
 
 /** Classify known hazards; only a small literal allowlist is safe and all unknown shell syntax asks. */
@@ -155,7 +154,8 @@ export function classifyCommand(cmdline: string): CommandClass {
   // No shell composition, interpolation, redirection, control blocks, glob expansion or dynamic invocation is automatic.
   if (/[;&|<>$`\r\n(){}*?]/.test(line))
     return { class: 'needs-approval', reasons: ['compound-or-dynamic-command'] }
-  if (READ_ONLY_COMMAND.test(line) || LOCAL_TEST_COMMAND.test(line)) return { class: 'safe', reasons: [] }
+  if ('paths' in readOnlyCommandPaths(line, 'C:/') || LOCAL_TEST_COMMAND.test(line))
+    return { class: 'safe', reasons: [] }
   return { class: 'needs-approval', reasons: ['unrecognized-command'] }
 }
 
@@ -203,12 +203,15 @@ export function checkAction(scope: AuthorizationScope, action: ActionIntent): Ga
       const command = classifyCommand(action.cmdline)
       if (command.class === 'forbidden')
         return decision('deny', 'command-forbidden', command.reasons.join(', '))
-      if (scope.permissionPreset === 'read-only' && !READ_ONLY_COMMAND.test(action.cmdline.trim())) {
+      const read = readOnlyCommandPaths(action.cmdline, action.cwd)
+      if ('paths' in read && read.paths.some((path) => !isPathAllowed(scope, path)))
+        return decision('deny', 'path-outside-scope', 'Read command target is outside authorization')
+      if (scope.permissionPreset === 'read-only' && !('paths' in read)) {
         return decision('deny', 'read-only-preset', 'Command is not a known read-only operation')
       }
       if (command.class === 'needs-approval')
         return decision('ask', 'command-approval', command.reasons.join(', '))
-      if (READ_ONLY_COMMAND.test(action.cmdline.trim()))
+      if ('paths' in read)
         return decision('allow', 'read-command-allowed', 'Known read-only command in authorized directory')
       if (!scope.verifyCommands.includes(action.cmdline))
         return decision('ask', 'command-not-confirmed', 'Exact command has not been confirmed by the user')
@@ -219,7 +222,7 @@ export function checkAction(scope: AuthorizationScope, action: ActionIntent): Ga
       const command = classifyCommand(cmdline)
       if (command.class === 'forbidden')
         return decision('deny', 'command-forbidden', command.reasons.join(', '))
-      if (scope.permissionPreset === 'read-only' && !READ_ONLY_COMMAND.test(cmdline)) {
+      if (scope.permissionPreset === 'read-only' && !('paths' in readOnlyCommandPaths(cmdline, 'C:/'))) {
         return decision('deny', 'read-only-preset', 'Git operation is not known to be read-only')
       }
       // This intent carries no cwd: a host adapter must bind a concrete worktree before execution.

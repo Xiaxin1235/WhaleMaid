@@ -187,6 +187,7 @@ export class TaskExecutor {
     const current = this.store.runs.get(run.run_id)
     if (!current || current.status !== 'running') return
     // Close the gate synchronously before cancel; turn/end may arrive during cancellation.
+    this.registry.close(run.sessionId)
     this.store.runs.update({ ...current, reason })
     try {
       this.runner.cancel(run.sessionId)
@@ -222,6 +223,7 @@ export class TaskExecutor {
     if (this.finishing.has(id) || this.disposed) return
     let run = this.store.runs.get(id)
     if (!run || run.status !== 'running') return
+    this.registry.close(run.sessionId)
     this.finishing.add(id)
     clearTimeout(this.timers.get(id))
     this.timers.delete(id)
@@ -299,6 +301,7 @@ export class TaskExecutor {
     for (const timer of this.timers.values()) clearTimeout(timer)
     for (const run of this.store.status().state === 'ok' ? this.store.runs.all() : [])
       if (run.status === 'running') {
+        this.registry.close(run.sessionId)
         try {
           this.runner.cancel(run.sessionId)
         } catch {

@@ -422,3 +422,32 @@ test('a populated or linked hooks directory is refused, never executed', async (
   await writeFile(join(worktrees.emptyHooks, 'pre-commit'), 'malicious')
   await expect(worktrees.git(project, ['status'])).rejects.toThrow('hooks-directory-not-empty')
 })
+
+test('shell readers realpath every literal target and release lineage on closure/unload', async () => {
+  const { gate, run, next, executor, dir } = await active()
+  const outside = join(dir, 'outside')
+  await mkdir(outside)
+  await writeFile(join(outside, 'secret.txt'), 'secret')
+  await symlink(outside, join(run.worktreePath, 'link'), 'junction')
+  const call = (command: string) =>
+    gate.check(
+      {
+        name: 'pwsh',
+        arguments: { description: 'read', command },
+        agent: { session: { id: run.sessionId } },
+        rootCallId: {},
+        token: {},
+      },
+      next,
+    )
+  expect(await call('Get-Content -LiteralPath "link/secret.txt"')).toMatchObject({ kind: 'deny' })
+  expect(await call('Get-Content .env')).toMatchObject({ kind: 'deny' })
+  expect(await call('type C:/Users/xx/.ssh/id_rsa')).toMatchObject({ kind: 'deny' })
+  expect(await call('dir')).toMatchObject({ kind: 'allow' })
+  expect(gate.trackedEntries()).toBeGreaterThan(0)
+  executor.registry.close(run.sessionId)
+  expect(gate.trackedEntries()).toBe(0)
+  await call('dir')
+  executor.dispose()
+  expect(gate.trackedEntries()).toBe(0)
+})

@@ -48,7 +48,16 @@ export class ToolGate {
     private readonly registry: RunRegistry,
     private readonly locale: () => Locale,
     private readonly parentOf: (id: string) => string | undefined = () => undefined,
-  ) {}
+  ) {
+    registry.onClosed((sessionId) => {
+      for (const map of [this.roots, this.tokens])
+        for (const [key, owner] of map) if (owner === sessionId) map.delete(key)
+    })
+  }
+  /** Number of ephemeral tool lineage bindings, for runtime diagnostics. */
+  trackedEntries(): number {
+    return this.roots.size + this.tokens.size
+  }
   private owner(exec: GateExecution): string | undefined {
     let id = exec.agent?.session.id
     const seen = new Set<string>()
@@ -78,6 +87,10 @@ export class ToolGate {
     try {
       run = this.registry.get(owner)
       if (!run) throw new Error('missing-owned-run')
+      if (!this.live(run)) {
+        this.registry.close(run.sessionId)
+        return this.deny(run, exec.name, 'none', 'run-inactive')
+      }
       if (exec.rootCallId) this.roots.set(exec.rootCallId, run.sessionId)
       if (exec.token) this.tokens.set(exec.token, run.sessionId)
       this.registry.store.runs.update({ ...run, toolCalls: run.toolCalls + 1 })

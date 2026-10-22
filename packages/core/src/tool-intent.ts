@@ -1,3 +1,4 @@
+import { readOnlyCommandPaths } from './read-only-command.js'
 import { z } from 'zod'
 import type { ActionIntent } from './model/action.js'
 import { normalizeWindowsPath } from './windows-path.js'
@@ -162,16 +163,8 @@ export function toolCallToIntents(
       const cwd = resolveToolPath(ctx.cwd, p.data.workdir ?? '.')
       if (!cwd) return unknown
       const intents: ActionIntent[] = [{ type: 'run-command', cmdline: p.data.command, cwd }]
-      // Literal content readers need a second path authorization; never interpret shell expressions.
-      const read =
-        /^(?:Get-Content|cat|type)\s+(?:'([^'\r\n]+)'|"([^"\r\n]+)"|([a-z]:[\\/][\w.\\/-]+))$/i.exec(
-          p.data.command.trim(),
-        )
-      if (read) {
-        const path = resolveToolPath(cwd, read[1] ?? read[2] ?? read[3]!)
-        if (!path) return unknown
-        intents.push({ type: 'read-file', path })
-      }
+      const read = readOnlyCommandPaths(p.data.command, cwd)
+      if ('paths' in read) for (const path of read.paths) intents.push({ type: 'read-file', path })
       return { intents }
     }
     case 'web_fetch': {

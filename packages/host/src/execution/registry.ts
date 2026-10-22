@@ -2,10 +2,20 @@ import type { Run, RunId, Task, TaskState } from '@whaledot/core'
 import type { WhaleStore } from '../store/index.js'
 /** Durable before-send registration and a retained session ownership index, including ended runs. */
 export class RunRegistry {
+  private readonly closed = new Set<(sessionId: string) => void>()
   private readonly sessions = new Map<string, RunId>()
   constructor(readonly store: WhaleStore) {
     for (const run of store.status().state === 'error' ? [] : store.runs.all())
       this.sessions.set(run.sessionId, run.run_id)
+  }
+  /** Subscribe to gate closure without discarding durable ownership. */
+  onClosed(listener: (sessionId: string) => void): () => void {
+    this.closed.add(listener)
+    return () => this.closed.delete(listener)
+  }
+  /** Release ephemeral lineage for every terminal, cancellation and unload path. */
+  close(sessionId: string): void {
+    for (const listener of this.closed) listener(sessionId)
   }
   /** Retain ownership even if a stored run later becomes unreadable. */
   has(sessionId: string): boolean {
@@ -34,6 +44,7 @@ export class RunRegistry {
   /** A restarted host cannot safely infer delivery or completion. Reconcile later; never resend. */
   recover(): void {
     for (const run of this.store.runs.all().filter((run) => run.status === 'running')) {
+      this.close(run.sessionId)
       this.store.transaction(() => {
         const task = this.store.tasks.get(run.taskId)
         if (task?.state === 'RUNNING') this.transition(task, 'UNKNOWN', 'host-restarted', run.run_id)
