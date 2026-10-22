@@ -35,7 +35,14 @@ test('real DSH Connection refuses unauthenticated HTTP before dispatch; its sign
       ctx.connection.fetch.register(
         createPanelRoute(
           method,
-          { snapshot: read, setLanguage: write, goals: () => [], setPaused: write, revokeScope: write },
+          {
+            snapshot: read,
+            setLanguage: write,
+            goals: () => [],
+            setPaused: write,
+            revokeScope: write,
+            takeoverStore: write,
+          },
           (request) => ctx.connection.admit(request),
         ),
       )

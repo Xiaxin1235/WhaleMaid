@@ -121,6 +121,18 @@ test('live PID yields read-only access and cannot mutate or steal writer lock', 
   expect(store.status().state).toBe('ok')
 })
 
+test('explicit takeover recovers a reused live PID and reopens the same repository handles', () => {
+  const dir = directory()
+  writeFileSync(join(dir, 'whaledot.lock'), JSON.stringify({ pid: process.pid, startedAt: 1 }))
+  const { store, log } = open(dir)
+  expect(store.status().state).toBe('read-only')
+  store.takeover()
+  expect(store.status().state).toBe('ok')
+  store.goals.insert(makeGoal())
+  expect(store.goals.list()).toHaveLength(1)
+  expect(log).toHaveBeenCalledWith('store takeover completed')
+})
+
 test('a dead PID can be taken over, while malformed locks remain untouched', () => {
   const dir = directory()
   const child = spawnSync(process.execPath, ['-e', ''], { windowsHide: true })

@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, rmdirSync, unlinkSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, rmdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
@@ -20,7 +20,11 @@ function isAlive(pid: number): boolean {
 }
 
 /** Exclusive file creation, with a separate exclusive guard serializing dead-owner takeover. */
-export function acquireWriterLock(dataDir: string, startedAt: number): (() => void) | undefined {
+export function acquireWriterLock(
+  dataDir: string,
+  startedAt: number,
+  confirmedLock?: string,
+): (() => void) | undefined {
   const path = join(dataDir, 'whaledot.lock')
   const token = randomUUID()
   const content = JSON.stringify({ pid: process.pid, startedAt, token })
@@ -43,8 +47,25 @@ export function acquireWriterLock(dataDir: string, startedAt: number): (() => vo
     }
   }
   if (!create()) {
-    if (!ownerIsDead()) return undefined
+    const canReplace = () =>
+      confirmedLock === undefined ? ownerIsDead() : readFileSync(path, 'utf8') === confirmedLock
+    if (!canReplace()) return undefined
     const guard = path + '.reclaim'
+    try {
+      const before = statSync(guard)
+      if (startedAt - before.mtimeMs > 60000) {
+        const current = statSync(guard)
+        if (
+          current.ino === before.ino &&
+          current.mtimeMs === before.mtimeMs &&
+          startedAt - current.mtimeMs > 60000
+        )
+          rmdirSync(guard)
+      }
+    } catch (error) {
+      if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes((error as NodeJS.ErrnoException).code ?? ''))
+        throw error
+    }
     try {
       mkdirSync(guard)
     } catch (error) {
@@ -53,7 +74,7 @@ export function acquireWriterLock(dataDir: string, startedAt: number): (() => vo
     }
     try {
       // Recheck after winning the guard; another contender may already have replaced the owner.
-      if (!ownerIsDead()) return undefined
+      if (!canReplace()) return undefined
       unlinkSync(path)
       if (!create()) return undefined
     } finally {

@@ -9,7 +9,14 @@ import type {
 import type { ProjectGoal, ScopeId } from '@whaledot/core'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-config-editor'
-import { PANEL_CHANNEL, PANEL_PREFIX, PausedSchema, RevokeScopeSchema } from './contract.js'
+import {
+  PANEL_CHANNEL,
+  PANEL_PREFIX,
+  PausedSchema,
+  RevokeScopeSchema,
+  TakeoverSchema,
+  StatusSchema,
+} from './contract.js'
 import type { PanelStatus } from './contract.js'
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
@@ -19,6 +26,7 @@ export interface PanelRuntime {
   goals(): ProjectGoal[]
   setPaused(paused: boolean): void
   revokeScope(scopeId: ScopeId, peer: PeerScope): void
+  takeoverStore(): void
 }
 
 /** Peer is supplied by Connection after admission, never accepted from a payload. */
@@ -44,6 +52,12 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
           const patch = PausedSchema.parse(input)
           runtime.setPaused(patch.paused)
           result = PausedSchema.parse(patch)
+          break
+        }
+        case 'takeover-store': {
+          TakeoverSchema.parse(input)
+          runtime.takeoverStore()
+          result = StatusSchema.parse(runtime.snapshot())
           break
         }
         case 'revoke-scope': {
@@ -74,7 +88,7 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
 export function installPanelApi(
   ctx: Context,
   snapshot: () => PanelStatus,
-  storage: Pick<PanelRuntime, 'goals' | 'setPaused' | 'revokeScope'>,
+  storage: Pick<PanelRuntime, 'goals' | 'setPaused' | 'revokeScope' | 'takeoverStore'>,
 ): void {
   ctx.inject(['connection'], (child) => {
     const runtime: PanelRuntime = {
@@ -90,7 +104,14 @@ export function installPanelApi(
         await settings.update(form.ns, patch, form.revision)
       },
     }
-    for (const method of ['status', 'goals', 'language', 'set-paused', 'revoke-scope'] as const) {
+    for (const method of [
+      'status',
+      'goals',
+      'language',
+      'set-paused',
+      'revoke-scope',
+      'takeover-store',
+    ] as const) {
       child.effect(() =>
         child.connection.fetch.register(
           createPanelRoute(method, runtime, (request) => child.connection.admit(request)),
@@ -102,7 +123,7 @@ export function installPanelApi(
 
 /** Exact Connection routes coexist with Gateway's exclusive /api interceptor. */
 export function createPanelRoute(
-  method: 'status' | 'goals' | 'language' | 'set-paused' | 'revoke-scope',
+  method: 'status' | 'goals' | 'language' | 'set-paused' | 'revoke-scope' | 'takeover-store',
   runtime: PanelRuntime,
   admit: HostConnectionHandle['admit'],
 ): ConnectionFetchRoute {

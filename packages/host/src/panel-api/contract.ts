@@ -6,6 +6,7 @@ export const EmptyRequestSchema = z.strictObject({})
 export const LanguageRequestSchema = z.strictObject({ language: LanguageSchema })
 export const PausedSchema = z.strictObject({ paused: z.boolean() })
 export const RevokeScopeSchema = z.strictObject({ scopeId: ScopeIdSchema })
+export const TakeoverSchema = z.strictObject({ confirm: z.literal(true) })
 export const ServicesSchema = z.strictObject({
   gateway: z.boolean(),
   commands: z.boolean(),

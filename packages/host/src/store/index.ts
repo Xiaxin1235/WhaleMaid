@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { createHash, randomUUID } from 'node:crypto'
 import { DatabaseSync } from 'node:sqlite'
@@ -144,6 +144,20 @@ export class WhaleStore {
     }
   }
 
+  /** Only the authenticated panel's explicit owner confirmation may call this recovery path. */
+  takeover(): void {
+    if (this.state !== 'read-only') throw new Error('store-not-read-only')
+    const path = join(this.dataDir, 'whaledot.lock')
+    const snapshot = existsSync(path) ? readFileSync(path, 'utf8') : undefined
+    this.db?.close()
+    this.db = undefined
+    this.options.log('owner confirmed store takeover')
+    this.open(snapshot)
+    if (this.status().state !== 'ok') throw new Error('store-takeover-failed')
+    this.message = undefined
+    this.options.log('store takeover completed')
+  }
+
   /** Synchronous transactions must contain no async work or external side effects. */
   transaction<T>(work: () => T): T {
     const db = this.writer()
@@ -246,10 +260,10 @@ export class WhaleStore {
     return this.db
   }
 
-  private open(): void {
+  private open(confirmedLock?: string): void {
     try {
       mkdirSync(this.dataDir, { recursive: true })
-      this.unlock = acquireWriterLock(this.dataDir, this.clock.now())
+      this.unlock = acquireWriterLock(this.dataDir, this.clock.now(), confirmedLock)
       const path = join(this.dataDir, 'whaledot.db')
       const existed = existsSync(path) && statSync(path).size > 0
       if (!this.unlock) {

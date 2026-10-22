@@ -35,7 +35,9 @@ P04/P05 的通知与建议仓储不在本次实现范围内。
 尚在 WAL 的已提交数据；活 PID 只读、死 PID 接管、两个真实子进程争用（新锁/旧锁各一次）；
 CAS stale-version、SQL 更新零行、审计插入中途抛错回滚；JSON/schema/索引损坏跳过计数；
 关闭再打开后的数据与暂停保留；owner 限制、grant/hash、不可变授权版本替换及失败回滚、
-真实 Cordis 撤销事件、所有合法 ActionIntent 在撤销后 deny、篡改摘要/内容后无授权。
+真实 Cordis 撤销事件、所有合法 ActionIntent 在撤销后 deny、摘要与内容不一致时无授权。
+摘要与数据保存在同一数据库，只能发现意外损坏或不一致，不能防止拥有数据库写权限的人
+同时修改数据并重算摘要；它不是安全边界，本机写权限攻击者不在 WhaleDot 的防护范围内。
 
 真实 DSH Connection + loopback HTTP 测试同时覆盖 status、set-paused、revoke-scope：
 未认证 401 且业务未执行、宿主签名 Cookie 的 owner 请求、额外字段拒绝、跨源 Origin 403。

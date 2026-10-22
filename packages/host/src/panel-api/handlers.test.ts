@@ -40,6 +40,7 @@ test('missing/disposed/non-owner peer cannot read or mutate; payload cannot impe
     goals: () => [],
     setPaused: write,
     revokeScope: write,
+    takeoverStore: write,
   })
   const signal = new AbortController().signal
   for (const peer of [
@@ -67,6 +68,7 @@ test('authenticated owner can read and change language, but cannot create goals 
     goals: () => [],
     setPaused: write,
     revokeScope: write,
+    takeoverStore: write,
   })
   const peer = { principal: { kind: 'owner' }, signal } as PeerScope
   expect(await handler('status', {}, signal, peer)).toEqual({ ok: true, value: snapshot })
@@ -95,6 +97,7 @@ test('pause and revoke require live owner and strict payloads before any mutatio
     goals: () => [],
     setPaused,
     revokeScope,
+    takeoverStore: vi.fn(),
   })
   const signal = new AbortController().signal
   const peer = { principal: { kind: 'owner' }, signal } as PeerScope
@@ -134,4 +137,30 @@ test('pause and revoke require live owner and strict payloads before any mutatio
     ok: false,
     error: { code: 'whaledot/not-found' },
   })
+})
+
+test('store takeover accepts only authenticated explicit confirmation', async () => {
+  const takeoverStore = vi.fn()
+  const handler = createPanelHandler({
+    snapshot: () => snapshot,
+    setLanguage: vi.fn(),
+    goals: () => [],
+    setPaused: vi.fn(),
+    revokeScope: vi.fn(),
+    takeoverStore,
+  })
+  const signal = new AbortController().signal
+  const peer = { principal: { kind: 'owner' }, signal } as PeerScope
+  for (const input of [{}, { confirm: false }, { confirm: true, extra: 1 }]) {
+    expect(await handler('takeover-store', input, signal, peer)).toMatchObject({ ok: false })
+  }
+  expect(
+    await handler('takeover-store', { confirm: true }, signal, undefined as unknown as PeerScope),
+  ).toMatchObject({ ok: false })
+  expect(takeoverStore).not.toHaveBeenCalled()
+  expect(await handler('takeover-store', { confirm: true }, signal, peer)).toEqual({
+    ok: true,
+    value: snapshot,
+  })
+  expect(takeoverStore).toHaveBeenCalledOnce()
 })

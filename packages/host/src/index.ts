@@ -92,6 +92,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       {
         goals: () => store.goals.list(),
         setPaused: (paused) => store.setPaused(paused),
+        takeoverStore: () => store.takeover(),
         revokeScope: (scopeId, peer) => {
           scopes.revoke(scopeId, peer)
         },

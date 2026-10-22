@@ -113,6 +113,22 @@ function Panel({ ctx, connection }: Face) {
     }
   }
 
+  async function takeover() {
+    setSaving(true)
+    try {
+      const reply = await connection.rpc.call(PANEL_CHANNEL, `${PANEL_PREFIX}/takeover-store`, {
+        confirm: true,
+      })
+      if (!reply.ok) throw reply.error
+      setStatus(StatusSchema.parse(reply.value))
+      setError(undefined)
+    } catch (error) {
+      setError(errorCode(error))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   return h(
     'main',
     { className: 'whaledot-panel', 'data-whaledot-panel': '', lang: locale },
@@ -156,6 +172,17 @@ function Panel({ ctx, connection }: Face) {
               h('dt', null, text('storeRecords')),
               h('dd', null, t(locale, 'corruptRows', { count: status.store.corruptRows })),
             ),
+            status.store.state === 'read-only' &&
+              h(
+                'button',
+                {
+                  disabled: saving,
+                  onClick: () => {
+                    void takeover()
+                  },
+                },
+                text('takeoverStore'),
+              ),
             h('h3', null, text('dependencies')),
             h(
               'ul',
