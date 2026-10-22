@@ -57,14 +57,14 @@ test('status updates replace the file inode with a complete snapshot', async () 
     version: '0.0.0',
     services: { gateway: false, commands: false, userQuestions: false },
   })
-  expect(await readdir(dir)).toEqual(['status.json'])
+  expect(await readdir(dir)).toEqual(['debug', 'status.json'])
 })
 
 test('atomic replacement failure is logged without rejecting startup or leaving temporary files', async () => {
   const { ctx, dir } = await setup()
   await mkdir(join(dir, 'status.json'))
   await expect(apply(ctx, { dataDir: dir })).resolves.toBeUndefined()
-  expect(await readdir(dir)).toEqual(['status.json'])
+  expect(await readdir(dir)).toEqual(['debug', 'status.json'])
   expect(await readdir(join(dir, 'status.json'))).toEqual([])
   expect(ctx.logger.buffer.some((row) => row.type === 'error' && row.args[0] === 'plugin degraded')).toBe(
     true,
@@ -82,6 +82,7 @@ test('host declares compatible dependency ranges for home paths and schemastery'
 })
 
 test('synchronous initialization error is contained even if logger is unavailable', async () => {
+  const { dir } = await setup()
   const error = new Error('logger unavailable')
   const ctx = {
     logger() {
@@ -89,7 +90,7 @@ test('synchronous initialization error is contained even if logger is unavailabl
     },
   } as unknown as Context
   const report = vi.spyOn(console, 'error').mockImplementation(() => {})
-  await expect(apply(ctx)).resolves.toBeUndefined()
+  await expect(apply(ctx, { dataDir: dir })).resolves.toBeUndefined()
   expect(report).toHaveBeenCalledWith('[whaledot] failed to load plugin', error)
 })
 

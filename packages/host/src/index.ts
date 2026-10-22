@@ -11,6 +11,7 @@ import { installPanelApi } from './panel-api/index.js'
 import { LanguageSchema } from './panel-api/contract.js'
 import type { PanelStatus } from './panel-api/contract.js'
 import type { LanguageSetting } from '@whaledot/core'
+import { DebugLog } from './debug-log.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -33,7 +34,10 @@ export const Config: Schema<Omit<Config, 'language'> & { language?: LanguageSett
 
 /** All initialization paths, including optional-service callbacks and async IO, degrade locally. */
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
+  const dataDir = config.dataDir || join(resolveDshHome(), name)
+  const debug = new DebugLog(dataDir, config.debugLogSignals)
   const report = (error: unknown) => {
+    debug.host('plugin degraded', error)
     try {
       ctx.logger(name).error('plugin degraded', error)
     } catch {
@@ -42,7 +46,6 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   try {
     const logger = ctx.logger(name)
-    const dataDir = config.dataDir || join(resolveDshHome(), name)
     const { version } = createRequire(import.meta.url)('dsh-whaledot/package.json') as { version: string }
     const status = {
       version,
@@ -80,7 +83,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     const stop = source.subscribe((signal) => {
       try {
         tracker.accept(signal)
-        if (config.debugLogSignals) logger.info('signal %o', signal)
+        debug.signal(signal)
       } catch (error) {
         report(error)
       }
@@ -109,6 +112,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       void Promise.resolve(child).catch(report)
     }
     logger.info('plugin loaded')
+    debug.host('plugin loaded')
   } catch (error) {
     report(error)
   }

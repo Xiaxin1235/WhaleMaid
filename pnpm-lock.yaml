@@ -46,7 +46,7 @@ importers:
   packages/host:
     dependencies:
       '@deepseek-ai/dsh-atomic-write':
-        specifier: 0.2.1-rc.2
+        specifier: ^0.2.1-rc.2
         version: 0.2.1-rc.2(@deepseek-ai/cordis@4.0.5)
       '@deepseek-ai/dsh-home-paths':
         specifier: ^0.2.1-rc.2

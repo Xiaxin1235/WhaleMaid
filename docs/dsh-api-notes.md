@@ -209,6 +209,17 @@ WebRoute，含自己的 loopback/认证处理。coopanion 0.4.13 也提供 `./cl
 
 ## 8. 配置与持久化目录
 
+P06 日志查证：Desktop asar 的 Cordis 4.0.5 `lib/index.js` 已只读提取到
+`.dsh-ref/0.2.1-rc.2/@deepseek-ai/cordis/runtime-p06.js`。
+`Logger._method` 只遍历 `service.exporters`，按 exporter 的 levels / logger level 过滤；
+`LoggerService` 默认注册的是内存 buffer exporter（最多 1000 条），不是 stdout 或文件。
+`lib/types/logger.d.ts:77-104` 声明 buffer、exporters 与 exporter 注册 API；README 的包表将
+console exporter 列为独立插件。因此有 buffer 记录不等于终端可见；没有终端 exporter 时
+`info('plugin loaded')` 也不会进入 console。未发现内建自动文件落盘，不推断 Desktop 的其他
+composition 一定安装了哪个 exporter。WhaleDot 不修改宿主导出器：总是写自己的
+`debug/host.log`，仅 `debugLogSignals=true` 时写 `debug/signals.jsonl`；信号显式投影窄字段，
+不写 raw/消息/参数/结果。每个文件写入前按 1 MiB 上限轮换到 `.1`，最多两份。
+
 结论：schemastery 从 `@deepseek-ai/schemastery` 默认导入，导出同名 `Config` schema 和 TS interface；
 以 `resolveDshHome()` 统一解析主目录，显式路径 > 非空 DSH_HOME > ~/.dsh，返回绝对路径。
 出处：`dsh-home-paths/README.md:32-44`、`lib/types/index.d.ts`；
