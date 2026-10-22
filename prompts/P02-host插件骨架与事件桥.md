@@ -1,63 +1,58 @@
-# P02 host：DSH 插件骨架、事件桥、Desktop 通信（M0）
+# P02 host：插件骨架、会话事件桥、DSH API 查证笔记（M0）
 
 ## 目标
-让 `dsh-whaledot` 能被 DSH 装载，订阅真实会话事件，把它们投影成**结构化的 Agent 状态**，通过本地 WebSocket 推送给桌面端。
+1. 让 `dsh-whaledot` 能被 DSH 装载，订阅真实会话/Agent 事件，并把它们整理成 WhaleDot 自己能用的**结构化运行信号**（后续 Autopilot 用它追踪自己发起的执行）。
+2. 产出一份 **`docs/dsh-api-notes.md` 查证笔记**——后面 P03–P10 的提示词都会以它为依据。这份笔记和代码同等重要。
 
-## 先调研（写代码前完成，并在回报中列出出处）
-1. 读 `dshfind` 教程 `dev/04-listen-events`、`core/09-event-system`，以及 `@linxin666/dsh-pet/src/event-projection.ts`、`src/index.ts`、`src/host/*`：弄清楚
-   - 插件如何拿到会话事件（是 `ctx.on('session/event', …)` 还是别的服务），事件对象结构（`type`、`time`、`sessionId`、`turn/end` 的 `reason` 等）；
-   - dsh-pet 的 `inject` 列表和它如何判定“哪个会话是当前会话”。
-2. 查 `@deepseek-ai/dsh-api-gateway` 的 `.d.ts`，确认 `ctx.typertGateway` 的类型与可用 namespace（本任务只用于**读取**会话列表/标题，不创建会话）。
-3. 查 Cordis 的 `ctx.effect` / `ctx.on` / 插件 `Config`（schemastery）用法。
+WhaleDot 不做桌宠动画（由 dsh-coopanion 负责），所以这里**不需要**把事件投影成动画状态，也**不需要**任何对外 WebSocket。
 
-## 要做的事
+## 第一部分：查证（先做，写进 `docs/dsh-api-notes.md`）
 
-### 1. `packages/protocol`
-- `PROTOCOL_VERSION = 1`。
-- zod schema：
-  - `AgentActivity`：`{ sessionId, sessionTitle?, state: 'idle'|'thinking'|'reading'|'executing'|'waiting-approval'|'done'|'failed'|'paused', toolName?, since, turnId? }`
-  - Host→Desktop 消息：`hello{protocolVersion, hostVersion}`、`activity{AgentActivity}`、`activity-snapshot{items[]}`、`notification{…}`（先只定义类型，P04 实现）、`error{code, message}`
-  - Desktop→Host 消息：`hello{protocolVersion, clientVersion, token}`、`ping`、`request-snapshot`
-- 所有消息带 `id` 与 `ts`；`parseHostMessage` / `parseClientMessage` 对未知类型返回错误而不是抛出。
+对每一项写：**结论 + 出处（包名/文件路径/行号或 URL）+ 最小代码片段 + 不确定点**。查不到就写“未找到”，不要猜。
 
-### 2. `packages/host/src/projection.ts`（纯逻辑，可单测）
-- `projectEvent(prevState, event) → AgentActivity | null`：
-  - `turn/start`、`step/start`、`assistant/message` → `thinking`
-  - `tool/call`：读类工具（名字匹配 read/search/grep/glob/list/fetch 等）→ `reading`，其他 → `executing`，带 `toolName`
-  - 审批请求事件（**先查证是否存在这样的事件**，如 approval/permission 相关；找不到就留 TODO 和适配器钩子）→ `waiting-approval`
-  - `turn/end`：`completed` → `done`；`error`/`max-tokens` → `failed`；`interrupted`/`aborted` → `idle`；`blocked` → `waiting-approval`
-- **只根据结构化事件判断**，绝不解析模型自然语言判断成败（规划书 F02）。
-- `done`/`failed` 在 N 秒（配置，默认 8s）后由 Host 回落为 `idle`（用注入的 Clock 和定时器实现，可测试）。
+1. **会话事件**：插件如何订阅（`ctx.on('session/event', (session, event) => …)` 等）；事件对象结构：`type`、`time`、`seq` 等字段；`turn/start`、`step/start`、`assistant/message`、`tool/call`、`tool/result`、`turn/end` 的载荷结构，尤其 `turn/end` 的结束原因枚举。参考 dsh-pet `src/event-projection.ts`、dsh-coopanion `src/index.ts`、`@deepseek-ai/dsh-session` 的 README 与 `.d.ts`。
+2. **Agent 事件**：`session/created`、`session/disposed`、`agent/created`、`agent/status`、`agent/disposed` 的签名。
+3. **创建与驱动会话**：`ctx.typertGateway` 的类型（`@deepseek-ai/dsh-api-gateway`），`session` namespace 下 `create / rename / prompt / page / follow / projections` 的参数与返回；创建时如何指定工作目录（cwd / workspace）；参考 task-board `src/host-runner.ts`（含它对 gateway 版本差异的兼容处理）。
+4. **权限钉住**：`ctx.commands.execute(sessionId, '/permission <preset>')` 的出处与返回；有无比命令更直接的 API。
+5. **工具门禁**：`tools/pre-execute` 事件的精确签名——如何拿到 sessionId、工具名、参数；如何返回 deny 及理由；是否能区分“这个会话是 WhaleDot 发起的”。参考 `@deepseek-ai/dsh-tools`（或实际所在包）README/`.d.ts`。
+6. **向用户提问 / 审批**：`userQuestions` 服务（dsh-coopanion 注入了它）的 API——**插件能否在某个会话里主动发起一个带选项的问题并拿到回答**？审批请求是哪个事件/服务？这决定 WhaleDot 的决策通知能否出现在鲸鱼的小信封里。
+7. **Web UI 半区**：一个插件包如何同时提供 client 半区（面板/页面）与 host 路由（`ctx.webServer.register` 等）；参考 task-board 的 `src/client/*`、`host-routes.ts`、`package.json` 的 `dsh.client` 字段（若有）与 dsh-pet。
+8. **插件配置与持久化目录**：`Config`（schemastery）写法；DSH 主目录解析（dsh-pet/task-board 都有 `dsh-home.ts`）；`settings` 服务读写。
+9. **兼容性**：本机 DSH CLI 版本 0.1.7-rc.2；查本机 DSH Desktop 版本（`%LOCALAPPDATA%\Programs` 或安装目录、`dsh --version`），并记录 dsh-coopanion 要求的 ≥ 0.2.0-rc.2 是否满足。
 
-### 3. `packages/host/src/bridge/session-events.ts`
-- 一个窄接口 `SessionEventSource { subscribe(cb): Disposable }`，用查证过的 DSH API 实现；`index.ts` 里装配。这样 DSH API 变化只影响这一个文件。
+## 第二部分：实现
 
-### 4. `packages/host/src/desktop-api/server.ts`
-- 用 `ws` 在 `127.0.0.1` 随机端口监听（**绝不监听 0.0.0.0**）。
-- 启动时生成 32 字节随机 token，写入 `~/.dsh/whaledot/connection.json`：`{ port, token, pid, protocolVersion, startedAt }`；用原子写（先写临时文件再 rename）。Windows 上尽量收紧文件 ACL（可用 `icacls` 去除继承只留当前用户；失败只记警告）。
-- 客户端第一条消息必须是带正确 token 的 `hello`，否则 1 秒内断开；比较 token 用 `crypto.timingSafeEqual`。
-- 连接后先发 `activity-snapshot`，之后增量推送；心跳 30s；最多 4 个客户端。
-- 插件卸载（`ctx.effect` 的清理函数）时关闭服务器并删除 connection.json。
+### 1. `packages/host/src/bridge/session-events.ts`
+- 定义窄接口并用查证过的 API 实现：
+  ```ts
+  interface RunSignal { sessionId: string; kind: 'turn-start'|'tool-call'|'tool-result'|'turn-end'|'session-disposed'; at: number; toolName?: string; endReason?: 'completed'|'error'|'max-tokens'|'interrupted'|'blocked'|'aborted'|'unknown'; raw?: unknown }
+  interface SessionEventSource { subscribe(cb: (s: RunSignal) => void): () => void }
+  ```
+- 未识别的结束原因映射为 `'unknown'`（**不得当作成功**）。
+- DSH API 变化只影响这一个文件。
 
-### 5. `packages/host/src/index.ts`
-- `name = 'whaledot'`，`inject` 只放查证过的必要服务；可选服务用 Cordis 的可选注入方式（查证写法）。
-- `Config`（schemastery）：`activityDoneLingerMs`、`desktopApi.enabled`。
-- **整个 apply 的同步与异步部分都要兜底**：任何异常记录日志后降级，不得让 DSH 启动失败（验收用例 14）。
+### 2. `packages/host/src/bridge/run-tracker.ts`（纯逻辑，可单测）
+- `RunTracker`：登记“WhaleDot 关心的 sessionId 集合”（`watch(sessionId, runId)` / `unwatch`），只对这些会话聚合信号；对每个 run 产出 `{ runId, sessionId, status: 'running'|'ended', endReason, toolCalls: number, startedAt, endedAt }`，并在 `turn-end` 时回调 `onRunEnded`。
+- 其他会话的事件一律忽略（不记录内容，保护隐私）。
+- 时间通过注入的 `Clock` 获取（来自 `@whaledot/core`；若 P01 尚未合入，就先在 host 内定义同名接口，回报中注明）。
 
-### 6. 联调工具
-- `packages/host/scripts/ws-probe.ts`：读取 connection.json，连接并打印收到的消息，供手工验证。
+### 3. `packages/host/src/index.ts`
+- `name = 'whaledot'`，`inject` 只放查证过的必要服务；可选服务用 Cordis 的 `ctx.inject([...], child => …)` 方式（dsh-coopanion 就是这么做的）。
+- `Config`（schemastery）：`dataDir`（默认 `<DSH主目录>/whaledot`）、`debugLogSignals`（默认 false）。
+- 启动时确保 `dataDir` 存在；写一个 `status.json`（插件版本、启动时间、是否检测到 gateway/commands/userQuestions 服务可用）——供 P03 面板显示。
+- **整个 apply 的同步与异步部分都要兜底**：任何异常记录日志后降级，不得让 DSH 启动失败（规划书验收用例 14）。
 
-### 7. 测试
-- `projection.ts` 全分支单测（构造事件夹具；夹具结构以查证到的真实事件为准，在测试文件里注明来源）。
-- `server.ts`：错误 token 被断开、正确 token 收到 snapshot、只绑定 127.0.0.1。
+### 4. 测试
+- `run-tracker.ts` 全分支单测：被关注会话的完整一轮、未关注会话被忽略、未知结束原因、会话中途销毁。
+- `session-events.ts` 的映射函数单测：事件夹具结构以查证到的真实事件为准，在测试文件注释里注明来源。
 
 ## 手工验收（写进回报）
-1. 按 `scripts/dev-dsh.md` 把插件链接进 `whaledot-dev` profile，启动 DSH Web UI。
-2. 运行 `ws-probe`，在 Web UI 发一条会触发工具调用的消息，贴出 probe 收到的 `thinking → reading/executing → done` 序列。
-3. 故意让 `apply` 内某处抛错（临时改动），确认 DSH 仍能正常启动，然后撤销改动。
+1. 按 `docs/dev-dsh.md` 把插件链接进测试 profile，打开 `debugLogSignals`，启动 DSH Web UI，发一条会调用工具的消息：贴出日志中的 `turn-start → tool-call → tool-result → turn-end(completed)`。（此时 RunTracker 还没有关注的会话，日志只是验证信号映射。）
+2. 若本机 DSH Desktop 版本满足要求：在同一 profile 装上 `@takboo/dsh-coopanion`，确认两插件同时启用、DSH 正常启动、鲸鱼正常动作。不满足则在回报中说明版本。
+3. 临时让 `apply` 内某处抛错，确认 DSH 仍能正常启动，然后撤销改动。
 
 ## 不做
-- 不创建/驱动会话（P08 做），不做通知（P04）。
+- 不创建/驱动会话（P08），不做面板（P03），不做通知（P04）。
 
 ## 完成标准
-测试通过；手工验收 1–3 结果写入回报；提交 `feat(host): DSH event bridge and local desktop API`。
+`docs/dsh-api-notes.md` 九项全部有结论或“未找到”；测试通过；手工验收结果写入回报；提交 `feat(host): session event bridge and DSH API notes`。

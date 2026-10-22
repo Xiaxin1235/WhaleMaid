@@ -11,7 +11,7 @@
 - `Result<T, E>` 轻量类型（`{ok:true,value}|{ok:false,error}`），领域函数优先返回 Result 而不是抛错；**只有违反不变式（程序 bug）才 throw**。
 
 ### 2. 实体类型 `src/model/*.ts`
-按 `docs/架构与开发路线.md` 第 3 节定义：`ProjectGoal`、`AuthorizationScope`、`Task`、`Run`、`Attempt`、`Checkpoint`、`Evidence`、`MemoryRecord`、`Notification`、`Suggestion`、`StateTransition`。
+按 `docs/架构与开发路线.md` 第 4 节定义：`ProjectGoal`、`AuthorizationScope`、`Task`、`Run`、`Attempt`、`Checkpoint`、`Evidence`、`MemoryRecord`、`Notification`、`Suggestion`、`StateTransition`。
 - 每个实体同时提供 zod schema（`GoalSchema` 等）和由 schema 推导的类型，便于持久化时校验。
 - `ActionIntent`：可区分联合类型，表示“真正要执行的动作”，与给用户看的文字分离。首批成员：`read-file{path}`、`write-file{path}`、`run-command{cmdline, cwd}`、`git{subcommand, args[]}`、`network{url, method}`、`continue-goal{goalId}`、`pause-goal{goalId}`、`resume-goal{goalId}`、`rollback-to-checkpoint{checkpointId}`、`reply-to-session{sessionId, text}`、`open-workbench{sessionId?}`、`expand-scope{goalId, patch}`（最后这个永远只能由用户在 UI 中确认）。
 - 所有 ID 用品牌类型（`type TaskId = string & { readonly __brand: 'TaskId' }`）。
