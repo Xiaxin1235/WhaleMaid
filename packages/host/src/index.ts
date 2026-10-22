@@ -12,6 +12,8 @@ import { LanguageSchema } from './panel-api/contract.js'
 import type { PanelStatus } from './panel-api/contract.js'
 import type { LanguageSetting } from '@whaledot/core'
 import { DebugLog } from './debug-log.js'
+import { WhaleStore } from './store/index.js'
+import { createScopeService } from './scope-service.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -70,13 +72,31 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       return writes
     }
     await mkdir(dataDir, { recursive: true })
+    const store = new WhaleStore(dataDir, { log: (message, error) => debug.host(message, error) })
+    ctx.effect(() => () => store.close())
+    const scopes = createScopeService(ctx, store, (message, error) => debug.host(message, error))
     await saveStatus()
-    installPanelApi(ctx, (): PanelStatus => ({
-      ...status,
-      services: { ...status.services },
-      coopanion: ctx.get('coopanion') !== undefined,
-      language: LanguageSchema.parse(config.language?.get() ?? 'auto'),
-    }))
+    installPanelApi(
+      ctx,
+      (): PanelStatus => {
+        const paused = store.paused()
+        return {
+          ...status,
+          services: { ...status.services },
+          coopanion: ctx.get('coopanion') !== undefined,
+          language: LanguageSchema.parse(config.language?.get() ?? 'auto'),
+          store: store.status(),
+          paused,
+        }
+      },
+      {
+        goals: () => store.goals.list(),
+        setPaused: (paused) => store.setPaused(paused),
+        revokeScope: (scopeId, peer) => {
+          scopes.revoke(scopeId, peer)
+        },
+      },
+    )
     const clock = { now: () => Date.now() }
     const tracker = new RunTracker(clock, () => {})
     const source = createSessionEventSource(ctx, clock.now)

@@ -1,9 +1,11 @@
 import { z } from 'zod'
-import { ProjectGoalSchema } from '@whaledot/core'
+import { ProjectGoalSchema, ScopeIdSchema } from '@whaledot/core'
 
 export const LanguageSchema = z.enum(['auto', 'zh-CN', 'en'])
 export const EmptyRequestSchema = z.strictObject({})
 export const LanguageRequestSchema = z.strictObject({ language: LanguageSchema })
+export const PausedSchema = z.strictObject({ paused: z.boolean() })
+export const RevokeScopeSchema = z.strictObject({ scopeId: ScopeIdSchema })
 export const ServicesSchema = z.strictObject({
   gateway: z.boolean(),
   commands: z.boolean(),
@@ -19,6 +21,12 @@ export const StatusSchema = z.strictObject({
   services: ServicesSchema,
   coopanion: z.boolean(),
   language: LanguageSchema,
+  store: z.strictObject({
+    state: z.enum(['ok', 'read-only', 'error']),
+    corruptRows: z.int().nonnegative(),
+    message: z.string().optional(),
+  }),
+  paused: z.boolean(),
 })
 export const GoalsSchema = z.array(ProjectGoalSchema)
 export const LanguageResponseSchema = z.strictObject({ language: LanguageSchema })

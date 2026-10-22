@@ -1,0 +1,373 @@
+import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { join } from 'node:path'
+import { createHash, randomUUID } from 'node:crypto'
+import { DatabaseSync } from 'node:sqlite'
+import { z } from 'zod'
+import {
+  AuthorizationScopeSchema,
+  ProjectGoalSchema,
+  TaskSchema,
+  StateTransitionSchema,
+  RunSchema,
+  hashScope,
+  transition,
+} from '@whaledot/core'
+import type { AuthorizationScope, Clock, IdGen, ScopeHasher } from '@whaledot/core'
+import type { GoalRepo, ScopeRepo, TaskRepo, TransitionRepo, RunRepo } from './repos.js'
+import { acquireWriterLock } from './lock.js'
+import { MIGRATIONS } from './migrations.js'
+import type { Migration } from './migrations.js'
+
+export const productionClock: Clock = { now: () => Date.now() }
+export const productionIdGen: IdGen = { next: (prefix) => `${prefix}_${randomUUID()}` }
+export const sha256: ScopeHasher = { hash: (content) => createHash('sha256').update(content).digest('hex') }
+
+export interface StoreStatus {
+  state: 'ok' | 'read-only' | 'error'
+  corruptRows: number
+  message?: string
+}
+export interface StoreOptions {
+  clock?: Clock
+  idGen?: IdGen
+  migrations?: readonly Migration[]
+  log(message: string, error?: unknown): void
+}
+
+/** Owns one SQLite handle and writer lock. All domain writes validate core schemas. */
+export class WhaleStore {
+  private db: DatabaseSync | undefined
+  private unlock: (() => void) | undefined
+  private state: StoreStatus['state'] = 'error'
+  private message: string | undefined
+  private readonly corrupt = new Set<string>()
+  private readonly clock: Clock
+  private readonly idGen: IdGen
+  readonly goals: GoalRepo
+  readonly scopes: ScopeRepo
+  readonly tasks: TaskRepo
+  readonly transitions: TransitionRepo
+  readonly runs: RunRepo
+
+  constructor(
+    private readonly dataDir: string,
+    private readonly options: StoreOptions,
+  ) {
+    this.clock = options.clock ?? productionClock
+    this.idGen = options.idGen ?? productionIdGen
+    this.goals = {
+      get: (id) => this.one('goals', id, ProjectGoalSchema),
+      list: () => this.rows('goals', ProjectGoalSchema),
+      insert: (input) => {
+        const row = ProjectGoalSchema.parse(input)
+        this.writer()
+          .prepare('INSERT INTO goals(id,version,data) VALUES(?,?,?)')
+          .run(row.id, row.version, JSON.stringify(row))
+      },
+      update: (input, expectedVersion) => {
+        const row = ProjectGoalSchema.parse(input)
+        if (row.version !== expectedVersion + 1) throw new Error('stale-version')
+        const result = this.writer()
+          .prepare('UPDATE goals SET version=?,data=? WHERE id=? AND version=?')
+          .run(row.version, JSON.stringify(row), row.id, expectedVersion)
+        if (result.changes !== 1) throw new Error('stale-version')
+      },
+    }
+    this.scopes = {
+      get: (id) => this.one('scopes', id, AuthorizationScopeSchema),
+      list: (id) => this.rows('scopes', AuthorizationScopeSchema, 'goal_id', id),
+    }
+    this.tasks = {
+      get: (id) => this.one('tasks', id, TaskSchema),
+      list: (id) => this.rows('tasks', TaskSchema, 'goal_id', id),
+      insert: (input) => {
+        const row = TaskSchema.parse(input)
+        if (row.state !== 'PENDING' || row.version !== 0)
+          throw new Error('New tasks must start at PENDING version 0')
+        this.writer()
+          .prepare('INSERT INTO tasks(id,goal_id,task_key,version,state,data) VALUES(?,?,?,?,?,?)')
+          .run(row.id, row.goalId, row.key, row.version, row.state, JSON.stringify(row))
+      },
+      transition: (id, to, meta) =>
+        this.transaction(() => {
+          const task = this.tasks.get(id)
+          if (!task) return { ok: false, error: { code: 'task-not-found' } } as const
+          const next = transition(task, to, meta, { clock: this.clock, idGen: this.idGen })
+          if (!next.ok) return next
+          const row = TaskSchema.parse(next.value.task)
+          const result = this.writer()
+            .prepare('UPDATE tasks SET state=?,version=?,data=? WHERE id=? AND version=?')
+            .run(row.state, row.version, JSON.stringify(row), id, meta.expectedVersion)
+          if (result.changes !== 1)
+            return {
+              ok: false,
+              error: {
+                code: 'stale-version',
+                expectedVersion: meta.expectedVersion,
+                actualVersion: task.version,
+              },
+            } as const
+          const record = StateTransitionSchema.parse(next.value.record)
+          this.writer()
+            .prepare('INSERT INTO state_transitions(id,task_id,data) VALUES(?,?,?)')
+            .run(record.id, record.entityId, JSON.stringify(record))
+          return next
+        }),
+    }
+    this.transitions = { list: (id) => this.rows('state_transitions', StateTransitionSchema, 'task_id', id) }
+    this.runs = {
+      get: (id) => this.one('runs', id, RunSchema),
+      list: (id) => this.rows('runs', RunSchema, 'task_id', id),
+      insert: (input) => {
+        const row = RunSchema.parse(input)
+        this.writer()
+          .prepare('INSERT INTO runs(id,task_id,data) VALUES(?,?,?)')
+          .run(row.run_id, row.taskId, JSON.stringify(row))
+      },
+      update: (input) => {
+        const row = RunSchema.parse(input)
+        const result = this.writer()
+          .prepare('UPDATE runs SET data=? WHERE id=? AND task_id=?')
+          .run(JSON.stringify(row), row.run_id, row.taskId)
+        if (result.changes !== 1) throw new Error('run-not-found')
+      },
+    }
+    this.open()
+  }
+
+  /** Detached status; corruptRows counts distinct invalid stored rows observed this startup. */
+  status(): StoreStatus {
+    return {
+      state: this.state,
+      corruptRows: this.corrupt.size,
+      ...(this.message ? { message: this.message } : {}),
+    }
+  }
+
+  /** Synchronous transactions must contain no async work or external side effects. */
+  transaction<T>(work: () => T): T {
+    const db = this.writer()
+    db.exec('BEGIN IMMEDIATE')
+    try {
+      const result = work()
+      if (result instanceof Promise) throw new Error('Async store transaction is not supported')
+      db.exec('COMMIT')
+      return result
+    } catch (error) {
+      db.exec('ROLLBACK')
+      throw error
+    }
+  }
+
+  /** Lifecycle writes change only status/revokedAt and their digest; grants are append-only. */
+  replaceScope(nextInput: AuthorizationScope, previousInput?: AuthorizationScope): void {
+    const next = AuthorizationScopeSchema.parse(nextInput)
+    const digest = hashScope(next, sha256)
+    if (
+      next.status !== 'active' ||
+      !digest.ok ||
+      next.hash !== digest.value ||
+      (previousInput
+        ? next.supersedes !== previousInput.id ||
+          next.goalId !== previousInput.goalId ||
+          previousInput.status !== 'superseded'
+        : next.supersedes !== undefined)
+    )
+      throw new Error('invalid-scope-version')
+    this.transaction(() => {
+      if (previousInput) this.writeScopeLifecycle(previousInput)
+      this.writer()
+        .prepare('INSERT INTO scopes(id,goal_id,status,data) VALUES(?,?,?,?)')
+        .run(next.id, next.goalId, next.status, JSON.stringify(next))
+      const goal = this.goals.get(next.goalId)
+      if (!goal) throw new Error('goal-not-found')
+      this.goals.update({ ...goal, scopeId: next.id, version: goal.version + 1 }, goal.version)
+    })
+  }
+
+  /** Revocation and replacement never accept modified grant fields. */
+  writeScopeLifecycle(input: AuthorizationScope): void {
+    const row = AuthorizationScopeSchema.parse(input)
+    const previous = this.scopes.get(row.id)
+    if (!previous || previous.status !== 'active' || row.status === 'active')
+      throw new Error('scope-inactive')
+    const immutable = AuthorizationScopeSchema.omit({ status: true, revokedAt: true, hash: true })
+    const content = immutable.parse(
+      Object.fromEntries(
+        Object.entries(previous).filter(([key]) => !['status', 'revokedAt', 'hash'].includes(key)),
+      ),
+    )
+    const nextContent = immutable.parse(
+      Object.fromEntries(
+        Object.entries(row).filter(([key]) => !['status', 'revokedAt', 'hash'].includes(key)),
+      ),
+    )
+    if (JSON.stringify(content) !== JSON.stringify(nextContent)) throw new Error('immutable-scope')
+    const digest = hashScope(row, sha256)
+    if (!digest.ok || digest.value !== row.hash) throw new Error('invalid-scope-hash')
+    const result = this.writer()
+      .prepare("UPDATE scopes SET status=?,data=? WHERE id=? AND status='active'")
+      .run(row.status, JSON.stringify(row), row.id)
+    if (result.changes !== 1) throw new Error('scope-inactive')
+  }
+
+  paused(): boolean {
+    if (!this.db || this.state === 'error') return true
+    const row = this.db.prepare("SELECT * FROM kv_settings WHERE id='autopilot.paused'").get()
+    if (!row) return false
+    const parsed = this.decode('kv_settings', row, z.boolean())
+    return parsed ?? true
+  }
+
+  /** Writes are durable before callers observe the new pause value. */
+  setPaused(paused: boolean): void {
+    const value = z.boolean().parse(paused)
+    this.writer()
+      .prepare(
+        "INSERT INTO kv_settings(id,data) VALUES('autopilot.paused',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+      )
+      .run(JSON.stringify(value))
+  }
+
+  close(): void {
+    try {
+      this.db?.close()
+    } finally {
+      this.db = undefined
+      this.unlock?.()
+      this.unlock = undefined
+      this.state = 'error'
+      this.message = 'Store closed'
+    }
+  }
+
+  private writer(): DatabaseSync {
+    if (this.state !== 'ok' || !this.db) throw new Error('store-unavailable')
+    return this.db
+  }
+
+  private open(): void {
+    try {
+      mkdirSync(this.dataDir, { recursive: true })
+      this.unlock = acquireWriterLock(this.dataDir, this.clock.now())
+      const path = join(this.dataDir, 'whaledot.db')
+      const existed = existsSync(path) && statSync(path).size > 0
+      if (!this.unlock) {
+        this.state = 'read-only'
+        this.message = '另一个 DSH 正在使用 WhaleDot 数据'
+        if (!existed) return
+        this.db = new DatabaseSync(path, { readOnly: true })
+        this.db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000')
+        this.checkHistory(this.options.migrations ?? MIGRATIONS, true)
+        return
+      }
+      this.db = new DatabaseSync(path)
+      this.db.exec('PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000')
+      const migrations = this.options.migrations ?? MIGRATIONS
+      const applied = this.checkHistory(migrations, false)
+      const pending = migrations.filter((migration) => migration.version > applied)
+      if (pending.length) {
+        if (existed) this.backup()
+        this.db.exec('BEGIN IMMEDIATE')
+        try {
+          this.db.exec(
+            'CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at INTEGER NOT NULL)',
+          )
+          for (const migration of pending) {
+            migration.up(this.db)
+            this.db
+              .prepare('INSERT INTO schema_migrations(version,applied_at) VALUES(?,?)')
+              .run(migration.version, this.clock.now())
+          }
+          this.db.exec('COMMIT')
+        } catch (error) {
+          this.db.exec('ROLLBACK')
+          throw error
+        }
+      }
+      this.state = 'ok'
+    } catch (error) {
+      this.close()
+      this.message = error instanceof Error ? error.message : 'Store unavailable'
+      this.options.log('store degraded', error)
+    }
+  }
+
+  private checkHistory(migrations: readonly Migration[], requireCurrent: boolean): number {
+    for (let i = 0; i < migrations.length; i++) {
+      if (migrations[i]?.version !== i + 1) throw new Error('Unordered store migrations')
+    }
+    const hasTable = this.db!.prepare("SELECT 1 FROM sqlite_master WHERE name='schema_migrations'").get()
+    const history = hasTable
+      ? this.db!.prepare('SELECT version FROM schema_migrations ORDER BY version').all()
+      : []
+    if (
+      history.some((row, index) => row.version !== index + 1) ||
+      history.length > migrations.length ||
+      (requireCurrent && history.length !== migrations.length)
+    )
+      throw new Error('Incompatible store migration history')
+    return history.length
+  }
+
+  private backup(): void {
+    const dir = join(this.dataDir, 'backups')
+    mkdirSync(dir, { recursive: true })
+    const filename = `whaledot-${String(this.clock.now()).padStart(16, '0')}-${randomUUID()}.db`
+    // VACUUM INTO includes committed WAL pages, unlike copying the main database file.
+    this.db!.prepare('VACUUM INTO ?').run(join(dir, filename))
+    const files = readdirSync(dir)
+      .filter((name) => /^whaledot-\d{16}-[a-f0-9-]+\.db$/.test(name))
+      .sort((a, b) => statSync(join(dir, b)).mtimeMs - statSync(join(dir, a)).mtimeMs || b.localeCompare(a))
+    for (const file of files.slice(5)) rmSync(join(dir, file))
+  }
+
+  private rows<T>(table: string, schema: z.ZodType<T>, column?: string, value?: string): T[] {
+    if (!this.db) throw new Error('store-unavailable')
+    // table/column are private constants, never derived from input or stored content.
+    const rows = column
+      ? this.db.prepare(`SELECT * FROM ${table} WHERE ${column}=? ORDER BY rowid`).all(value!)
+      : this.db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all()
+    return rows.flatMap((row) => {
+      const parsed = this.decode(table, row, schema)
+      return parsed === undefined ? [] : [parsed]
+    })
+  }
+
+  private one<T>(table: string, id: string, schema: z.ZodType<T>): T | undefined {
+    if (!this.db) throw new Error('store-unavailable')
+    const row = this.db.prepare(`SELECT * FROM ${table} WHERE id=?`).get(id)
+    return row && this.decode(table, row, schema)
+  }
+
+  private decode<T>(table: string, row: Record<string, unknown>, schema: z.ZodType<T>): T | undefined {
+    try {
+      const parsed = schema.parse(JSON.parse(String(row.data)))
+      if (parsed && typeof parsed === 'object') {
+        const fields = parsed as Record<string, unknown>
+        const checks = {
+          id: fields.id ?? fields.run_id,
+          goal_id: fields.goalId,
+          task_id: fields.taskId ?? fields.entityId,
+          task_key: fields.key,
+          version: fields.version,
+          state: fields.state,
+          status: fields.status,
+        }
+        for (const [column, value] of Object.entries(checks)) {
+          if (column in row && row[column] !== value) throw new Error('Record index mismatch')
+        }
+      }
+      return parsed
+    } catch {
+      const key = `${table}:${String(row.id)}`
+      if (!this.corrupt.has(key)) {
+        this.corrupt.add(key)
+        this.options.log(`corrupt record ${key}`)
+      }
+      return undefined
+    }
+  }
+}
+
+export type { GoalRepo, ScopeRepo, TaskRepo, TransitionRepo, RunRepo } from './repos.js'

@@ -4,6 +4,7 @@ import { goals, status, languagePatch, failure } from './handlers.js'
 import { createPanelHandler } from './index.js'
 
 import { snapshot } from '../../tests/panel-fixture.js'
+import { ScopeIdSchema } from '@whaledot/core'
 
 test('status validates requests and makes a detached, validated snapshot', () => {
   expect(status({}, snapshot)).toEqual(snapshot)
@@ -12,8 +13,8 @@ test('status validates requests and makes a detached, validated snapshot', () =>
   expect(() => status({}, { ...snapshot, startedAt: NaN })).toThrow()
 })
 test('goals returns core-compatible empty list and rejects writes', () => {
-  expect(goals({})).toEqual([])
-  expect(() => goals({ title: 'create' })).toThrow()
+  expect(goals({}, [])).toEqual([])
+  expect(() => goals({ title: 'create' }, [])).toThrow()
 })
 test('only language can be patched', () => {
   expect(languagePatch({ language: 'en' })).toEqual({ language: 'en' })
@@ -33,7 +34,13 @@ test('expected failures use stable error codes without leaking host exception de
 test('missing/disposed/non-owner peer cannot read or mutate; payload cannot impersonate owner', async () => {
   const read = vi.fn(() => snapshot),
     write = vi.fn()
-  const handler = createPanelHandler({ snapshot: read, setLanguage: write })
+  const handler = createPanelHandler({
+    snapshot: read,
+    setLanguage: write,
+    goals: () => [],
+    setPaused: write,
+    revokeScope: write,
+  })
   const signal = new AbortController().signal
   for (const peer of [
     undefined,
@@ -54,7 +61,13 @@ test('missing/disposed/non-owner peer cannot read or mutate; payload cannot impe
 test('authenticated owner can read and change language, but cannot create goals or change other fields', async () => {
   const write = vi.fn(),
     signal = new AbortController().signal
-  const handler = createPanelHandler({ snapshot: () => snapshot, setLanguage: write })
+  const handler = createPanelHandler({
+    snapshot: () => snapshot,
+    setLanguage: write,
+    goals: () => [],
+    setPaused: write,
+    revokeScope: write,
+  })
   const peer = { principal: { kind: 'owner' }, signal } as PeerScope
   expect(await handler('status', {}, signal, peer)).toEqual({ ok: true, value: snapshot })
   expect(await handler('goals', {}, signal, peer)).toEqual({ ok: true, value: [] })
@@ -71,4 +84,54 @@ test('authenticated owner can read and change language, but cannot create goals 
     error: { code: 'whaledot/not-found' },
   })
   expect(write).toHaveBeenCalledExactlyOnceWith({ language: 'en' })
+})
+
+test('pause and revoke require live owner and strict payloads before any mutation', async () => {
+  const setPaused = vi.fn(),
+    revokeScope = vi.fn()
+  const handler = createPanelHandler({
+    snapshot: () => snapshot,
+    setLanguage: vi.fn(),
+    goals: () => [],
+    setPaused,
+    revokeScope,
+  })
+  const signal = new AbortController().signal
+  const peer = { principal: { kind: 'owner' }, signal } as PeerScope
+  for (const method of ['set-paused', 'revoke-scope']) {
+    expect(await handler(method, { peer: 'owner' }, signal, undefined as unknown as PeerScope)).toMatchObject(
+      {
+        ok: false,
+        error: { code: 'whaledot/unauthorized' },
+      },
+    )
+  }
+  for (const input of [{}, { paused: 'true' }, { paused: true, extra: 1 }]) {
+    expect(await handler('set-paused', input, signal, peer)).toMatchObject({
+      ok: false,
+      error: { code: 'whaledot/invalid-input' },
+    })
+  }
+  for (const input of [{}, { scopeId: 1 }, { scopeId: 'scope_1', paused: true }]) {
+    expect(await handler('revoke-scope', input, signal, peer)).toMatchObject({
+      ok: false,
+      error: { code: 'whaledot/invalid-input' },
+    })
+  }
+  expect(setPaused).not.toHaveBeenCalled()
+  expect(revokeScope).not.toHaveBeenCalled()
+  expect(await handler('set-paused', { paused: true }, signal, peer)).toEqual({
+    ok: true,
+    value: { paused: true },
+  })
+  expect(setPaused).toHaveBeenCalledExactlyOnceWith(true)
+  expect(await handler('revoke-scope', { scopeId: 'scope_1' }, signal, peer)).toEqual({
+    ok: true,
+    value: { scopeId: 'scope_1' },
+  })
+  expect(revokeScope).toHaveBeenCalledExactlyOnceWith(ScopeIdSchema.parse('scope_1'), peer)
+  expect(await handler('grant', {}, signal, peer)).toMatchObject({
+    ok: false,
+    error: { code: 'whaledot/not-found' },
+  })
 })

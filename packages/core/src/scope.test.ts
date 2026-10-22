@@ -200,6 +200,10 @@ const intents = [
 ].map(action)
 
 describe('action authorization', () => {
+  test.each(intents)('superseded scope denies $type', (intent) => {
+    expect(checkAction(makeScope({ status: 'superseded' }), intent)).toMatchObject({ decision: 'deny' })
+    expect(isPathAllowed(makeScope({ status: 'superseded' }), 'C:/proj/file')).toBe(false)
+  })
   test.each(intents)('revoked scope denies $type', (intent) => {
     expect(checkAction(makeScope({ status: 'revoked' }), intent)).toMatchObject({
       decision: 'deny',

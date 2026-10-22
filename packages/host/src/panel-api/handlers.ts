@@ -14,9 +14,9 @@ export function status(input: unknown, snapshot: PanelStatus): PanelStatus {
   EmptyRequestSchema.parse(input)
   return StatusSchema.parse(snapshot)
 }
-export function goals(input: unknown) {
+export function goals(input: unknown, records: unknown) {
   EmptyRequestSchema.parse(input)
-  return GoalsSchema.parse([])
+  return GoalsSchema.parse(records)
 }
 export function languagePatch(input: unknown) {
   return LanguageRequestSchema.parse(input)

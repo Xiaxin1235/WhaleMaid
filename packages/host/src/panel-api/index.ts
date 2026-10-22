@@ -4,16 +4,21 @@ import type {
   ConnectionRpcHandler,
   ConnectionFetchRoute,
   HostConnectionHandle,
+  PeerScope,
 } from '@deepseek-ai/dsh-client-connection'
+import type { ProjectGoal, ScopeId } from '@whaledot/core'
 import type {} from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-config-editor'
-import { PANEL_CHANNEL, PANEL_PREFIX } from './contract.js'
+import { PANEL_CHANNEL, PANEL_PREFIX, PausedSchema, RevokeScopeSchema } from './contract.js'
 import type { PanelStatus } from './contract.js'
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
   snapshot(): PanelStatus
   setLanguage(patch: ReturnType<typeof languagePatch>): Promise<void>
+  goals(): ProjectGoal[]
+  setPaused(paused: boolean): void
+  revokeScope(scopeId: ScopeId, peer: PeerScope): void
 }
 
 /** Peer is supplied by Connection after admission, never accepted from a payload. */
@@ -33,8 +38,20 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
           result = status(input, runtime.snapshot())
           break
         case 'goals':
-          result = goals(input)
+          result = goals(input, runtime.goals())
           break
+        case 'set-paused': {
+          const patch = PausedSchema.parse(input)
+          runtime.setPaused(patch.paused)
+          result = PausedSchema.parse(patch)
+          break
+        }
+        case 'revoke-scope': {
+          const patch = RevokeScopeSchema.parse(input)
+          runtime.revokeScope(patch.scopeId, peer)
+          result = RevokeScopeSchema.parse(patch)
+          break
+        }
         case 'language': {
           const patch = languagePatch(input)
           await runtime.setLanguage(patch)
@@ -54,10 +71,15 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
   }
 }
 
-export function installPanelApi(ctx: Context, snapshot: () => PanelStatus): void {
+export function installPanelApi(
+  ctx: Context,
+  snapshot: () => PanelStatus,
+  storage: Pick<PanelRuntime, 'goals' | 'setPaused' | 'revokeScope'>,
+): void {
   ctx.inject(['connection'], (child) => {
     const runtime: PanelRuntime = {
       snapshot,
+      ...storage,
       async setLanguage(patch) {
         const settings = child.get('settings') as Context['settings'] | undefined
         // Match the exact plugin fiber, not a hard-coded profile entry name.
@@ -68,7 +90,7 @@ export function installPanelApi(ctx: Context, snapshot: () => PanelStatus): void
         await settings.update(form.ns, patch, form.revision)
       },
     }
-    for (const method of ['status', 'goals', 'language'] as const) {
+    for (const method of ['status', 'goals', 'language', 'set-paused', 'revoke-scope'] as const) {
       child.effect(() =>
         child.connection.fetch.register(
           createPanelRoute(method, runtime, (request) => child.connection.admit(request)),
@@ -80,7 +102,7 @@ export function installPanelApi(ctx: Context, snapshot: () => PanelStatus): void
 
 /** Exact Connection routes coexist with Gateway's exclusive /api interceptor. */
 export function createPanelRoute(
-  method: 'status' | 'goals' | 'language',
+  method: 'status' | 'goals' | 'language' | 'set-paused' | 'revoke-scope',
   runtime: PanelRuntime,
   admit: HostConnectionHandle['admit'],
 ): ConnectionFetchRoute {

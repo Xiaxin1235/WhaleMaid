@@ -384,3 +384,42 @@ schemastery `volatile()` 声明；coopanion Config 的 Volatile 使用也经核�
 
 宿主 README 明确说目前没有 shipped client 自动渲染所有 autoGenerate 表单，因此只标 `.volatile()` 不保证用户能找到设置控件。
 WhaleDot 因此另在 `settings.section` 注册原生设置页，其语言下拉同样调用认证 language 方法；两处均写同一 Config。
+
+## 13. 存储服务与 WhaleDot 事务存储（P06）
+
+查证范围为本机 Desktop 提取的 `dsh-storage/README.md`（The backend contract / Known Limitations）
+与 `dsh-storage-domain/README.md`（Observable behavior / Open sequence / Known Limitations）。
+本机参考树仅有 `dsh-storage`、`dsh-storage-domain`、`dsh-storage-json`，没有
+`dsh-storage-sqlite` 包；不把假定存在的服务当作依据。
+
+| 服务                 | 已查证语义                                                  | P06 适用性                                                     |
+| -------------------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
+| storage              | 后端与数据形态注册枢纽；当前只有 KV facet；单次记录调用原子 | 不提供领域事务                                                 |
+| storage-domain       | schema 校验、内存同步读、串行持久化单记录写、domain/changed | 明确没有跨表事务/索引/自动迁移；坏记录会使整个 domain 打开失败 |
+| WhaleDot node:sqlite | WAL、外键、5000 ms busy timeout、自有迁移、跨表事务         | 保持架构选定方案；不注入 DSH storage 服务                      |
+
+WhaleDot 数据保存在 `<dataDir>/whaledot.db`。生产 Clock/IdGen 为 Date.now 与前缀 +
+crypto.randomUUID；core 不做 IO。迁移版本必须连续且只能追加，未知版本拒绝打开；全部待执行
+迁移在同一事务中运行，失败回滚后关闭连接、释放写锁并报告 error。
+已有数据库迁移前以 `VACUUM INTO` 产生包含已提交 WAL 页的一致快照，`backups/` 仅清理
+WhaleDot 自己命名的备份，保留最新五份。
+
+`whaledot.lock` 使用独占创建，包含 pid、startedAt 和随机 token；存活/不可确认/格式不明
+锁都不抢占。死 PID 接管使用独占 `.reclaim` 目录串行化检查与替换；被占用或未知的回收标记
+同样保守降级（若进程恰在回收中崩溃，需停掉相关宿主并人工核对/清理该标记）。关闭仅移除
+自己 token 对应的锁。只读实例打开 SQLite readOnly 连接，不迁移、不备份、不写领域数据。
+
+五个仓储读取逐行使用 core schema 校验，并核对 JSON 与关系索引字段；错误行跳过，
+每个启动内按 table/id 去重计数并记 host.log，不打印损坏内容。任务只接受 PENDING/v0 新建；
+状态变更仅能通过 TaskRepo.transition 的 core 迁移 + 版本 CAS + 审计插入事务。
+
+授权内容保持不可变，替换为新 id + supersedes；旧版置 superseded，非 active 一律拒绝。
+沿用 core 原有摘要契约：hash 包含 status/revokedAt，所以合法生命周期变更同步重算摘要，
+不修改原授权字段。替换、目标 scopeId 绑定及旧版失效在同一事务内；activeScopeFor 每次读后
+重新验 hash，篡改视为无授权。服务 grant/revoke 接受宿主已认证的 live owner peer，
+grant 暂不注册面板路由。撤销持久化后通过 Cordis emit 发布插件自有
+`whaledot/scope-revoked(scopeId)`（Cordis `lib/types/events.d.ts` 的 emit/on；不是臆造的 DSH 事件）。
+
+面板扩展 exact Fetch routes `set-paused` / `revoke-scope`；沿用 Connection admission + owner
+校验，strict 请求分别为 `{paused:boolean}` / `{scopeId}`。goals 从仓储读取；status 增加 store
+及 paused。pause 缺省 false，设置坏行/存储不可用时保守返回 true；只读模式禁用写控件。

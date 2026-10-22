@@ -19,7 +19,8 @@ export const ScopeContentSchema = z.strictObject({
   verifyCommands: z.array(z.string().min(1)),
   limits: LimitsSchema.default(DEFAULT_LIMITS),
   permissionPreset: z.enum(['read-only', 'workspace-write']),
-  status: z.enum(['active', 'revoked']),
+  supersedes: ScopeIdSchema.optional(),
+  status: z.enum(['active', 'revoked', 'superseded']),
   grantedAt: TimestampSchema,
   revokedAt: TimestampSchema.optional(),
 })

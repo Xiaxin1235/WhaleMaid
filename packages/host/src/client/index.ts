@@ -15,6 +15,7 @@ import {
   PANEL_CHANNEL,
   PANEL_PREFIX,
   StatusSchema,
+  PausedSchema,
   type PanelStatus,
 } from '../panel-api/contract.js'
 import { serviceRows, formatStartedAt } from './format.js'
@@ -36,6 +37,7 @@ function Panel({ ctx, connection }: Face) {
   const [goals, setGoals] = useState<ReturnType<typeof GoalsSchema.parse>>([])
   const [error, setError] = useState<string>()
   const [saving, setSaving] = useState(false)
+  const [pausing, setPausing] = useState(false)
   const [revision, refresh] = useState(0)
   const locale = resolveLocale(status?.language ?? 'auto', hostLocale.active)
   const text = (key: Parameters<typeof t>[1]) => t(locale, key)
@@ -96,6 +98,21 @@ function Panel({ ctx, connection }: Face) {
     }
   }
 
+  async function changePaused(paused: boolean) {
+    setPausing(true)
+    try {
+      const reply = await connection.rpc.call(PANEL_CHANNEL, `${PANEL_PREFIX}/set-paused`, { paused })
+      if (!reply.ok) throw reply.error
+      const value = PausedSchema.parse(reply.value)
+      setStatus((previous) => previous && { ...previous, paused: value.paused })
+      setError(undefined)
+    } catch (error) {
+      setError(errorCode(error))
+    } finally {
+      setPausing(false)
+    }
+  }
+
   return h(
     'main',
     { className: 'whaledot-panel', 'data-whaledot-panel': '', lang: locale },
@@ -123,6 +140,21 @@ function Panel({ ctx, connection }: Face) {
               h('dd', null, formatStartedAt(status.startedAt, locale)),
               h('dt', null, text('dataDir')),
               h('dd', { className: 'whaledot-path' }, status.dataDir),
+              h('dt', null, text('store')),
+              h(
+                'dd',
+                { role: status.store.state === 'ok' ? undefined : 'status' },
+                text(
+                  status.store.state === 'ok'
+                    ? 'storeOk'
+                    : status.store.state === 'read-only'
+                      ? 'storeReadOnly'
+                      : 'storeError',
+                ),
+                status.store.state === 'error' && status.store.message && `: ${status.store.message}`,
+              ),
+              h('dt', null, text('storeRecords')),
+              h('dd', null, t(locale, 'corruptRows', { count: status.store.corruptRows })),
             ),
             h('h3', null, text('dependencies')),
             h(
@@ -190,9 +222,16 @@ function Panel({ ctx, connection }: Face) {
       h(
         'label',
         { className: 'whaledot-pause' },
-        h('input', { type: 'checkbox', disabled: true }),
+        h('input', {
+          type: 'checkbox',
+          checked: status?.paused ?? false,
+          disabled: !status || status.store.state !== 'ok' || pausing,
+          onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+            void changePaused(event.target.checked)
+          },
+        }),
         text('pauseAll'),
-        h('small', null, text('afterP06')),
+        pausing && h('small', { role: 'status' }, text('saving')),
       ),
     ),
   )

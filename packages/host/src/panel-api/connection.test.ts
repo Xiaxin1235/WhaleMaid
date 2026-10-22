@@ -31,16 +31,20 @@ test('real DSH Connection refuses unauthenticated HTTP before dispatch; its sign
   })
   try {
     await applyConnection(ctx)
-    ctx.connection.fetch.register(
-      createPanelRoute('status', { snapshot: read, setLanguage: write }, (request) =>
-        ctx.connection.admit(request),
-      ),
-    )
+    for (const method of ['status', 'set-paused', 'revoke-scope'] as const) {
+      ctx.connection.fetch.register(
+        createPanelRoute(
+          method,
+          { snapshot: read, setLanguage: write, goals: () => [], setPaused: write, revokeScope: write },
+          (request) => ctx.connection.admit(request),
+        ),
+      )
+    }
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve))
     const address = server.address() as { port: number }
     const base = `http://127.0.0.1:${address.port}`
-    const request = (cookie?: string, origin?: string) =>
-      fetch(`${base}/api/whaledot/status`, {
+    const request = (cookie?: string, origin?: string, method = 'status', payload: unknown = {}) =>
+      fetch(`${base}/api/whaledot/${method}`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -50,13 +54,15 @@ test('real DSH Connection refuses unauthenticated HTTP before dispatch; its sign
         body: JSON.stringify({
           type: 'client-request',
           rpcId: 'test',
-          method: 'whaledot/status',
-          payload: {},
+          method: `whaledot/${method}`,
+          payload,
         }),
       })
     const denied = await request()
     expect(denied.status).toBe(401)
     expect(await denied.text()).toBe('unauthorized')
+    expect((await request(undefined, undefined, 'set-paused', { paused: true })).status).toBe(401)
+    expect((await request(undefined, undefined, 'revoke-scope', { scopeId: 'scope_1' })).status).toBe(401)
     expect(read).not.toHaveBeenCalled()
     expect(write).not.toHaveBeenCalled()
     let headers: Readonly<Record<string, string>> = {}
@@ -80,6 +86,21 @@ test('real DSH Connection refuses unauthenticated HTTP before dispatch; its sign
     expect(accepted.status).toBe(200)
     expect(await accepted.json()).toMatchObject({ result: { ok: true, value: snapshot } })
     expect((await request(cookie, 'http://untrusted.invalid')).status).toBe(403)
+    expect(
+      await (await request(cookie, undefined, 'set-paused', { paused: true, extra: 1 })).json(),
+    ).toMatchObject({
+      result: { ok: false, error: { code: 'whaledot/invalid-input' } },
+    })
+    expect(write).not.toHaveBeenCalled()
+    expect(await (await request(cookie, undefined, 'set-paused', { paused: true })).json()).toMatchObject({
+      result: { ok: true, value: { paused: true } },
+    })
+    expect(write).toHaveBeenCalledWith(true)
+    expect(
+      await (await request(cookie, undefined, 'revoke-scope', { scopeId: 'scope_1' })).json(),
+    ).toMatchObject({
+      result: { ok: true, value: { scopeId: 'scope_1' } },
+    })
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()))
     await ctx.fiber.dispose()

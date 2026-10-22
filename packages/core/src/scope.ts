@@ -55,7 +55,7 @@ export function hashScope(scope: ScopeContent, deps: ScopeHasher): Result<string
 
 /** Check a host-resolved absolute Windows path; the host must realpath both policy roots and targets first. */
 export function isPathAllowed(scope: AuthorizationScope, absPath: string): boolean {
-  if (scope.status === 'revoked') return false
+  if (scope.status !== 'active') return false
   const path = normalizeWindowsPath(absPath)
   if (path === null) return false
   const allowed = scope.allowedPaths.map(normalizeWindowsPath)
@@ -145,6 +145,7 @@ export function checkAction(scope: AuthorizationScope, action: ActionIntent): Ga
   scope = parsedScope.data
   action = parsedAction.data
   if (scope.status === 'revoked') return decision('deny', 'scope-revoked', 'Authorization has been revoked')
+  if (scope.status !== 'active') return decision('deny', 'scope-inactive', 'Authorization is not active')
   if (scope.forbiddenActions.includes(action.type))
     return decision('deny', 'action-forbidden', 'Action is explicitly forbidden')
   if ('goalId' in action && action.goalId !== scope.goalId)

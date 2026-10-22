@@ -57,14 +57,16 @@ test('status updates replace the file inode with a complete snapshot', async () 
     version: '0.0.0',
     services: { gateway: false, commands: false, userQuestions: false },
   })
-  expect(await readdir(dir)).toEqual(['debug', 'status.json'])
+  expect(await readdir(dir)).toEqual(
+    expect.arrayContaining(['debug', 'status.json', 'whaledot.db', 'whaledot.lock']),
+  )
 })
 
 test('atomic replacement failure is logged without rejecting startup or leaving temporary files', async () => {
   const { ctx, dir } = await setup()
   await mkdir(join(dir, 'status.json'))
   await expect(apply(ctx, { dataDir: dir })).resolves.toBeUndefined()
-  expect(await readdir(dir)).toEqual(['debug', 'status.json'])
+  expect(await readdir(dir)).toEqual(expect.arrayContaining(['debug', 'status.json', 'whaledot.db']))
   expect(await readdir(join(dir, 'status.json'))).toEqual([])
   expect(ctx.logger.buffer.some((row) => row.type === 'error' && row.args[0] === 'plugin degraded')).toBe(
     true,

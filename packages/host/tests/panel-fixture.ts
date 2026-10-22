@@ -6,6 +6,8 @@ export const snapshot: PanelStatus = {
   dataDir: 'D:/test/whaledot',
   language: 'auto',
   coopanion: false,
+  store: { state: 'ok', corruptRows: 0 },
+  paused: false,
   services: {
     gateway: true,
     commands: true,
