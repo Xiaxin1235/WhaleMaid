@@ -4,15 +4,15 @@
 
 2026-10-23，修改独立 AGPL 仓库 `D:/dsh_plugins/dsh-coopanion` 的 `whaledot-local` 分支。基线 `8c491be05ee024ccab526d4863be042035791b3d`，本地提交 `399ad8fe8763e0dbe3bdbccc29dcaf1cd6030f60`（`fix: keep the pet visible over fullscreen apps unless the user hides it`）。版本保持 0.4.13，未 push、未发布；实现和素材未复制进 WhaleDot。
 
-| 项目 | 结果 |
-|---|---|
-| 自动恢复 | 系统最小化、隐藏、失去置顶及显示器变化时恢复；每 2 秒核对，健康状态不反复显示或置顶 |
-| 用户意图 | 主动隐藏、锁屏、休眠、退出期间不自动恢复；解锁或恢复后按显示意图处理 |
-| 全屏设置 | “在全屏应用上方显示”默认开启，Windows/macOS 使用 `pop-up-menu`；关闭恢复旧 `floating`，Linux 保持 `floating` |
-| 诊断 | 复用 schema 1，只在开启本地诊断时采集；最近最多 24 条事件，含时间、窗口状态、显示意图、DIP bounds/workArea、scaleFactor、角色矩形 |
-| 文档与文案 | 中英文设置、中文游戏说明、恢复/诊断/多屏契约同步 |
-| 用户目视 | 隔离真实宿主普通桌面，用户确认“能持续看到” |
-| 清理 | 测试宿主、测试鲸鱼已停止；隔离配置恢复；日常 profile 未修改 |
+| 项目       | 结果                                                                                                                              |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| 自动恢复   | 系统最小化、隐藏、失去置顶及显示器变化时恢复；每 2 秒核对，健康状态不反复显示或置顶                                               |
+| 用户意图   | 主动隐藏、锁屏、休眠、退出期间不自动恢复；解锁或恢复后按显示意图处理                                                              |
+| 全屏设置   | “在全屏应用上方显示”默认开启，Windows/macOS 使用 `pop-up-menu`；关闭恢复旧 `floating`，Linux 保持 `floating`                      |
+| 诊断       | 复用 schema 1，只在开启本地诊断时采集；最近最多 24 条事件，含时间、窗口状态、显示意图、DIP bounds/workArea、scaleFactor、角色矩形 |
+| 文档与文案 | 中英文设置、中文游戏说明、恢复/诊断/多屏契约同步                                                                                  |
+| 用户目视   | 隔离真实宿主普通桌面，用户确认“能持续看到”                                                                                        |
+| 清理       | 测试宿主、测试鲸鱼已停止；隔离配置恢复；日常 profile 未修改                                                                       |
 
 诊断不读取其他应用标题或进程名。角色矩形每至多 500ms 更新一次，附独立采集时间；事件中的角色位置可能是上一采样值，并非事件瞬间测量。关闭诊断清空事件并撤下接口。
 
@@ -20,27 +20,27 @@
 
 环境：Windows、实际屏幕缩放 125%、Node 24.18.0、Electron 44.7.0、DSH Desktop CLI 0.2.1-rc.2 / Cordis 4.0.5。所有桌宠运行使用独立用户数据目录。
 
-| 检查 | 结果 |
-|---|---|
-| `npm ci` | 成功，未改版本及锁文件 |
-| `npm run typecheck` / `npm run build` | 通过；提交后再次构建通过 |
-| `npm test` | Vitest 241 passed、11 skipped；Node release/client 11 passed、locale 1 passed |
-| `npm run test:inbox-ui` | 完整通过：收件箱、回复/字号、多屏、交互/拖动、陪伴 |
-| `npm run test:desktop` | **125% 下全套通过**：窗口可见性、多屏/原生输入、陪伴、NPC、诊断、启动生命周期、崩溃恢复、聊天/通知、角色导入与持久化 |
-| 可见性原生断言 | 最小化、系统隐藏、丢失置顶、越界恢复；Electron 与 Win32 双重确认前台测试窗口仍有焦点，桌宠未获焦点 |
-| 主动隐藏与暂停 | 主动隐藏跨越 2.3 秒巡检仍隐藏；模拟锁屏/休眠期间不恢复，解锁/唤醒后恢复 |
-| 设置关闭 | 热切回 `floating` 后跨巡检，无重复置顶/显示/聚焦调用 |
-| 几何与输入 | 100%/125%/150% 纯函数及浏览器矩阵；125% 实际原生窗口、OS 光标、命中测试与渲染坐标通过 |
-| 真实隔离宿主 | `scripts/dev-host.ps1 -UseUiKey`，`whaledot-p02` 链接本地版，正常启动，无测试调试端口；认证状态与诊断均显示可见 |
-| `git diff --check` | 通过 |
+| 检查                                  | 结果                                                                                                                 |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `npm ci`                              | 成功，未改版本及锁文件                                                                                               |
+| `npm run typecheck` / `npm run build` | 通过；提交后再次构建通过                                                                                             |
+| `npm test`                            | Vitest 241 passed、11 skipped；Node release/client 11 passed、locale 1 passed                                        |
+| `npm run test:inbox-ui`               | 完整通过：收件箱、回复/字号、多屏、交互/拖动、陪伴                                                                   |
+| `npm run test:desktop`                | **125% 下全套通过**：窗口可见性、多屏/原生输入、陪伴、NPC、诊断、启动生命周期、崩溃恢复、聊天/通知、角色导入与持久化 |
+| 可见性原生断言                        | 最小化、系统隐藏、丢失置顶、越界恢复；Electron 与 Win32 双重确认前台测试窗口仍有焦点，桌宠未获焦点                   |
+| 主动隐藏与暂停                        | 主动隐藏跨越 2.3 秒巡检仍隐藏；模拟锁屏/休眠期间不恢复，解锁/唤醒后恢复                                              |
+| 设置关闭                              | 热切回 `floating` 后跨巡检，无重复置顶/显示/聚焦调用                                                                 |
+| 几何与输入                            | 100%/125%/150% 纯函数及浏览器矩阵；125% 实际原生窗口、OS 光标、命中测试与渲染坐标通过                                |
+| 真实隔离宿主                          | `scripts/dev-host.ps1 -UseUiKey`，`whaledot-p02` 链接本地版，正常启动，无测试调试端口；认证状态与诊断均显示可见      |
+| `git diff --check`                    | 通过                                                                                                                 |
 
 Windows 三种层级在同一个普通全屏前台测试窗口上比较：
 
-| 层级 | 桌宠在测试窗口上方 | `isAlwaysOnTop()` | 测试窗口保留 Win32 前台焦点 |
-|---|---|---|---|
-| `floating` | 是 | false | 是 |
-| `pop-up-menu` | 是 | true | 是 |
-| `screen-saver` | 是 | true | 是 |
+| 层级           | 桌宠在测试窗口上方 | `isAlwaysOnTop()` | 测试窗口保留 Win32 前台焦点 |
+| -------------- | ------------------ | ----------------- | --------------------------- |
+| `floating`     | 是                 | false             | 是                          |
+| `pop-up-menu`  | 是                 | true              | 是                          |
+| `screen-saver` | 是                 | true              | 是                          |
 
 选择 `pop-up-menu`：它是本次比较中最低的、位于任务栏之上且原生置顶状态稳定的层级。`floating` 在这个普通全屏窗口上也可见，但 Electron 44 的 Windows 实现将该层级放在任务栏之下；关闭设置时保留其旧语义，不把其 `isAlwaysOnTop() === false` 当作每两秒必须修复的故障。[Electron 44.7.0 实现](https://github.com/electron/electron/blob/v44.7.0/shell/browser/native_window_views.cc)、[官方层级说明](https://www.electronjs.org/docs/latest/api/base-window#winsetalwaysontopflag-level-relativelevel)。此比较不能证明可覆盖独占全屏或任意其他 TOPMOST 游戏窗口。
 

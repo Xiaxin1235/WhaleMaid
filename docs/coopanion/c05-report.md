@@ -4,32 +4,32 @@
 
 2026-10-23，基于 C04 `75a6b1f`，在独立 AGPL 仓库 `D:/dsh_plugins/dsh-coopanion` 的 `whaledot-local` 分支实现并本地提交 `965df441a70cc90539f38135d03ca902dae3a5b0`：`fix: no tears for task errors; show a brief worried look instead`。版本保持 0.4.13，未 push、未发布。
 
-| 项目 | 结果 |
-|---|---|
-| error 状态 | 进入动作及持有表情均为 `worried`；皱眉、额侧汗滴，不产生眼下泪滴或泪痕 |
-| 错误通知 | 移除额外发现的 `sad` 首选候选，采用 worried/confused/neutral；已应用担心动作时不重复播放 |
-| 自动入口 | 任务、通知、陪伴与 NPC 的自动动作统一阻止 `sad`／`cry`；NPC 持有表情也经过同一限制 |
-| 已查看异常 | 沿用 C04 回执，点掉后立即恢复空闲；重启后同一异常不再回来 |
-| 手动预览 | 仅角色面板的独立预览允许难过/大哭，不改变主桌宠 |
-| 上游资源 | 未修改 `web/upstream/` 动画、角色、贴图或粒子代码 |
-| 文档 | usage、角色契约和提醒契约同步 |
+| 项目       | 结果                                                                                     |
+| ---------- | ---------------------------------------------------------------------------------------- |
+| error 状态 | 进入动作及持有表情均为 `worried`；皱眉、额侧汗滴，不产生眼下泪滴或泪痕                   |
+| 错误通知   | 移除额外发现的 `sad` 首选候选，采用 worried/confused/neutral；已应用担心动作时不重复播放 |
+| 自动入口   | 任务、通知、陪伴与 NPC 的自动动作统一阻止 `sad`／`cry`；NPC 持有表情也经过同一限制       |
+| 已查看异常 | 沿用 C04 回执，点掉后立即恢复空闲；重启后同一异常不再回来                                |
+| 手动预览   | 仅角色面板的独立预览允许难过/大哭，不改变主桌宠                                          |
+| 上游资源   | 未修改 `web/upstream/` 动画、角色、贴图或粒子代码                                        |
+| 文档       | usage、角色契约和提醒契约同步                                                            |
 
 选择任务首选的 `worried`。它与 waiting 共用温和的担心表情，具体错误或待确认原因由信封条目和标题区分。没有增加额外 shake 动作或情绪计时器；已有状态切换只播放一次进入动作，未查看时持有不流泪的表情。
 
 ## 验证（命令与关键输出）
 
-| 检查 | 结果 |
-|---|---|
-| `npm run typecheck` | 通过 |
-| 提交后 `npm run build` | 通过；commit=`965df44`、dirty=false |
-| `npm test` | Vitest 247 passed、11 skipped；Node release/client 11 passed、locale 1 passed |
-| `npm run test:inbox-ui` | 全套通过：初始收件箱、回复/字号 11、多屏 1、交互/拖动 16、陪伴 15 |
-| 单元约束 | 8 种 mood 的 64 种前台/后台组合；全部通知类别及 initial/reminder；陪伴模式/日夜/互动/问候；NPC 行走、到达、打断的自动词与表情均无 sad/cry |
-| 真实角色沙箱 UI | 重复错误快照及同时收到错误通知，仅一次 worried；持有 worried；点掉后 neutral；手动预览 sad 和 cry 可用，主角色仍无流泪指令 |
-| 真实隔离宿主 | 模型无调用的虚构 error 回合，主角色一次 worried、无 sad/cry；原生截图及动作记录一致 |
-| 查看与完整重启 | 原生信封点“去处理”后 idle、入口消失、落盘一条 C04 回执；停止并重启整个宿主后仍 idle，无信封入口或流泪指令 |
-| 用户目视 | 用户明确回复“看到了，不再流泪” |
-| 清理 | 测试宿主/鲸鱼停止，3184/9495 端口关闭；日常 profile 未修改 |
+| 检查                    | 结果                                                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`     | 通过                                                                                                                                      |
+| 提交后 `npm run build`  | 通过；commit=`965df44`、dirty=false                                                                                                       |
+| `npm test`              | Vitest 247 passed、11 skipped；Node release/client 11 passed、locale 1 passed                                                             |
+| `npm run test:inbox-ui` | 全套通过：初始收件箱、回复/字号 11、多屏 1、交互/拖动 16、陪伴 15                                                                         |
+| 单元约束                | 8 种 mood 的 64 种前台/后台组合；全部通知类别及 initial/reminder；陪伴模式/日夜/互动/问候；NPC 行走、到达、打断的自动词与表情均无 sad/cry |
+| 真实角色沙箱 UI         | 重复错误快照及同时收到错误通知，仅一次 worried；持有 worried；点掉后 neutral；手动预览 sad 和 cry 可用，主角色仍无流泪指令                |
+| 真实隔离宿主            | 模型无调用的虚构 error 回合，主角色一次 worried、无 sad/cry；原生截图及动作记录一致                                                       |
+| 查看与完整重启          | 原生信封点“去处理”后 idle、入口消失、落盘一条 C04 回执；停止并重启整个宿主后仍 idle，无信封入口或流泪指令                                 |
+| 用户目视                | 用户明确回复“看到了，不再流泪”                                                                                                            |
+| 清理                    | 测试宿主/鲸鱼停止，3184/9495 端口关闭；日常 profile 未修改                                                                                |
 
 真实验收使用 WhaleDot `scripts/dev-host.ps1 -Profile c05 -UseUiKey -TestHome D:/dsh_plugins/WhaleDot/.dsh-dev/c05-home`，独立 DSH_HOME 与 pet-data，测试 profile 链接本地插件，只运行 Web 宿主。未启动日常桌面应用；回合由显式安装的虚构夹具经公开 sessionController.create、session.append、sessions.flush 生成，无模型调用或工具执行。
 
