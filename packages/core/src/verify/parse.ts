@@ -58,5 +58,15 @@ export function parseCommandResult(input: {
         )
     }
   }
+  // Node's TAP reporter and terminal spec reporter use the same three summary counters.
+  if (!counts) {
+    const node: Partial<Record<'pass' | 'fail' | 'skipped', number>> = {}
+    for (const line of lines) {
+      const match = /^(?:#|ℹ)\s+(pass|fail|skipped)\s+(\d+)\s*$/.exec(line)
+      if (match) node[match[1] as keyof typeof node] = Number(match[2])
+    }
+    if (node.pass !== undefined && node.fail !== undefined && node.skipped !== undefined)
+      counts = { passed: node.pass, failed: node.fail, skipped: node.skipped }
+  }
   return { command: input.command, status, exitCode: input.exitCode, ...(counts ? { counts } : {}) }
 }

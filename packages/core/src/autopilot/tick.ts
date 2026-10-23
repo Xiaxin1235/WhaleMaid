@@ -32,7 +32,6 @@ export function planTick(s: TickSnapshot): TickAction {
   if (!s.goal.autopilot.enabled) return idle('autopilot-off')
   if (!s.hasScope) return idle('no-scope')
   if (s.pendingDecisions > 0) return idle('awaiting-decision')
-  if (s.runsToday >= s.limits.maxRunsPerDay) return idle('budget-exhausted')
   if (s.runningTaskIds.length) return idle('run-in-progress')
   if (s.occupied >= s.maxConcurrentRuns || s.verifierBusy) return idle('capacity-busy')
   const unknown = s.tasks.find((task) => task.state === 'UNKNOWN')
@@ -46,7 +45,10 @@ export function planTick(s: TickSnapshot): TickAction {
     promoted.has(task.id) ? { ...task, state: 'READY' as const } : task,
   )
   const selected = selectNextTask(s.goal, candidates, s.projectTasks, s.limits)
-  if (selected.task) return { type: s.goal.mode === 'suggest' ? 'suggest-next' : 'execute' }
+  if (selected.task) {
+    if (s.goal.mode === 'suggest') return { type: 'suggest-next' }
+    return s.runsToday >= s.limits.maxRunsPerDay ? idle('budget-exhausted') : { type: 'execute' }
+  }
   if (s.tasks.some((task) => !['SUCCEEDED', 'CANCELLED'].includes(task.state))) return idle('capacity-busy')
   if (s.plannerComplete && s.latestVerificationPassed) return { type: 'complete' }
   if (s.plannerCallsToday >= (s.limits.plannerCallsPerDay ?? 5)) return idle('budget-exhausted')

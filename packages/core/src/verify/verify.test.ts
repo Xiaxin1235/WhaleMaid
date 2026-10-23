@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { expect, test } from 'vitest'
 import { parseCommandResult } from './parse.js'
 import type { CommandResult } from './parse.js'
@@ -192,4 +193,14 @@ test('neutral progress does not add or clear stalls; two unknown verifications r
     verdict: 'PASS',
     progress: 'neutral',
   })
+})
+
+test.each([
+  ['node-tap.txt', 1, { passed: 2, failed: 1, skipped: 1 }],
+  ['node-spec.txt', 0, { passed: 3, failed: 0, skipped: 0 }],
+] as const)('Node test summary %s preserves exit status and denominator', (name, exitCode, counts) => {
+  const stdout = readFileSync(new URL(`../../tests/fixtures/${name}`, import.meta.url), 'utf8')
+  expect(
+    parseCommandResult({ command: 'node --test', exitCode, timedOut: false, stdout, stderr: '' }),
+  ).toMatchObject({ counts, status: exitCode === 0 ? 'passed' : 'failed' })
 })

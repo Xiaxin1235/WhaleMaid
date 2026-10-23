@@ -1,0 +1,9 @@
+TAP version 13
+1..4
+# tests 4
+# suites 0
+# pass 2
+# fail 1
+# cancelled 0
+# skipped 1
+# todo 0

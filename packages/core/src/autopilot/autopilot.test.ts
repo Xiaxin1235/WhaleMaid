@@ -57,6 +57,38 @@ test('controls and pending decisions dominate execution, reconciliation and comp
     taskId: 'task_1',
   })
 })
+test('daily quotas gate their model action, never verification, reconciliation, suggestion or completion', () => {
+  const exhausted = { runsToday: 20, plannerCallsToday: 5 }
+  expect(planTick(snapshot({ ...exhausted, tasks: [makeTask('task_1', { state: 'VERIFYING' })] })).type).toBe(
+    'verify',
+  )
+  expect(planTick(snapshot({ ...exhausted, tasks: [makeTask('task_1', { state: 'UNKNOWN' })] })).type).toBe(
+    'reconcile',
+  )
+  expect(
+    planTick(snapshot({ runsToday: 20, tasks: [makeTask('task_1', { state: 'SUCCEEDED' })] })).type,
+  ).toBe('plan')
+  expect(
+    planTick(snapshot({ ...exhausted, goal: makeGoal({ mode: 'suggest', autopilot: { enabled: true } }) }))
+      .type,
+  ).toBe('suggest-next')
+  expect(
+    planTick(
+      snapshot({
+        ...exhausted,
+        tasks: [makeTask('task_1', { state: 'SUCCEEDED' })],
+        plannerComplete: true,
+        latestVerificationPassed: true,
+      }),
+    ).type,
+  ).toBe('complete')
+  for (const control of [{ globalPaused: true }, { hasScope: false }, { pendingDecisions: 1 }])
+    expect(
+      planTick(snapshot({ ...exhausted, ...control, tasks: [makeTask('task_1', { state: 'VERIFYING' })] }))
+        .type,
+    ).toBe('idle')
+})
+
 test('execute/promote, suggest, plan and evidence-gated completion', () => {
   expect(planTick(snapshot()).type).toBe('execute')
   expect(planTick(snapshot({ tasks: [makeTask()] })).type).toBe('execute')

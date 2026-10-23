@@ -296,6 +296,7 @@ test('local daily run budget stops work and crossing midnight resumes without a 
   const f = await fixture({ chain: true, limits: { maxRunsPerDay: 1 } })
   await vi.advanceTimersByTimeAsync(10000)
   expect(f.sent).toHaveBeenCalledOnce()
+  expect(f.store.tasks.list(f.goal.id)[0]?.state).toBe('SUCCEEDED')
   expect(f.store.autopilotEvents.list(f.goal.id).at(-1)?.reason).toBe('budget-exhausted')
   vi.setSystemTime(new Date('2026-10-23T00:01:00'))
   f.scheduler.mark(f.goal.id)
