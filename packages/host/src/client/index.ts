@@ -1,3 +1,6 @@
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
+import { NotificationCenter } from './notifications.js'
+import { NotificationChoiceSchema } from '@whaledot/core'
 import type { Context } from '@deepseek-ai/cordis'
 import type { UiWorkspace } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -26,6 +29,7 @@ import { IntakeView, GoalDetailView } from './intake.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
+let pendingNavigationGoal: string | undefined
 
 interface Face {
   ctx: Context
@@ -43,7 +47,18 @@ function Panel({ ctx, connection }: Face) {
   const [pausing, setPausing] = useState(false)
   const [revision, refresh] = useState(0)
   const [creating, setCreating] = useState(false)
-  const [selectedGoal, setSelectedGoal] = useState<string>()
+  const [selectedGoal, setSelectedGoal] = useState<string | undefined>(() => pendingNavigationGoal)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  useEffect(() => {
+    pendingNavigationGoal = undefined
+    const open = (event: Event) => {
+      setSelectedGoal((event as CustomEvent<string>).detail)
+      setNotificationsOpen(false)
+      setCreating(false)
+    }
+    window.addEventListener('whaledot-open-goal', open)
+    return () => window.removeEventListener('whaledot-open-goal', open)
+  }, [])
   const locale = resolveLocale(status?.language ?? 'auto', hostLocale.active)
   const text = (key: Parameters<typeof t>[1]) => t(locale, key)
 
@@ -134,6 +149,20 @@ function Panel({ ctx, connection }: Face) {
     }
   }
 
+  if (notificationsOpen)
+    return h(
+      'main',
+      { className: 'whaledot-panel' },
+      h('button', { onClick: () => setNotificationsOpen(false) }, text('backToGoals')),
+      h(NotificationCenter, {
+        connection,
+        locale,
+        onOpenGoal: (id: string) => {
+          setNotificationsOpen(false)
+          setSelectedGoal(id)
+        },
+      }),
+    )
   if (creating)
     return h(
       'main',
@@ -153,6 +182,7 @@ function Panel({ ctx, connection }: Face) {
     return h(
       'main',
       { className: 'whaledot-panel' },
+      h('button', { onClick: () => setNotificationsOpen(true) }, text('notificationCenter')),
       h(GoalDetailView, {
         connection,
         locale,
@@ -174,6 +204,7 @@ function Panel({ ctx, connection }: Face) {
       null,
       h('div', null, h('h1', null, 'WhaleDot'), h('p', null, text('subtitle'))),
       h('button', { onClick: () => refresh((value) => value + 1) }, text('refresh')),
+      h('button', { onClick: () => setNotificationsOpen(true) }, text('notificationCenter')),
     ),
     error && h('p', { role: 'alert' }, t(locale, 'requestFailed', { code: error })),
     h(
@@ -402,6 +433,47 @@ export function apply(ctx: Context): void {
   ctx.slots.inject('main', () =>
     ctx.slots.register({ name: 'main', key: PANEL_ID, inject: () => ({ ctx, connection }) }, Panel),
   )
+  // A recent explicit inbox choice is the only source of background panel navigation.
+  ctx.effect(() => {
+    const controller = new AbortController()
+    let busy = false
+    const poll = async () => {
+      if (busy) return
+      busy = true
+      try {
+        const reply = await connection.rpc.call(
+          PANEL_CHANNEL,
+          `${PANEL_PREFIX}/notification-navigation`,
+          {},
+          controller.signal,
+        )
+        if (!reply.ok) return
+        const choice = NotificationChoiceSchema.nullable().parse(reply.value)
+        if (
+          choice &&
+          sessionStorage.getItem('whaledot:last-navigation') !== choice.id &&
+          !controller.signal.aborted
+        ) {
+          sessionStorage.setItem('whaledot:last-navigation', choice.id)
+          pendingNavigationGoal = choice.goalId
+          ;(ctx.get('layout') as Context['layout'] | undefined)?.selectPanel(PANEL_ID as MainPanelId)
+          window.dispatchEvent(new CustomEvent('whaledot-open-goal', { detail: choice.goalId }))
+        }
+      } catch {
+        /* An absent host or anonymous client cannot authorize navigation. */
+      } finally {
+        busy = false
+      }
+    }
+    const timer = setInterval(() => {
+      void poll()
+    }, 2000)
+    void poll()
+    return () => {
+      controller.abort()
+      clearInterval(timer)
+    }
+  })
   ctx.slots.inject('settings.section', () =>
     ctx.slots.register(
       {

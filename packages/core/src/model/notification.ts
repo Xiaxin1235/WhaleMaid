@@ -22,6 +22,17 @@ export const NotificationSchema = z.strictObject({
   runId: z.string().optional(),
   taskVersion: VersionSchema.optional(),
   reason: z.string().optional(),
+  deliveryAttemptedAt: TimestampSchema.optional(),
+  deliveryState: z
+    .enum(['delivered', 'held', 'muted', 'digest', 'dropped', 'cancelled', 'failed'])
+    .optional(),
+  deliveryReason: z.string().optional(),
+  nextDeliveryAt: TimestampSchema.optional(),
+  remindAt: TimestampSchema.optional(),
+  suggestionIds: z.array(z.string()).optional(),
+  routingSuggestionId: z.string().optional(),
+  lastSelectionId: z.string().optional(),
+  resolvedSource: z.enum(['inbox', 'panel']).optional(),
   choices: z.array(DecisionChoiceSchema).optional(),
   expiresAt: TimestampSchema.optional(),
   resolvedReason: z.enum(['expired', 'superseded']).optional(),
@@ -35,13 +46,23 @@ export const SuggestionSchema = z.strictObject({
   id: SuggestionIdSchema,
   notificationId: NotificationIdSchema,
   label: TextSchema,
+  description: z.string().optional(),
   intent: z.union([
     ActionIntentSchema,
+    z.strictObject({ type: z.literal('notification-action'), action: z.enum(['snooze', 'open-panel']) }),
     z.strictObject({ type: z.literal('panel-decision'), choice: DecisionChoiceSchema }),
   ]),
   riskLevel: z.enum(['low', 'medium', 'high']),
   expiresAt: TimestampSchema,
   bindTo: z.union([
+    z.strictObject({
+      goalId: GoalIdSchema,
+      notificationId: NotificationIdSchema,
+      taskId: TaskIdSchema.optional(),
+      taskVersion: VersionSchema.optional(),
+      scopeHash: z.string(),
+      scopeId: z.string(),
+    }),
     z.strictObject({ goalId: GoalIdSchema }),
     z.strictObject({
       goalId: GoalIdSchema,

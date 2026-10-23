@@ -164,3 +164,34 @@ test('store takeover accepts only authenticated explicit confirmation', async ()
   })
   expect(takeoverStore).toHaveBeenCalledOnce()
 })
+
+test('notification routing preserves rejection reasons and wire data cannot impersonate inbox source', async () => {
+  const signal = new AbortController().signal,
+    peer = { principal: { kind: 'owner' }, signal } as PeerScope
+  const route = vi.fn(async () => ({ ok: false, reason: 'option-stale-or-consumed' })),
+    routeChoice = vi.fn(async () => ({ ok: false, reason: 'option-authorization-changed' }))
+  const handler = createPanelHandler({
+    snapshot: () => snapshot,
+    setLanguage: vi.fn(),
+    goals: () => [],
+    setPaused: vi.fn(),
+    revokeScope: vi.fn(),
+    takeoverStore: vi.fn(),
+    notificationRouter: { route, routeChoice } as unknown as import('../notify/router.js').NotificationRouter,
+  })
+  expect(await handler('route-suggestion', { suggestionId: 'suggestion_test' }, signal, peer)).toEqual({
+    ok: true,
+    value: { ok: false, reason: 'option-stale-or-consumed' },
+  })
+  expect(route).toHaveBeenCalledWith({ suggestionId: 'suggestion_test', source: 'panel', peer })
+  expect(
+    await handler('route-suggestion', { suggestionId: 'suggestion_test', source: 'inbox' }, signal, peer),
+  ).toMatchObject({ ok: false, error: { code: 'whaledot/invalid-input' } })
+  expect(route).toHaveBeenCalledOnce()
+  expect(
+    await handler('resolve-decision', { notificationId: 'notification_test', choice: 'retry' }, signal, peer),
+  ).toMatchObject({
+    ok: false,
+    error: { code: 'whaledot/notification-choice-rejected', message: 'option-authorization-changed' },
+  })
+})

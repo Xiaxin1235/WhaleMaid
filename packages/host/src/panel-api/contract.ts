@@ -1,6 +1,10 @@
 import { z } from 'zod'
 import {
   ProjectGoalSchema,
+  SuggestionSchema,
+  UserNoteSchema,
+  NotificationChoiceSchema,
+  NotificationPreferencesSchema,
   AutopilotEventSchema,
   PlannerStateSchema,
   VerificationSchema,
@@ -48,7 +52,36 @@ export const SetAutopilotSchema = z.strictObject({
 })
 export const TraceRequestSchema = z.strictObject({ goalId: GoalIdSchema })
 export const TraceResponseSchema = z.strictObject({ markdown: z.string(), filename: z.string() })
+export const NotificationCenterRequestSchema = z.strictObject({ goalId: GoalIdSchema.optional() })
+export const NotificationCenterSchema = z.strictObject({
+  preferences: NotificationPreferencesSchema,
+  items: z.array(
+    z.strictObject({
+      notification: NotificationSchema,
+      copy: z.strictObject({ header: z.string(), question: z.string(), detail: z.string() }),
+      suggestions: z.array(SuggestionSchema),
+      notes: z.array(UserNoteSchema),
+      choices: z.array(NotificationChoiceSchema),
+    }),
+  ),
+})
+export const RouteSuggestionSchema = z.strictObject({ suggestionId: z.string().min(1) })
+export const RouteResultSchema = z.strictObject({
+  ok: z.boolean(),
+  reason: z.string().optional(),
+  goalId: GoalIdSchema.optional(),
+  openPanel: z.boolean().optional(),
+  state: z.string().optional(),
+  files: z.array(z.string()).optional(),
+  stat: z.string().optional(),
+})
+export const ReminderSchema = z.strictObject({ notificationId: z.string().min(1) })
 export const PANEL_METHODS = [
+  'notification-center',
+  'notification-preferences',
+  'route-suggestion',
+  'remind-notification',
+  'notification-navigation',
   'set-autopilot',
   'export-trace',
 

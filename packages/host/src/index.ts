@@ -1,3 +1,6 @@
+import { NotificationDeliverer } from './notify/deliverer.js'
+import { NotificationRouter } from './notify/router.js'
+import { dshInbox } from './notify/inbox-session.js'
 import { AutopilotScheduler } from './autopilot/scheduler.js'
 import { TaskVerifier } from './verify/verify-task.js'
 import { observeSession } from './verify/reconcile.js'
@@ -121,11 +124,24 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         log: (message, error) => debug.host(message, error),
       },
     )
+    const notificationLocale = () =>
+      resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale)
+    const notificationRouter = new NotificationRouter(store, scopes, verification, notificationLocale, (id) =>
+      autopilot.mark(id),
+    )
+    const notifier = new NotificationDeliverer(
+      store,
+      scopes,
+      dshInbox(ctx, store),
+      notificationRouter,
+      notificationLocale,
+      (message, error) => debug.host(message, error),
+    )
     execution.setAdmission((via, own) => autopilot.hasCapacity(own, via.kind === 'background'))
     managed = true
     ctx.effect(() => async () => {
       intake.dispose()
-      await Promise.all([execution.dispose(), autopilot.dispose()])
+      await Promise.all([execution.dispose(), autopilot.dispose(), notifier.dispose()])
       store.close()
     })
     installToolGate(
@@ -160,11 +176,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           store.takeover()
           execution.registry.recover()
           autopilot.start()
+          notifier.start()
         },
         intake,
         execution,
         verification,
         autopilot,
+        notifier,
+        notificationRouter,
         revokeScope: (scopeId, peer) => {
           scopes.revoke(scopeId, peer)
         },
@@ -204,6 +223,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       void Promise.resolve(child).catch(report)
     }
     autopilot.start()
+    notifier.start()
     logger.info('plugin loaded')
     debug.host('plugin loaded')
   } catch (error) {

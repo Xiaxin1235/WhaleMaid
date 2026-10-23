@@ -19,6 +19,7 @@ export const GoalSchema = z.strictObject({
       disabledReason: z.string().optional(),
     })
     .default({ enabled: false }),
+  inboxSessionId: z.string().optional(),
   scopeId: ScopeIdSchema.optional(),
   createdAt: TimestampSchema,
   confirmedAt: TimestampSchema.optional(),

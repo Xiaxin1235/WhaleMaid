@@ -1,0 +1,282 @@
+import {
+  checkAction,
+  buildSuggestions,
+  suggestionForAction,
+  notificationReason,
+  NotificationIdSchema,
+} from '@whaledot/core'
+import type {
+  Suggestion,
+  Notification,
+  NotificationAction,
+  Locale,
+  GoalId,
+  ActionIntent,
+} from '@whaledot/core'
+import type { PeerScope } from '@deepseek-ai/dsh-client-connection'
+import type { WhaleStore } from '../store/index.js'
+import { productionClock, productionIdGen } from '../store/index.js'
+import type { ScopeService } from '../scope-service.js'
+import type { TaskVerifier } from '../verify/verify-task.js'
+export interface RouteResult {
+  ok: boolean
+  reason?: string
+  goalId?: GoalId
+  openPanel?: boolean
+  state?: string
+  files?: string[]
+  stat?: string
+}
+/** One durable claim precedes every effect, regardless of the display label or originating UI. */
+export class NotificationRouter {
+  constructor(
+    readonly store: WhaleStore,
+    private readonly scopes: Pick<ScopeService, 'activeScopeFor'>,
+    private readonly verifier: Pick<TaskVerifier, 'resolveDecision'>,
+    private readonly locale: () => Locale,
+    private readonly wake: (id: GoalId) => void,
+  ) {}
+  /** Build the fixed recommendation set even when reminders are muted or held. */
+  options(n: Notification): Suggestion[] {
+    const scope = this.scopes.activeScopeFor(n.goalId),
+      task = n.taskId ? this.store.tasks.get(n.taskId) : undefined
+    if (
+      !scope ||
+      n.resolvedAt !== undefined ||
+      (n.expiresAt ?? Infinity) <= Date.now() ||
+      (n.taskId && task?.version !== n.taskVersion)
+    )
+      return []
+    const old = (n.suggestionIds ?? []).flatMap((id) => {
+      const s = this.store.suggestions.get(id)
+      return s ? [s] : []
+    })
+    if (
+      old.length &&
+      old.every(
+        (s) => 'scopeHash' in s.bindTo && s.bindTo.scopeHash === scope.hash && s.expiresAt > Date.now(),
+      )
+    )
+      return old
+    const options = buildSuggestions(n, task, this.store.notificationChoices.list(), {
+      clock: productionClock,
+      idGen: productionIdGen,
+      locale: this.locale(),
+      scope,
+    })
+    this.store.transaction(() => {
+      for (const s of options) this.store.suggestions.insert(s)
+      this.store.notifications.update({
+        ...this.store.notifications.get(n.id)!,
+        suggestionIds: options.map((s) => s.id),
+      })
+    })
+    return options
+  }
+  private validate(s: Suggestion): Notification {
+    const n = this.store.notifications.get(s.notificationId)
+    if (
+      !n ||
+      s.consumedAt !== undefined ||
+      s.expiresAt <= Date.now() ||
+      n.resolvedAt !== undefined ||
+      (n.expiresAt ?? Infinity) <= Date.now() ||
+      n.routingSuggestionId
+    )
+      throw Error('option-stale-or-consumed')
+    if (!('notificationId' in s.bindTo) || s.bindTo.notificationId !== n.id || s.bindTo.goalId !== n.goalId)
+      throw Error('option-binding-invalid')
+    const scope = this.scopes.activeScopeFor(n.goalId)
+    if (!scope || scope.id !== s.bindTo.scopeId || scope.hash !== s.bindTo.scopeHash)
+      throw Error('option-authorization-changed')
+    if (
+      s.bindTo.taskId &&
+      (n.taskId !== s.bindTo.taskId ||
+        n.taskVersion !== s.bindTo.taskVersion ||
+        this.store.tasks.get(s.bindTo.taskId)?.version !== s.bindTo.taskVersion)
+    )
+      throw Error('option-task-changed')
+    let action: ActionIntent
+    if (s.intent.type === 'panel-decision') {
+      if (!n.choices?.includes(s.intent.choice)) throw Error('option-not-offered')
+      if (s.intent.choice === 'rollback') {
+        const checkpoint = this.store.checkpoints
+          .list(n.goalId)
+          .filter((c) => c.taskId === n.taskId)
+          .at(-1)
+        if (!checkpoint) throw Error('checkpoint-binding-required')
+        action = { type: 'rollback-to-checkpoint', checkpointId: checkpoint.id }
+      } else
+        action =
+          s.intent.choice === 'pause-goal'
+            ? { type: 'pause-goal', goalId: n.goalId }
+            : s.intent.choice === 'resume-goal'
+              ? { type: 'resume-goal', goalId: n.goalId }
+              : s.intent.choice === 'view-diff'
+                ? { type: 'open-workbench' }
+                : { type: 'continue-goal', goalId: n.goalId }
+    } else if (s.intent.type === 'notification-action') action = { type: 'open-workbench' }
+    else throw Error('unsupported-notification-intent')
+    const gate = checkAction(scope, action)
+    if (gate.decision !== 'allow') throw Error(gate.ruleId)
+    return n
+  }
+  /** Route the persisted intent, never a caller-supplied action or free-text answer. */
+  async route(input: {
+    suggestionId: string
+    source: 'inbox' | 'panel'
+    peer?: PeerScope
+  }): Promise<RouteResult> {
+    if (
+      input.source === 'panel' &&
+      (!input.peer || input.peer.principal.kind !== 'owner' || input.peer.signal.aborted)
+    )
+      return { ok: false, reason: 'owner-required' }
+    let s: Suggestion | undefined, n: Notification | undefined, choiceId: string | undefined
+    try {
+      this.store.transaction(() => {
+        s = this.store.suggestions.get(input.suggestionId)
+        if (!s) throw Error('option-not-found')
+        n = this.validate(s)
+        this.store.suggestions.update({ ...s, consumedAt: Date.now() })
+        this.store.notifications.update({ ...n, routingSuggestionId: s.id, lastSelectionId: s.id })
+        choiceId = productionIdGen.next('choice')
+        const action =
+          s.intent.type === 'panel-decision'
+            ? s.intent.choice
+            : s.intent.type === 'notification-action'
+              ? s.intent.action
+              : 'unsupported'
+        this.store.notificationChoices.insert({
+          id: choiceId,
+          goalId: n.goalId,
+          notificationId: n.id,
+          suggestionId: s.id,
+          reason: notificationReason(n),
+          action,
+          source: input.source,
+          at: Date.now(),
+          result: 'pending',
+        })
+      })
+      let result: RouteResult = { ok: true, goalId: n!.goalId }
+      if (s!.intent.type === 'panel-decision')
+        result = {
+          ...result,
+          ...(await this.verifier.resolveDecision(n!.id, s!.intent.choice)),
+          ...(s!.intent.choice === 'view-diff' ? { openPanel: true } : {}),
+        }
+      else if (s!.intent.type === 'notification-action') {
+        if (s!.intent.action === 'snooze') {
+          const now = Date.now()
+          const current = this.store.notifications.get(n!.id)!
+          this.store.notifications.update({
+            ...current,
+            snoozedUntil: now + 3600000,
+            remindAt: now + 3600000,
+            deliveryState: 'held',
+            deliveryReason: 'snoozed',
+            nextDeliveryAt: now + 3600000,
+          })
+        } else result.openPanel = true
+      }
+      this.store.transaction(() => {
+        const fresh = this.store.notifications.get(n!.id)!
+        this.store.notifications.update({
+          ...fresh,
+          routingSuggestionId: undefined,
+          ...(fresh.resolvedAt !== undefined ? { resolvedSource: input.source } : {}),
+        })
+        this.store.notificationChoices.update({
+          ...this.store.notificationChoices.get(choiceId!)!,
+          result: 'succeeded',
+          ...(result.stat ? { detail: result.stat } : {}),
+        })
+        this.event(
+          n!.goalId,
+          'notification-choice',
+          input.source + ':' + this.store.notificationChoices.get(choiceId!)!.action,
+        )
+      })
+      this.wake(n!.goalId)
+      return result
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : 'notification-route-error'
+      if (n && s && this.store.status().state === 'ok') {
+        const fresh = this.store.notifications.get(n.id)
+        if (fresh?.routingSuggestionId === s.id)
+          this.store.notifications.update({ ...fresh, routingSuggestionId: undefined })
+      }
+      if (choiceId) {
+        const row = this.store.notificationChoices.get(choiceId)
+        if (row) this.store.notificationChoices.update({ ...row, result: 'failed', detail: reason })
+      }
+      if (input.source === 'inbox' && n) this.expired(n)
+      else if (input.source === 'inbox' && s) {
+        const notice = this.store.notifications.get(s.notificationId)
+        if (notice) this.expired(notice)
+      }
+      return { ok: false, reason }
+    }
+  }
+  /** Preserve P09 panel actions by minting only choices already offered by the ledger. */
+  async routeChoice(
+    notificationId: string,
+    action: NotificationAction,
+    peer: PeerScope,
+  ): Promise<RouteResult> {
+    if (peer.principal.kind !== 'owner' || peer.signal.aborted) return { ok: false, reason: 'owner-required' }
+    const n = this.store.notifications.get(notificationId),
+      scope = n && this.scopes.activeScopeFor(n.goalId)
+    if (!n || !scope || n.resolvedAt !== undefined || n.routingSuggestionId)
+      return { ok: false, reason: 'option-stale-or-consumed' }
+    if (action !== 'snooze' && action !== 'open-panel' && !n.choices?.includes(action))
+      return { ok: false, reason: 'option-not-offered' }
+    const task = n.taskId ? this.store.tasks.get(n.taskId) : undefined
+    if (n.taskId && task?.version !== n.taskVersion) return { ok: false, reason: 'option-task-changed' }
+    const s = suggestionForAction(n, task, action, {
+      clock: productionClock,
+      idGen: productionIdGen,
+      locale: this.locale(),
+      scope,
+    })
+    this.store.suggestions.insert(s)
+    return this.route({ suggestionId: s.id, source: 'panel', peer })
+  }
+  /** Explicit owner reminder is the only manual exception to no-repeat delivery. */
+  remind(notificationId: string): void {
+    const n = this.store.notifications.get(notificationId)
+    if (!n || n.resolvedAt !== undefined || n.routingSuggestionId || (n.expiresAt ?? Infinity) <= Date.now())
+      throw Error('notification-stale')
+    this.store.notifications.update({
+      ...n,
+      remindAt: Math.max(Date.now(), (n.deliveryAttemptedAt ?? 0) + 1),
+      deliveryState: 'held',
+      deliveryReason: 'manual-reminder',
+      nextDeliveryAt: Date.now(),
+    })
+    this.event(n.goalId, 'notification-remind', 'owner')
+  }
+  private expired(n: Notification): void {
+    this.store.notifications.insert({
+      id: NotificationIdSchema.parse(productionIdGen.next('notification')),
+      goalId: n.goalId,
+      kind: 'info',
+      priority: 'low',
+      dedupeKey: n.id + ':expired-option',
+      channel: 'panel',
+      createdAt: Date.now(),
+      reason: 'option-expired',
+      expiresAt: Date.now() + 86400000,
+    })
+  }
+  private event(goalId: GoalId, action: string, reason: string): void {
+    this.store.autopilotEvents.insert({
+      id: productionIdGen.next('autopilot_event'),
+      goalId,
+      at: Date.now(),
+      action,
+      reason,
+    })
+  }
+}

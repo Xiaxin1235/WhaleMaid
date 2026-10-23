@@ -540,3 +540,21 @@ allowedPaths，也不支持任意 glob。默认连同 `.git` 在确认表单展�
 真实隔离宿主验证：读取 P08 已卸载会话得到 report-only PASS；对 P08 重启 UNKNOWN 的冷会话核对后得到空报告的待决状态，Run 数前后均为 3，没有激活或重发。门禁用真实会话的三次 pwsh 调用另证，见 `p09-report.md`。
 
 P09 的独立验收是明确的例外：Windows 通过 `execFile(cmd.exe, ['/d','/s','/c', '"' + exactCommand + '"'], {windowsVerbatimArguments:true})` 传递确认的命令，外层引号只用于 cmd 的传输封装。额外测试核对带空格的引号参数和 `node -e` 超时，防止反斜杠转义把可执行脚本变成普通字符串。其他 Git 操作仍使用 argv，禁用 hooks/fsmonitor。Connection 手工验收经官方 root-token 到 HttpOnly cookie 的交换，再调用既有认证面板接口，不伪造 owner。
+
+### 19 补充：P04/P05 空闲通知会话与提问
+
+2026-10-22，目标仍为 Desktop 0.2.1-rc.2 / Cordis 4.0.5。查官方包、公开界面及 Coopanion 使用文档，没有导入或复制 Coopanion 实现或素材。
+
+| 接口                                                     | 查证位置                                                                                                | 实际用法与限制                                                                                                                                |
+| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `userQuestions.ask({agent,questions,signal})`            | 同版本 `dsh-user-questions/lib/types/index.d.ts:98`；Desktop asar 中该服务 `async ask` 的只读提取       | 检查 exact live root，随后调用 scoped waterfall；没有 openTurn 检查。真实 idle Agent 成功显示 4 个带说明选项。                                |
+| `sessionController.create/inspect/rename`                | 同版本 `dsh-api-session-controller/lib/types/index.d.ts:79,101,156`；官方 README 的 blank session reuse | 先登记请求的随机 sessionId，create 返回身份必须一致；inspect 只有明确 NotFound 才重建。rename 激活冷会话后用 `agents.get(id)` 拿到确切 root。 |
+| `agents.get(id)`                                         | `dsh-agent/README.md` registry/lifecycle                                                                | 不依赖 npm 声明与 Desktop 实现曾有差异的 `resolveAgent`；从实际 registry 读取 Agent。                                                         |
+| `permissionPresets.set/current`                          | `dsh-permission-presets/lib/types/index.d.ts` 与 README；current 在 162 行                              | 钉住 read-only；单独 inbox_sessions 所有权表在工具门禁入口无条件拒绝，包括派生会话。                                                          |
+| `uiWorkspace.openSession(id)` / `layout.selectPanel(id)` | 本笔记第 18 节末导航补充、第 10 节；`dsh-client-ui-layout/README.md` Global panels                      | 面板提供“打开通知会话”。仅成功的 inbox open-panel/view-diff 选择触发客户端面板导航，不抢普通会话。                                            |
+
+两个真实专用会话的持久化事件均为 `turn/start=0, request/header=0, tool/call=0`，见 `.dsh-dev/p04-p05-evidence/session-audit.json`。运行会话分别只有一次 turn/start 和一次 request/header，没有以模型回合维持通知通道。通知用模板，不调用模型。
+
+实际 Edge 客户端能在无回合的通知会话中显示和提交问题。用户确认 Edge 有选项，随后报告桌宠只出现一瞬间、切回 Edge 仍不可见；不能以 Edge 成功代替桌宠内联选项或完成提醒的目视验收。原生窗口检查能读到宠物及“4 to handle”按钮，但前台显示不稳定；公开插件页为 0.4.13、1 running。浏览器直开宠物本地页面显示 Browser demo，因此没有拿该演示页作真实投递证据。
+
+Coopanion 0.4.13 本机使用文档进一步确认：问题和审批始终在 Harness 中回答，信封仅提供“去处理”入口。原 P04 提示词的信封内直接选择要求超出了该版本的公开交互能力。其自身 pending request reminders 与 WhaleDot 的单次 ask 策略分开管理。

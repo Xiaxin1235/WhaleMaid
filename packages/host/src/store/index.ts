@@ -16,6 +16,11 @@ import {
   PlannerStateSchema,
   NotificationSchema,
   SuggestionSchema,
+  NotificationPreferencesSchema,
+  UserNoteSchema,
+  NotificationChoiceSchema,
+  InboxSessionSchema,
+  DeliveryRecordSchema,
   hashScope,
   transition,
 } from '@whaledot/core'
@@ -93,6 +98,10 @@ export class WhaleStore {
   readonly verifications
   readonly notifications
   readonly suggestions
+  readonly userNotes
+  readonly notificationChoices
+  readonly inboxSessions
+  readonly notificationDeliveries
 
   constructor(
     private readonly dataDir: string,
@@ -100,6 +109,27 @@ export class WhaleStore {
   ) {
     this.clock = options.clock ?? productionClock
     this.idGen = options.idGen ?? productionIdGen
+    const ledger = <T extends { id: string; goalId: string }>(table: string, schema: z.ZodType<T>) => ({
+      get: (id: string) => this.one(table, id, schema),
+      list: (goalId?: string) =>
+        goalId ? this.rows(table, schema, 'goal_id', goalId) : this.rows(table, schema),
+      insert: (input: T) => {
+        const row = schema.parse(input)
+        this.writer()
+          .prepare(`INSERT INTO ${table}(id,goal_id,data) VALUES(?,?,?)`)
+          .run(row.id, row.goalId, JSON.stringify(row))
+        this.changed()
+      },
+      update: (input: T) => {
+        const row = schema.parse(input)
+        this.writer().prepare(`UPDATE ${table} SET data=? WHERE id=?`).run(JSON.stringify(row), row.id)
+        this.changed()
+      },
+    })
+    this.userNotes = ledger('user_notes', UserNoteSchema)
+    this.notificationChoices = ledger('notification_choices', NotificationChoiceSchema)
+    this.inboxSessions = ledger('inbox_sessions', InboxSessionSchema)
+    this.notificationDeliveries = ledger('notification_deliveries', DeliveryRecordSchema)
     this.goals = {
       get: (id) => this.one('goals', id, ProjectGoalSchema),
       list: () => this.rows('goals', ProjectGoalSchema),
@@ -173,6 +203,12 @@ export class WhaleStore {
       },
     }
     this.suggestions = {
+      get: (id: string) => this.one('suggestions', id, SuggestionSchema),
+      update: (input: import('@whaledot/core').Suggestion) => {
+        const row = SuggestionSchema.parse(input)
+        this.writer().prepare('UPDATE suggestions SET data=? WHERE id=?').run(JSON.stringify(row), row.id)
+        this.changed()
+      },
       list: () => this.rows('suggestions', SuggestionSchema),
       insert: (input: import('@whaledot/core').Suggestion) => {
         const row = SuggestionSchema.parse(input)
@@ -379,6 +415,24 @@ export class WhaleStore {
     if (result.changes !== 1) throw new Error('scope-inactive')
   }
 
+  /** Persist notification preferences in the existing settings ledger; malformed settings mute delivery. */
+  notificationPreferences(): import('@whaledot/core').NotificationPreferences {
+    if (!this.db || this.state === 'error') return { maxPerHour: 4, muted: true }
+    const row = this.db.prepare("SELECT * FROM kv_settings WHERE id='notifications.preferences'").get()
+    return row
+      ? (this.decode('kv_settings', row, NotificationPreferencesSchema) ?? { maxPerHour: 4, muted: true })
+      : { maxPerHour: 4, muted: false }
+  }
+  /** Owner-facing adapter validates before calling this durable mutation. */
+  setNotificationPreferences(input: unknown): void {
+    const row = NotificationPreferencesSchema.parse(input)
+    this.writer()
+      .prepare(
+        "INSERT INTO kv_settings(id,data) VALUES('notifications.preferences',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+      )
+      .run(JSON.stringify(row))
+    this.changed()
+  }
   paused(): boolean {
     if (!this.db || this.state === 'error') return true
     const row = this.db.prepare("SELECT * FROM kv_settings WHERE id='autopilot.paused'").get()
@@ -516,7 +570,7 @@ export class WhaleStore {
       if (parsed && typeof parsed === 'object') {
         const fields = parsed as Record<string, unknown>
         const checks = {
-          id: fields.id ?? fields.run_id,
+          id: fields.id ?? fields.run_id ?? (table === 'kv_settings' ? row.id : undefined),
           goal_id: fields.goalId,
           task_id: fields.taskId ?? fields.entityId,
           task_key: fields.key,

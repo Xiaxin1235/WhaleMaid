@@ -87,4 +87,13 @@ export const MIGRATIONS: readonly Migration[] = [
       }
     },
   },
+  {
+    version: 5,
+    up(db) {
+      for (const table of ['user_notes', 'notification_choices', 'inbox_sessions', 'notification_deliveries'])
+        db.exec(
+          `CREATE TABLE ${table} (id TEXT PRIMARY KEY, goal_id TEXT NOT NULL REFERENCES goals(id), data TEXT NOT NULL)`,
+        )
+    },
+  },
 ]

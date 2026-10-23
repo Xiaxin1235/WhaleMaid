@@ -30,6 +30,12 @@ export function exportTrace(store: WhaleStore, goalId: GoalId): { markdown: stri
       notifications: store.notifications.list().filter((n) => n.goalId === goalId),
       suggestions: store.suggestions.list().filter((s) => s.bindTo.goalId === goalId),
     }),
+    section('Notifications, notes and delivery', {
+      notes: store.userNotes.list(goalId),
+      choices: store.notificationChoices.list(goalId),
+      deliveries: store.notificationDeliveries.list(goalId),
+      inboxSessions: store.inboxSessions.list(goalId),
+    }),
     section('Scheduler events', store.autopilotEvents.list(goalId)),
   ].join('\n')
   return { markdown, filename: `whaledot-${goalId}-trace.md` }

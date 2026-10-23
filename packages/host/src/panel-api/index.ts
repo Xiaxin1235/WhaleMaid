@@ -1,3 +1,12 @@
+import type { NotificationDeliverer } from '../notify/deliverer.js'
+import type { NotificationRouter } from '../notify/router.js'
+import { NotificationPreferencesSchema } from '@whaledot/core'
+import {
+  NotificationCenterRequestSchema,
+  NotificationCenterSchema,
+  RouteSuggestionSchema,
+  ReminderSchema,
+} from './contract.js'
 import type { AutopilotScheduler } from '../autopilot/scheduler.js'
 import { exportTrace } from '../autopilot/trace.js'
 import { SetAutopilotSchema, TraceRequestSchema, TraceResponseSchema } from './contract.js'
@@ -43,6 +52,8 @@ export interface PanelRuntime {
   setPaused(paused: boolean): void
   revokeScope(scopeId: ScopeId, peer: PeerScope): void
   takeoverStore(): void
+  notifier?: NotificationDeliverer
+  notificationRouter?: NotificationRouter
   autopilot?: AutopilotScheduler
   verification?: TaskVerifier
   execution?: TaskExecutor
@@ -62,6 +73,45 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'notification-center': {
+          const query = NotificationCenterRequestSchema.parse(input)
+          result = NotificationCenterSchema.parse(runtime.notifier!.center(query.goalId))
+          break
+        }
+        case 'notification-preferences': {
+          const preferences = NotificationPreferencesSchema.parse(input)
+          runtime.notifier!.store.setNotificationPreferences(preferences)
+          result = preferences
+          break
+        }
+        case 'route-suggestion': {
+          const r = await runtime.notificationRouter!.route({
+            ...RouteSuggestionSchema.parse(input),
+            source: 'panel',
+            peer,
+          })
+          result = r
+          break
+        }
+        case 'remind-notification':
+          runtime.notificationRouter!.remind(ReminderSchema.parse(input).notificationId)
+          result = { ok: true }
+          break
+        case 'notification-navigation': {
+          z.strictObject({}).parse(input)
+          result =
+            runtime
+              .notifier!.store.notificationChoices.list()
+              .filter(
+                (c) =>
+                  c.source === 'inbox' &&
+                  c.result === 'succeeded' &&
+                  ['open-panel', 'view-diff'].includes(c.action) &&
+                  c.at > Date.now() - 300000,
+              )
+              .at(-1) ?? null
+          break
+        }
         case 'set-autopilot':
           result = runtime.autopilot!.setAutopilot(SetAutopilotSchema.parse(input))
           break
@@ -78,7 +128,16 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
           break
         case 'resolve-decision': {
           const { notificationId, choice } = ResolveDecisionSchema.parse(input)
-          result = await runtime.verification!.resolveDecision(notificationId, choice)
+          const r = await runtime.notificationRouter!.routeChoice(notificationId, choice, peer)
+          if (!r.ok)
+            return {
+              ok: false,
+              error: {
+                ...panelError('whaledot/notification-choice-rejected', r.reason ?? 'option-rejected').error,
+                details: {},
+              },
+            }
+          result = r
           break
         }
         case 'verification-log': {
@@ -171,6 +230,8 @@ export function installPanelApi(
     | 'execution'
     | 'verification'
     | 'autopilot'
+    | 'notifier'
+    | 'notificationRouter'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {

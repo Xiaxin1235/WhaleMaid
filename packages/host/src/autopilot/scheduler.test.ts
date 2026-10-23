@@ -159,7 +159,7 @@ async function fixture(
     return { state: store.tasks.get(id)!.state }
   })
   const planner = {
-    generate: vi.fn(
+    generate: vi.fn<SchedulerPorts['planner']['generate']>(
       async () => '```json\n{"status":"complete","reason":"All independent checks passed"}\n```',
     ),
   }
@@ -400,4 +400,23 @@ test('unload aborts an in-flight tool-free planner and leaves no timer-driven wo
   const events = f.store.autopilotEvents.list(f.goal.id).length
   await vi.advanceTimersByTimeAsync(180000)
   expect(f.store.autopilotEvents.list(f.goal.id)).toHaveLength(events)
+})
+
+test('the next scheduled planner receives persisted attributed notes without changing authorization', async () => {
+  const f = await fixture({ start: false })
+  f.store.userNotes.insert({
+    id: 'note_test',
+    goalId: f.goal.id,
+    notificationId: 'notification_test' as never,
+    at: Date.now(),
+    text: '先别改 utils.ts',
+  })
+  const before = f.scopes.activeScopeFor(f.goal.id)
+  f.scheduler.start()
+  await vi.advanceTimersByTimeAsync(15000)
+  expect(f.planner.generate).toHaveBeenCalledOnce()
+  const prompt = f.planner.generate.mock.calls[0]![0]
+  const data = JSON.parse(prompt.split('DATA=')[1]!)
+  expect(data.userNotes).toEqual([{ provenance: '用户补充说明（来自用户本人）', text: '先别改 utils.ts' }])
+  expect(f.scopes.activeScopeFor(f.goal.id)).toEqual(before)
 })

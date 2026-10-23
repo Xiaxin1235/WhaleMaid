@@ -83,6 +83,11 @@ export class ToolGate {
   async check(exec: GateExecution, next: () => Promise<PreToolDecision>): Promise<PreToolDecision> {
     const owner = this.owner(exec)
     if (!owner) return next()
+    if (this.registry.store.inboxSessions.get(owner))
+      return {
+        kind: 'deny',
+        reason: t(this.locale(), 'gateOutside', { rule: 'notification-session-tools-disabled' }),
+      }
     let run: Run | undefined
     try {
       run = this.registry.get(owner)

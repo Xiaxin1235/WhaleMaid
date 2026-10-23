@@ -25,7 +25,7 @@ export class RunRegistry {
   }
   /** Retain ownership even if a stored run later becomes unreadable. */
   has(sessionId: string): boolean {
-    return this.sessions.has(sessionId)
+    return this.sessions.has(sessionId) || !!this.store.inboxSessions.get(sessionId)
   }
   /** Re-read current durable state for a registered session. */
   get(sessionId: string): Run | undefined {

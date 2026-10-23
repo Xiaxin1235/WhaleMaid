@@ -398,7 +398,16 @@ export class AutopilotScheduler {
     let response
     try {
       const text = await this.ports.planner.generate(
-        buildPlannerPrompt(goal, scope, history, this.options.locale()),
+        buildPlannerPrompt(
+          goal,
+          scope,
+          history,
+          this.options.locale(),
+          this.store.userNotes
+            .list(id)
+            .slice(-5)
+            .map((n) => n.text),
+        ),
         controller.signal,
       )
       controller.signal.throwIfAborted()

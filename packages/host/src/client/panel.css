@@ -206,3 +206,34 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.whaledot-notification-columns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.whaledot-notifications article {
+  padding: 12px 0;
+  border-bottom: 1px solid #7775;
+  overflow-wrap: anywhere;
+}
+.whaledot-notifications button {
+  margin: 4px;
+}
+.whaledot-notifications button small {
+  display: block;
+  font-size: 0.8em;
+  white-space: normal;
+}
+.whaledot-notifications label {
+  display: block;
+  margin: 8px 0;
+}
+.whaledot-notifications pre {
+  white-space: pre-wrap;
+}
+@media (max-width: 900px) {
+  .whaledot-notification-columns {
+    grid-template-columns: 1fr;
+  }
+}

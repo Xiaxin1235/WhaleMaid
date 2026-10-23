@@ -738,6 +738,12 @@ export function GoalDetailView({
           'div',
           null,
           h('h2', null, detail.goal.title),
+          detail.goal.inboxSessionId &&
+            h(
+              'button',
+              { onClick: () => onOpenSession(detail.goal.inboxSessionId!) },
+              text('openInboxSession'),
+            ),
           h(AutopilotView, {
             detail,
             locale,
