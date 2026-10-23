@@ -575,3 +575,40 @@ Coopanion 0.4.13 本机使用文档进一步确认：问题和审批始终在 Ha
 原 Coopanion `src/index.ts` 的问题 observer 仅 `await next()`，`src/notification-broker.ts` 关联运行时请求及持久投影；`web/pet.js` 的 renderRequests 原先只生成“去处理/稍后”。本地扩展沿现有 Renderer → pet:action → Electron main → Host 的可信主 frame 路径增加结构化作答，不调用 sessionController.prompt、不改变审批或授权。
 
 C01 实际隔离宿主补证：本地链接版通过原生信封回答 WhaleDot 无回合提问，原通知记录 retry/source=inbox，任务 v10 WAITING_APPROVAL → v11 READY；同一时刻已选好答案的 Harness 卡片随原生答复撤下，没有第二条 retry。普通模型的 ask_user_question 也从原生得到“挥手”答案并完成。通知专用会话持久事件仍为 turn/start=0、request/header=0、tool/call=0。用户确认选项及说明可见，但随后对气泡反馈“没看到桌宠，但听到声音”；窗口可见性没有通过目视验收。协议、原生渲染和用户目视证据分开记录，详见独立 Coopanion 仓库 `docs/c01-report.md`。
+
+## 21. P11：伙伴 agent 预设、人格与工具作用域
+
+2026-10-23，Desktop 0.2.1-rc.2 / Cordis 4.0.5。核对同版本类型声明与 Desktop 自带 profile 的预设写法，未复制其他插件实现。
+
+| 接口                                  | 查证位置                                                          | 实际用法与限制                                                                                                                                               |
+| ------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@deepseek-ai/dsh-agent-preset` 行    | Desktop 默认 profile 中的预设行；`packages/host/cordis.patch.yml` | `id: whaledot-companion`，子插件只在该预设的 agent 内加载。工具、系统提示变量都随会话作用域生效，普通会话看不到伙伴工具                                      |
+| `@deepseek-ai/dsh-persona`            | 同版本 persona 配置（prefix 模板、`complete`）                    | `prefix: '{{whaledot_persona}}'`、`complete: true`：整段替换默认人格。人格文本里的 `{{` 先转成 `{ {`，防止用户自定义文件被二次展开                           |
+| `ctx.systemPrompt.variable(name, fn)` | 预设子插件 `inject: ['systemPrompt']`                             | 注册 `whaledot_persona`；每次请求读取当前缓存，语言或 personaPath 变化时重载                                                                                 |
+| `ctx.tools.register(definition)`      | `dsh-tools/lib/types/index.d.ts:637`                              | 直接传普通 ToolDefinition 对象，不另装一份 `defineTool` 运行时；返回的撤销函数交给 Cordis effect。输出为 JSON 字符串，上限 16000 字符                        |
+| 工具门禁                              | 本笔记第 18 节 `tools/pre-execute`                                | 伙伴会话（含历史伙伴会话）只放行 5 个 whaledot 读工具与 `ask_user_question`，其余统一拒绝 `companion-read-only`；同时钉住 `read-only` 权限预设作为第二道保险 |
+
+## 22. P11：伙伴会话创建、工作区与复用
+
+| 接口                                                              | 查证位置                                                             | 实际用法与限制                                                                                                                                                        |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sessionController.create({sessionId, workspaceId, agentPreset})` | `dsh-api-session-controller/lib/types/types.d.ts:283–293`            | `workspaceId` 与 `cwd` 互斥；`agentPreset` 省略时用默认预设。先把随机 id 写进 store 再创建，返回 id 必须一致；返回的 agentPreset 若不是 `whaledot-companion` 视为失败 |
+| `SessionHeader.agentPreset`                                       | `dsh-session/lib/types/types.d.ts:95`；inspect 的 `meta.agentPreset` | 复用判定：inspect 成功且 `meta.agentPreset === 'whaledot-companion'`；只有明确 NotFound 才重建，其它错误不当作不存在                                                  |
+| `workspaceRegistry.create(path, title?)`                          | `dsh-workspace/lib/types/index.d.ts:146`                             | Web UI 只允许在属于工作区的空白会话里输入；伙伴目录 `<dataDir>/companion` 登记为名为“大肥鱼”的工作区（已存在则返回原工作区）                                          |
+| `sessionController.rename`                                        | 本笔记第 19 节补充                                                   | 创建后改名为“大肥鱼” / “Da Fei Yu”。伙伴从不调用 prompt；第一轮由用户自己发起                                                                                         |
+
+重建（面板“开一个新对话”）只新建会话，旧会话留在 Harness 并保留门禁所有权（`previous` 最多 20 个）。
+
+## 23. P11：读取会话列表与内容
+
+| 接口                                 | 查证位置                           | 实际用法与限制                                                                                                                                                                                  |
+| ------------------------------------ | ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sessionController.list({}, signal)` | 同版本 session-controller 类型声明 | 过滤 blank、origin（派生）、伙伴和 WhaleDot 自有会话及 `[WhaleDot]` 标题；最多 20 个。标题按 `updatedAt` 缓存，靠 inspect 读取最新 `session/title` 事件                                         |
+| `sessionController.inspect(id)`      | 本笔记第 19 节                     | 不激活 agent。只取 `source.kind === 'user'` 的 user/message（运行时上下文、技能目录等同为 user 角色，必须排除）、assistant 文本；工具只留 `name: ok/failed`，不带参数和结果。统一脱敏后分页返回 |
+| 用户开关                             | `Config.companion`                 | `shareSessionTitles: false` 时列表只给计数，`read_session` 也不返回标题；`readSessionContent: false` 时拒绝读取；`excludedSessions` 按 id 或标题关键字隐藏                                      |
+
+已知：两个早期测试会话事件损坏，inspect 抛格式错误，记日志后按无标题处理，不影响其他会话。
+
+## 24. P11：DSH 界面语言
+
+`settings.describe({redactSecrets: true})`（`dsh-settings/lib/types/index.d.ts:96`）中 `ns === 'locale'` 的 `value.preference` 是用户在 Harness 设置里选的语言。Desktop 宿主进程的 `Intl` 常报 en-US，所以 WhaleDot 的 `language: auto` 先读该值，读不到再回退到 `Intl`。伙伴标题、人格文件和通知文案都随它切换。时间统一按宿主时区输出 `YYYY-MM-DD HH:mm (UTC±hh:mm)`，避免模型把 UTC 当本地时间。

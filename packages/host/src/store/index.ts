@@ -35,6 +35,13 @@ import type {
   EvidenceRepo,
 } from './repos.js'
 import { acquireWriterLock } from './lock.js'
+
+export const CompanionSessionRecordSchema = z.strictObject({
+  sessionId: z.string().min(1).max(200),
+  createdAt: z.number().int().nonnegative(),
+  previous: z.array(z.string().min(1).max(200)).max(20).default([]),
+})
+export type CompanionSessionRecord = z.infer<typeof CompanionSessionRecordSchema>
 import { MIGRATIONS } from './migrations.js'
 import type { Migration } from './migrations.js'
 
@@ -429,6 +436,21 @@ export class WhaleStore {
     this.writer()
       .prepare(
         "INSERT INTO kv_settings(id,data) VALUES('notifications.preferences',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+      )
+      .run(JSON.stringify(row))
+    this.changed()
+  }
+  /** The companion session WhaleDot created, if any; malformed rows read as absent. */
+  companionSession(): CompanionSessionRecord | undefined {
+    if (!this.db || this.state === 'error') return undefined
+    const row = this.db.prepare("SELECT * FROM kv_settings WHERE id='companion.session'").get()
+    return row ? this.decode('kv_settings', row, CompanionSessionRecordSchema) : undefined
+  }
+  setCompanionSession(input: CompanionSessionRecord): void {
+    const row = CompanionSessionRecordSchema.parse(input)
+    this.writer()
+      .prepare(
+        "INSERT INTO kv_settings(id,data) VALUES('companion.session',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
       )
       .run(JSON.stringify(row))
     this.changed()

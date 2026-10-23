@@ -104,6 +104,7 @@ export const PANEL_METHODS = [
   'confirm-goal',
   'goal-detail',
   'set-goal-paused',
+  'companion-rebuild',
 ] as const
 export type PanelMethod = (typeof PANEL_METHODS)[number]
 export const ProjectFactsSchema = z.strictObject({
@@ -159,6 +160,13 @@ export const ServicesSchema = z.strictObject({
   permissionPresets: z.boolean(),
   tools: z.boolean(),
 })
+export const CompanionStatusSchema = z.discriminatedUnion('state', [
+  z.strictObject({ state: z.literal('disabled') }),
+  z.strictObject({ state: z.literal('starting') }),
+  z.strictObject({ state: z.literal('ready'), sessionId: z.string() }),
+  z.strictObject({ state: z.literal('error'), message: z.string() }),
+])
+export const CompanionRebuildSchema = z.strictObject({ confirm: z.literal(true) })
 export const StatusSchema = z.strictObject({
   version: z.string().min(1),
   startedAt: z.number().int().nonnegative(),
@@ -172,6 +180,7 @@ export const StatusSchema = z.strictObject({
     message: z.string().optional(),
   }),
   paused: z.boolean(),
+  companion: CompanionStatusSchema.optional(),
 })
 export const GoalsSchema = z.array(ProjectGoalSchema)
 export const LanguageResponseSchema = z.strictObject({ language: LanguageSchema })

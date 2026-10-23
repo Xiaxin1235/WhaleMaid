@@ -26,16 +26,27 @@ import { WhaleStore } from './store/index.js'
 import { createScopeService } from './scope-service.js'
 import { GoalIntake } from './goal-intake/service.js'
 import { dshDraftModel } from './goal-intake/model.js'
+import { CompanionService } from './companion/service.js'
+import type { CompanionSettings } from './companion/service.js'
+import { CompanionSessionManager, dshCompanionHost } from './companion/session.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
 export const inject: string[] = []
 
+export interface CompanionConfig {
+  enabled?: boolean
+  personaPath?: string
+  shareSessionTitles?: boolean
+  readSessionContent?: boolean
+  excludedSessions?: string[]
+}
 export interface Config {
   maxConcurrentRuns?: number
   dataDir?: string
   debugLogSignals?: boolean
   language?: Volatile<LanguageSetting>
+  companion?: CompanionConfig
 }
 export const Config: Schema<Omit<Config, 'language'> & { language?: LanguageSetting }, Config> =
   Schema.object({
@@ -46,6 +57,15 @@ export const Config: Schema<Omit<Config, 'language'> & { language?: LanguageSett
       .default('auto')
       .volatile()
       .description('WhaleDot language / 语言'),
+    companion: Schema.object({
+      enabled: Schema.boolean().default(true).description('Companion session “大肥鱼”'),
+      personaPath: Schema.string().description('Custom persona file (optional)'),
+      shareSessionTitles: Schema.boolean().default(true).description('Let the companion see session titles'),
+      readSessionContent: Schema.boolean()
+        .default(true)
+        .description('Let the companion read session content'),
+      excludedSessions: Schema.array(String).default([]).description('Session ids or title keywords to hide'),
+    }).default({}),
   })
 
 /** All initialization paths, including optional-service callbacks and async IO, degrade locally. */
@@ -62,6 +82,24 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
   }
   try {
     const logger = ctx.logger(name)
+    // `auto` follows the language chosen in DSH's own settings (the `locale` form), as the pet plugin does;
+    // the host process locale is only a last resort, since Desktop's runtime often reports en-US.
+    const hostLocale = (): string => {
+      try {
+        const settings = ctx.get('settings') as Context['settings'] | undefined
+        const value = settings
+          ?.describe({ redactSecrets: true })
+          .find((entry) => entry.ns === 'locale')?.value
+        const preference =
+          value && typeof value === 'object' && 'preference' in value
+            ? (value as { preference?: unknown }).preference
+            : undefined
+        if (typeof preference === 'string' && /^(zh|en)/i.test(preference)) return preference
+      } catch (error) {
+        debug.host('dsh locale unavailable', error)
+      }
+      return Intl.DateTimeFormat().resolvedOptions().locale
+    }
     const { version } = createRequire(import.meta.url)('dsh-whaledot/package.json') as { version: string }
     const status = {
       version,
@@ -99,12 +137,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       scopes,
       dshRunner(ctx),
       dataDir,
-      () => resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale),
+      () => resolveLocale(config.language?.get() ?? 'auto', hostLocale()),
       (message, error) => debug.host(message, error),
     )
 
     const verification = new TaskVerifier(store, scopes, dataDir, observeSession(ctx), () =>
-      resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale),
+      resolveLocale(config.language?.get() ?? 'auto', hostLocale()),
     )
     const autopilot = new AutopilotScheduler(
       store,
@@ -119,13 +157,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       },
       {
         maxConcurrentRuns: config.maxConcurrentRuns ?? 1,
-        locale: () =>
-          resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale),
+        locale: () => resolveLocale(config.language?.get() ?? 'auto', hostLocale()),
         log: (message, error) => debug.host(message, error),
       },
     )
-    const notificationLocale = () =>
-      resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale)
+    const notificationLocale = () => resolveLocale(config.language?.get() ?? 'auto', hostLocale())
     const notificationRouter = new NotificationRouter(store, scopes, verification, notificationLocale, (id) =>
       autopilot.mark(id),
     )
@@ -137,6 +173,28 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       notificationLocale,
       (message, error) => debug.host(message, error),
     )
+    const companionConfig = (): CompanionSettings => ({
+      personaPath: config.companion?.personaPath || undefined,
+      shareSessionTitles: config.companion?.shareSessionTitles ?? true,
+      readSessionContent: config.companion?.readSessionContent ?? true,
+      excludedSessions: config.companion?.excludedSessions ?? [],
+    })
+    const companionSessions = new CompanionSessionManager(store, dshCompanionHost(ctx), {
+      dataDir,
+      enabled: () => config.companion?.enabled ?? true,
+      title: () => (notificationLocale() === 'zh-CN' ? '大肥鱼' : 'Da Fei Yu'),
+      log: (message, error) => debug.host(message, error),
+    })
+    const companion = new CompanionService(ctx, store, {
+      locale: notificationLocale,
+      settings: companionConfig,
+      facts: (n) => notifier.facts(n),
+      companionSessionId: () => companionSessions.sessionId(),
+      ownedSessions: () => execution.registry.ownedSessionIds(),
+      log: (message, error) => debug.host(message, error),
+    })
+    await companion.loadPersona()
+    ctx.provide('whaledotCompanion', companion)
     execution.setAdmission((via, own) => autopilot.hasCapacity(own, via.kind === 'background'))
     managed = true
     ctx.effect(() => async () => {
@@ -148,7 +206,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ctx,
       new ToolGate(
         execution.registry,
-        () => resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale),
+        () => resolveLocale(config.language?.get() ?? 'auto', hostLocale()),
         (id) =>
           (ctx.get('sessions') as Context['sessions'] | undefined)?.get(id as SessionId)?.header
             .parentSession,
@@ -167,6 +225,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           language: LanguageSchema.parse(config.language?.get() ?? 'auto'),
           store: store.status(),
           paused,
+          companion: companionSessions.status(),
         }
       },
       {
@@ -187,6 +246,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         revokeScope: (scopeId, peer) => {
           scopes.revoke(scopeId, peer)
         },
+        rebuildCompanion: () => companionSessions.rebuild(),
       },
     )
     const clock = { now: () => Date.now() }
@@ -224,6 +284,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
     autopilot.start()
     notifier.start()
+    // Session creation needs the controller and the agent registry; wait for both without blocking load.
+    const companionReady = ctx.inject(['sessionController', 'agents'], () => {
+      if (store.status().state === 'ok') void companionSessions.ensure()
+    })
+    void Promise.resolve(companionReady).catch(report)
     logger.info('plugin loaded')
     debug.host('plugin loaded')
   } catch (error) {

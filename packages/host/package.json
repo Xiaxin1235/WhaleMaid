@@ -16,6 +16,10 @@
       "default": "./lib/index.js"
     },
     "./package.json": "./package.json",
+    "./companion": {
+      "types": "./lib/types/companion/agent.d.ts",
+      "default": "./lib/companion/agent.js"
+    },
     "./client": {
       "types": "./lib/types/client/index.d.ts",
       "default": "./lib/client.js"
@@ -45,6 +49,7 @@
   ],
   "files": [
     "lib",
+    "companion",
     "cordis.patch.yml"
   ],
   "scripts": {

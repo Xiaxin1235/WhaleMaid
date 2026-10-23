@@ -133,6 +133,22 @@ function Panel({ ctx, connection }: Face) {
     }
   }
 
+  async function rebuildCompanion() {
+    setSaving(true)
+    try {
+      const reply = await connection.rpc.call(PANEL_CHANNEL, `${PANEL_PREFIX}/companion-rebuild`, {
+        confirm: true,
+      })
+      if (!reply.ok) throw reply.error
+      setStatus(StatusSchema.parse(reply.value))
+      setError(undefined)
+    } catch (error) {
+      setError(errorCode(error))
+    } finally {
+      setSaving(false)
+    }
+  }
+
   async function takeover() {
     setSaving(true)
     try {
@@ -271,6 +287,38 @@ function Panel({ ctx, connection }: Face) {
                   text('petLink'),
                 ),
             ),
+            status.companion &&
+              h(
+                'p',
+                { 'data-whaledot-companion': status.companion.state },
+                `${text('companion')}：${text(companionLabel(status.companion.state))}`,
+                status.companion.state === 'error' && `（${status.companion.message}）`,
+                ' ',
+                status.companion.state === 'ready' &&
+                  h(
+                    'button',
+                    {
+                      onClick: () => {
+                        const id =
+                          status.companion?.state === 'ready' ? status.companion.sessionId : undefined
+                        if (id)
+                          (ctx.get('uiWorkspace') as UiWorkspace | undefined)?.openSession(id as SessionId)
+                      },
+                    },
+                    text('companionOpen'),
+                  ),
+                ['ready', 'error'].includes(status.companion.state) &&
+                  h(
+                    'button',
+                    {
+                      disabled: saving,
+                      onClick: () => {
+                        void rebuildCompanion()
+                      },
+                    },
+                    text('companionRebuild'),
+                  ),
+              ),
             h(
               'label',
               { className: 'whaledot-language' },
@@ -342,6 +390,17 @@ function Panel({ ctx, connection }: Face) {
       ),
     ),
   )
+}
+
+function companionLabel(state: 'disabled' | 'starting' | 'ready' | 'error') {
+  return (
+    {
+      disabled: 'companionDisabled',
+      starting: 'companionStarting',
+      ready: 'companionReady',
+      error: 'companionError',
+    } as const
+  )[state]
 }
 
 function errorCode(error: unknown): string {

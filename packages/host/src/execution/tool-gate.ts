@@ -14,6 +14,7 @@ import {
 import type { Run, Locale, ActionIntent } from '@whaledot/core'
 import { productionIdGen } from '../store/index.js'
 import type { RunRegistry } from './registry.js'
+import { COMPANION_ALLOWED_TOOLS } from '../companion/tools.js'
 
 /** Resolve a nonexistent target through its nearest existing ancestor, retaining the missing suffix. */
 export async function resolveRealTarget(path: string): Promise<string> {
@@ -88,6 +89,11 @@ export class ToolGate {
         kind: 'deny',
         reason: t(this.locale(), 'gateOutside', { rule: 'notification-session-tools-disabled' }),
       }
+    // The companion may only read WhaleDot facts and ask the user; DSH's own policy still runs after us.
+    if (this.registry.isCompanion(owner))
+      return COMPANION_ALLOWED_TOOLS.has(exec.name)
+        ? next()
+        : { kind: 'deny', reason: t(this.locale(), 'gateOutside', { rule: 'companion-read-only' }) }
     let run: Run | undefined
     try {
       run = this.registry.get(owner)

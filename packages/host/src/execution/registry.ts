@@ -25,7 +25,23 @@ export class RunRegistry {
   }
   /** Retain ownership even if a stored run later becomes unreadable. */
   has(sessionId: string): boolean {
-    return this.sessions.has(sessionId) || !!this.store.inboxSessions.get(sessionId)
+    return (
+      this.sessions.has(sessionId) || !!this.store.inboxSessions.get(sessionId) || this.isCompanion(sessionId)
+    )
+  }
+  /** Current or earlier companion sessions; ownership survives a rebuild. */
+  isCompanion(sessionId: string): boolean {
+    const record = this.store.companionSession()
+    return !!record && (record.sessionId === sessionId || record.previous.includes(sessionId))
+  }
+  /** Every session WhaleDot owns (runs, inboxes, companions), for hiding them from the companion's tools. */
+  ownedSessionIds(): Set<string> {
+    const record = this.store.companionSession()
+    return new Set([
+      ...this.sessions.keys(),
+      ...this.store.inboxSessions.list().map((s) => s.id),
+      ...(record ? [record.sessionId, ...record.previous] : []),
+    ])
   }
   /** Re-read current durable state for a registered session. */
   get(sessionId: string): Run | undefined {

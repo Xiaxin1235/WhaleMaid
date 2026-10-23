@@ -34,6 +34,7 @@ import {
   RevokeScopeSchema,
   TakeoverSchema,
   StatusSchema,
+  CompanionRebuildSchema,
   PANEL_METHODS,
   DraftStartedSchema,
   DraftStatusSchema,
@@ -58,6 +59,7 @@ export interface PanelRuntime {
   verification?: TaskVerifier
   execution?: TaskExecutor
   intake?: GoalIntake
+  rebuildCompanion?: () => Promise<unknown>
 }
 
 /** Peer is supplied by Connection after admission, never accepted from a payload. */
@@ -186,6 +188,13 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
           result = PausedSchema.parse(patch)
           break
         }
+        case 'companion-rebuild': {
+          CompanionRebuildSchema.parse(input)
+          if (!runtime.rebuildCompanion) throw new Error('companion-unavailable')
+          await runtime.rebuildCompanion()
+          result = StatusSchema.parse(runtime.snapshot())
+          break
+        }
         case 'takeover-store': {
           TakeoverSchema.parse(input)
           runtime.takeoverStore()
@@ -232,6 +241,7 @@ export function installPanelApi(
     | 'autopilot'
     | 'notifier'
     | 'notificationRouter'
+    | 'rebuildCompanion'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {
