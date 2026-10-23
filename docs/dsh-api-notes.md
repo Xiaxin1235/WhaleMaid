@@ -558,3 +558,20 @@ P09 的独立验收是明确的例外：Windows 通过 `execFile(cmd.exe, ['/d',
 实际 Edge 客户端能在无回合的通知会话中显示和提交问题。用户确认 Edge 有选项，随后报告桌宠只出现一瞬间、切回 Edge 仍不可见；不能以 Edge 成功代替桌宠内联选项或完成提醒的目视验收。原生窗口检查能读到宠物及“4 to handle”按钮，但前台显示不稳定；公开插件页为 0.4.13、1 running。浏览器直开宠物本地页面显示 Browser demo，因此没有拿该演示页作真实投递证据。
 
 Coopanion 0.4.13 本机使用文档进一步确认：问题和审批始终在 Harness 中回答，信封仅提供“去处理”入口。原 P04 提示词的信封内直接选择要求超出了该版本的公开交互能力。其自身 pending request reminders 与 WhaleDot 的单次 ask 策略分开管理。
+
+## 20. C01：桌宠直接回答问题的公开接口
+
+2026-10-23，核对 Desktop 0.2.1-rc.2 的官方声明、README 和 asar 内实现只读副本。Coopanion 扩展位于独立 AGPL 仓库 `D:/dsh_plugins/dsh-coopanion`，本节只记录接口结论，不复制其实现到 WhaleDot。
+
+| 场景 | 结论与出处 |
+| --- | --- |
+| 仍阻塞等待的普通问题、WhaleDot 的无回合主动 ask | `user-questions/request(request,next)` 的处理者可返回 `AskUserQuestionAnswer`。`dsh-user-questions/types.d.ts` 的事件声明及 README “While the tool call is open”明确只有原请求能提交，不能用 `answer()` 代替。 |
+| 多界面同时打开 | waterfall 中桌宠与 `next()` 的 Harness 处理者竞争同一个回答。必须保留第一次结算，并取消剩余的下游提问；仅把 `Promise.race` 返回而留下下游等待不够。公开 `AbortSignal` 是取消载体，不中止 Agent 或调用方控制器。 |
+| 取消边界 | Desktop `dsh-user-questions/lib/index.js:668–688` 的 `ask` 验证 exact live root 后，为 agent-scoped waterfall 创建 `{...request,agent}` 新事件对象。可给该事件副本的下游处理设置独立 signal；调用方原 request/signal 保留。Cordis 4.0.5 `lib/index.js:317–325` 的 next 继续传递同一事件副本，next 无替换参数。扩展测试须检查调用方 signal 不被取消、另一界面的等待被取消。 |
+| 已转为 continued 的限时问题 | 公开 `userQuestions.answer(agent,callId,answer): boolean`（同版本 `index.d.ts:55`；实现 `lib/index.js:552–586`）向同一 Agent steer `user-question-reply`，不是重建工具结果。仅 `continued` 接受；整批问题身份必须齐全，已排队返回 `REPLY_QUEUED`，已经结算返回 false。接受不等于模型完成。 |
+| 问题内容与自定义文字 | `types.d.ts` 定义 id/question/detail/header/options/multiSelect/intent，没有独立 allowOther 字段；通用问答允许 custom。单选 custom 覆盖 selected，不能把文字解析成动作或权限。完整 id、label 精确校验，不截断后匹配。 |
+| 不内联的交互 | approval 保持原路径；multiSelect 或 plan-review 使用 Harness。没有可确认的 live root、超出本地展示上限或未知问题形状时同样保留 Harness 入口。 |
+
+原 Coopanion `src/index.ts` 的问题 observer 仅 `await next()`，`src/notification-broker.ts` 关联运行时请求及持久投影；`web/pet.js` 的 renderRequests 原先只生成“去处理/稍后”。本地扩展沿现有 Renderer → pet:action → Electron main → Host 的可信主 frame 路径增加结构化作答，不调用 sessionController.prompt、不改变审批或授权。
+
+C01 实际隔离宿主补证：本地链接版通过原生信封回答 WhaleDot 无回合提问，原通知记录 retry/source=inbox，任务 v10 WAITING_APPROVAL → v11 READY；同一时刻已选好答案的 Harness 卡片随原生答复撤下，没有第二条 retry。普通模型的 ask_user_question 也从原生得到“挥手”答案并完成。通知专用会话持久事件仍为 turn/start=0、request/header=0、tool/call=0。用户确认选项及说明可见，但随后对气泡反馈“没看到桌宠，但听到声音”；窗口可见性没有通过目视验收。协议、原生渲染和用户目视证据分开记录，详见独立 Coopanion 仓库 `docs/c01-report.md`。
