@@ -45,6 +45,12 @@ export function canonicalScopeContent(scope: ScopeContent): Result<string, Scope
     ok: true,
     value: stableJson({
       ...parsed.data,
+      // Omit the newly introduced default so old authorization and run digests stay stable.
+      limits: Object.fromEntries(
+        Object.entries(parsed.data.limits).filter(
+          ([key, value]) => key !== 'plannerCallsPerDay' || value !== 5,
+        ),
+      ),
       allowedPaths: sortedSet(allowedPaths as string[]),
       protectedPaths: sortedSet(protectedPaths as string[]),
       protectedNames: sortedSet(parsed.data.protectedNames.map((name) => name.toLowerCase())),

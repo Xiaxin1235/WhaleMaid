@@ -55,6 +55,7 @@ export class VerificationRunner {
     runId: string,
     minutes: number,
     authorize: () => void,
+    signal?: AbortSignal,
   ): Promise<CommandResult[]> {
     const keys = commands.map((command) => JSON.stringify([project.toLowerCase(), commit, command]))
     if (keys.every((key) => this.cache.has(key))) return keys.map((key) => this.cache.get(key)!)
@@ -71,7 +72,7 @@ export class VerificationRunner {
         authorize()
         const result =
           this.cache.get(keys[i]!) ??
-          (await this.command(path, commands[i]!, runId, `baseline-${i}`, minutes))
+          (await this.command(path, commands[i]!, runId, `baseline-${i}`, minutes, signal))
         if (result.status === 'passed' || result.status === 'failed') this.cache.set(keys[i]!, result)
         results.push(result)
       }
@@ -91,7 +92,9 @@ export class VerificationRunner {
     runId: string,
     index: string,
     minutes: number,
+    signal?: AbortSignal,
   ): Promise<CommandResult> {
+    signal?.throwIfAborted()
     if (!/^run_[\w-]+$/.test(runId) || !/^[\w-]+$/.test(index)) throw new Error('invalid-evidence-identity')
     if (classifyCommand(command).class === 'forbidden') throw new Error('command-forbidden')
     const started = Date.now()
@@ -126,8 +129,8 @@ export class VerificationRunner {
     child.stdout?.on('data', (data: Buffer) => collect(data, 'stdout'))
     child.stderr?.on('data', (data: Buffer) => collect(data, 'stderr'))
     let killing: Promise<void> | undefined
-    const timer = setTimeout(() => {
-      timedOut = true
+    const kill = () => {
+      if (killing) return
       killing = new Promise<void>((resolve) => {
         if (!child.pid) return resolve()
         if (process.platform === 'win32')
@@ -143,7 +146,13 @@ export class VerificationRunner {
           resolve()
         }
       })
+    }
+    const timer = setTimeout(() => {
+      timedOut = true
+      kill()
     }, minutes * 60000)
+    signal?.addEventListener('abort', kill, { once: true })
+    if (signal?.aborted) kill()
     let spawnError = false
     const end = await new Promise<{ exitCode: number | null; signal: string | null }>((resolve) => {
       child.once('error', () => {
@@ -152,6 +161,7 @@ export class VerificationRunner {
       child.once('close', (exitCode, signal) => resolve({ exitCode, signal }))
     })
     clearTimeout(timer)
+    signal?.removeEventListener('abort', kill)
     await killing
     if (truncated) log = Buffer.concat([log, MARKER])
     const originalPath = path
@@ -165,7 +175,14 @@ export class VerificationRunner {
       }
     }
     return {
-      ...parseCommandResult({ command, ...end, timedOut, spawnError, stdout, stderr }),
+      ...parseCommandResult({
+        command,
+        ...end,
+        timedOut,
+        spawnError: spawnError || !!signal?.aborted,
+        stdout,
+        stderr,
+      }),
       durationMs: Date.now() - started,
       logPath: path,
       hash: createHash('sha256').update(log).digest('hex'),

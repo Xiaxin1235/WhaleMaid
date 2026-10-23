@@ -4,6 +4,7 @@ import { realpath, lstat } from 'node:fs/promises'
 import { join, relative } from 'node:path'
 import {
   judge,
+  TASK_TRANSITIONS,
   decideNext,
   TaskIdSchema,
   NotificationIdSchema,
@@ -30,6 +31,11 @@ import type { ObserveSession } from './reconcile.js'
 
 /** Shared P09/P10 orchestration; all invocations serialize with verification and decision mutations. */
 export class TaskVerifier {
+  private readonly stop = new AbortController()
+  /** Cancel independent child processes during plugin unload. */
+  dispose(): void {
+    this.stop.abort(new Error('verifier-disposed'))
+  }
   readonly runner: VerificationRunner
   constructor(
     readonly store: WhaleStore,
@@ -61,6 +67,7 @@ export class TaskVerifier {
     return result.value.task
   }
   private authorize(run: Run): void {
+    this.stop.signal.throwIfAborted()
     const task = this.store.tasks.get(run.taskId)
     const scope = task && this.scopes.activeScopeFor(task.goalId)
     if (
@@ -155,6 +162,7 @@ export class TaskVerifier {
     }
   }
   private async verify(id: TaskId): Promise<Verification> {
+    this.stop.signal.throwIfAborted()
     let task = this.store.tasks.get(id)
     if (!task || task.state !== 'VERIFYING') throw new Error('task-not-verifying')
     const run = this.latest(task)
@@ -215,6 +223,7 @@ export class TaskVerifier {
           run.run_id,
           run.runScope.limits.maxRunMinutes,
           () => this.authorize(run),
+          this.stop.signal,
         )
         for (let i = 0; i < commands.length; i++) {
           this.authorize(run)
@@ -225,6 +234,7 @@ export class TaskVerifier {
               run.run_id,
               `current-${i}`,
               run.runScope.limits.maxRunMinutes,
+              this.stop.signal,
             ),
           )
         }
@@ -365,6 +375,50 @@ export class TaskVerifier {
       diffStat: '',
     })
   }
+  /** Ask for an explicit retry after execution/preflight stops; never infer successful delivery. */
+  requestDecision(taskId: TaskId): void {
+    const task = this.store.tasks.get(taskId)
+    if (!task || !['FAILED', 'BLOCKED', 'WAITING_APPROVAL', 'PAUSED'].includes(task.state)) return
+    const run = this.store.runs.list(taskId).at(-1)
+    if (run)
+      this.notify(
+        task,
+        run,
+        task.state === 'PAUSED' && run.outcome === 'UNKNOWN'
+          ? 'verification-unknown'
+          : (this.store.verifications.get(run.run_id)?.decision.reason ?? 'execution-stopped'),
+        'execution-needs-owner',
+      )
+    else {
+      const dedupeKey = `${task.goalId}:${task.id}:preflight`
+      if (
+        this.store.notifications
+          .list()
+          .some(
+            (n) =>
+              n.dedupeKey === dedupeKey &&
+              n.resolvedAt === undefined &&
+              (n.expiresAt ?? 0) > Date.now() &&
+              n.taskVersion === task.version,
+          )
+      )
+        return
+      this.store.notifications.insert({
+        id: NotificationIdSchema.parse(productionIdGen.next('notification')),
+        goalId: task.goalId,
+        taskId: task.id,
+        taskVersion: task.version,
+        kind: 'blocked',
+        priority: 'high',
+        channel: 'panel',
+        createdAt: Date.now(),
+        expiresAt: Date.now() + 86400000,
+        dedupeKey,
+        reason: 'execution-preflight-blocked',
+        choices: ['retry', 'pause-goal'],
+      })
+    }
+  }
   private notify(task: Task, run: Run, type: string, reason: string): void {
     const dedupeKey = `${task.goalId}:${task.id}:${type}`
     if (
@@ -393,6 +447,15 @@ export class TaskVerifier {
             'pause-goal',
             'view-diff',
           ]
+    const legalChoices = choices.filter((choice) =>
+      choice === 'accept'
+        ? TASK_TRANSITIONS[task.state].includes('SUCCEEDED')
+        : choice === 'verify'
+          ? TASK_TRANSITIONS[task.state].includes('VERIFYING')
+          : choice === 'retry' || choice === 'rollback'
+            ? TASK_TRANSITIONS[task.state].includes('READY')
+            : true,
+    )
     const expiresAt = Date.now() + 86400000
     this.store.notifications.insert({
       id,
@@ -407,9 +470,9 @@ export class TaskVerifier {
       taskVersion: task.version,
       runId: run.run_id,
       reason: `${type}: ${reason}`,
-      choices,
+      choices: legalChoices,
     })
-    for (const choice of choices)
+    for (const choice of legalChoices)
       this.store.suggestions.insert({
         id: SuggestionIdSchema.parse(productionIdGen.next('suggestion')),
         notificationId: id,
@@ -423,6 +486,7 @@ export class TaskVerifier {
   /** Reconcile existing execution only; no prompt or resume API is reachable from this path. */
   reconcileTask(input: TaskId): Promise<{ state: string }> {
     return verificationBatch(async () => {
+      this.stop.signal.throwIfAborted()
       let task = this.store.tasks.get(TaskIdSchema.parse(input))
       if (!task || task.state !== 'UNKNOWN') throw new Error('task-not-unknown')
       const run = this.latest(task),
@@ -472,6 +536,7 @@ export class TaskVerifier {
     choice: DecisionChoice,
   ): Promise<{ state: string; files?: string[]; stat?: string }> {
     return verificationBatch(async () => {
+      this.stop.signal.throwIfAborted()
       const notification = this.store.notifications.get(notificationId)
       if (notification && !notification.taskId) {
         if (
@@ -509,6 +574,24 @@ export class TaskVerifier {
         !notification.choices?.includes(choice)
       )
         throw new Error('decision-stale-or-consumed')
+      if (!notification.runId && !this.store.runs.list(task.id).length) {
+        if (!['retry', 'pause-goal'].includes(choice)) throw new Error('decision-stale-or-consumed')
+        this.store.transaction(() => {
+          if (choice === 'retry') {
+            const result = this.store.tasks.transition(task.id, 'READY', {
+              expectedVersion: task.version,
+              source: 'user',
+              reason: 'user-approved-preflight-retry',
+            })
+            if (!result.ok) throw new Error(result.error.code)
+          } else {
+            const goal = this.store.goals.get(task.goalId)!
+            this.store.goals.update({ ...goal, status: 'paused', version: goal.version + 1 }, goal.version)
+          }
+          this.store.notifications.update({ ...notification, resolvedAt: Date.now(), resolvedChoice: choice })
+        })
+        return { state: this.store.tasks.get(task.id)!.state }
+      }
       const run = this.latest(task)
       if (run.run_id !== notification.runId) throw new Error('decision-run-mismatch')
       const checkpoint =

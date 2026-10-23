@@ -12,6 +12,8 @@ import {
   CheckpointSchema,
   EvidenceSchema,
   VerificationSchema,
+  AutopilotEventSchema,
+  PlannerStateSchema,
   NotificationSchema,
   SuggestionSchema,
   hashScope,
@@ -65,6 +67,29 @@ export class WhaleStore {
   readonly evidence: EvidenceRepo
   readonly runs: RunRepo
 
+  private readonly listeners = new Set<() => void>()
+  private changeQueued = false
+  /** Observe durable state changes; listeners re-read state, rather than trusting event payloads. */
+  watchChanges(listener: () => void): () => void {
+    this.listeners.add(listener)
+    return () => this.listeners.delete(listener)
+  }
+  private changed(): void {
+    if (this.changeQueued || !this.listeners.size) return
+    this.changeQueued = true
+    queueMicrotask(() => {
+      this.changeQueued = false
+      for (const listener of this.listeners) {
+        try {
+          listener()
+        } catch (error) {
+          this.options.log('state observer failed', error)
+        }
+      }
+    })
+  }
+  readonly autopilotEvents
+  readonly plannerState
   readonly verifications
   readonly notifications
   readonly suggestions
@@ -83,6 +108,7 @@ export class WhaleStore {
         this.writer()
           .prepare('INSERT INTO goals(id,version,data) VALUES(?,?,?)')
           .run(row.id, row.version, JSON.stringify(row))
+        this.changed()
       },
       update: (input, expectedVersion) => {
         const row = ProjectGoalSchema.parse(input)
@@ -91,11 +117,32 @@ export class WhaleStore {
           .prepare('UPDATE goals SET version=?,data=? WHERE id=? AND version=?')
           .run(row.version, JSON.stringify(row), row.id, expectedVersion)
         if (result.changes !== 1) throw new Error('stale-version')
+        this.changed()
       },
     }
     this.scopes = {
       get: (id) => this.one('scopes', id, AuthorizationScopeSchema),
       list: (id) => this.rows('scopes', AuthorizationScopeSchema, 'goal_id', id),
+    }
+    this.autopilotEvents = {
+      list: (id: string) => this.rows('autopilot_events', AutopilotEventSchema, 'goal_id', id),
+      insert: (input: import('@whaledot/core').AutopilotEvent) => {
+        const row = AutopilotEventSchema.parse(input)
+        this.writer()
+          .prepare('INSERT INTO autopilot_events(id,goal_id,data) VALUES(?,?,?)')
+          .run(row.id, row.goalId, JSON.stringify(row))
+      },
+    }
+    this.plannerState = {
+      get: (id: string) => this.one('planner_state', id, PlannerStateSchema),
+      put: (input: import('@whaledot/core').PlannerState) => {
+        const row = PlannerStateSchema.parse(input)
+        this.writer()
+          .prepare(
+            'INSERT INTO planner_state(id,data) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data',
+          )
+          .run(row.id, JSON.stringify(row))
+      },
     }
     this.verifications = {
       get: (id: string) => this.one('verifications', id, VerificationSchema),
@@ -117,10 +164,12 @@ export class WhaleStore {
         this.writer()
           .prepare('INSERT INTO notifications(id,data) VALUES(?,?)')
           .run(row.id, JSON.stringify(row))
+        this.changed()
       },
       update: (input: import('@whaledot/core').Notification) => {
         const row = NotificationSchema.parse(input)
         this.writer().prepare('UPDATE notifications SET data=? WHERE id=?').run(JSON.stringify(row), row.id)
+        this.changed()
       },
     }
     this.suggestions = {
@@ -153,6 +202,7 @@ export class WhaleStore {
           .prepare('UPDATE tasks SET version=?,data=? WHERE id=? AND version=?')
           .run(row.version, JSON.stringify(row), row.id, expectedVersion)
         if (result.changes !== 1) throw new Error('stale-version')
+        this.changed()
       },
       get: (id) => this.one('tasks', id, TaskSchema),
       list: (id) => this.rows('tasks', TaskSchema, 'goal_id', id),
@@ -163,6 +213,7 @@ export class WhaleStore {
         this.writer()
           .prepare('INSERT INTO tasks(id,goal_id,task_key,version,state,data) VALUES(?,?,?,?,?,?)')
           .run(row.id, row.goalId, row.key, row.version, row.state, JSON.stringify(row))
+        this.changed()
       },
       transition: (id, to, meta) =>
         this.transaction(() => {
@@ -187,6 +238,7 @@ export class WhaleStore {
           this.writer()
             .prepare('INSERT INTO state_transitions(id,task_id,data) VALUES(?,?,?)')
             .run(record.id, record.entityId, JSON.stringify(record))
+          this.changed()
           return next
         }),
     }
@@ -218,6 +270,7 @@ export class WhaleStore {
         this.writer()
           .prepare('INSERT INTO runs(id,task_id,data) VALUES(?,?,?)')
           .run(row.run_id, row.taskId, JSON.stringify(row))
+        this.changed()
       },
       update: (input) => {
         const row = RunSchema.parse(input)
@@ -225,6 +278,7 @@ export class WhaleStore {
           .prepare('UPDATE runs SET data=? WHERE id=? AND task_id=?')
           .run(JSON.stringify(row), row.run_id, row.taskId)
         if (result.changes !== 1) throw new Error('run-not-found')
+        this.changed()
       },
     }
     this.open()
@@ -341,9 +395,11 @@ export class WhaleStore {
         "INSERT INTO kv_settings(id,data) VALUES('autopilot.paused',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
       )
       .run(JSON.stringify(value))
+    this.changed()
   }
 
   close(): void {
+    this.listeners.clear()
     try {
       this.db?.close()
     } finally {

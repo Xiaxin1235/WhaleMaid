@@ -124,3 +124,11 @@ P07 为 protectedPaths 增加唯一的文件名前缀模式：末尾 `.env*`，�
 progress 包含 improved / unchanged / regressed / unknown / neutral。report-only 分析、研究任务以及基线与当前全部通过的 doc 任务为 neutral，连续无进展计数既不加一也不清零；improved 清零；PASS + unchanged 加一；其他结论保留原值。
 
 每个任务持久记录 unknownVerifications：连续 UNKNOWN 验收达到两次后进入 WAITING_APPROVAL，选项仅重试验收、人工接受、暂停目标。重试验收只验证已有 Run，不重发提示词；确定结论或显式重试验收将计数清零。旧版 Decision 报告通过只读转换保留可读性，不回改历史任务结论。
+
+## P10 调度与规划
+
+ProjectGoal.autopilot 默认关闭；completed 是目标完成状态，旧 succeeded 保留兼容。planTick 仅根据只读快照选择一个动作，不读时钟或模型输出。全局/目标暂停、开关、授权、待决、每日运行额度先于执行；UNKNOWN 优先核对，VERIFYING 优先验收，任务终结后才调用 planner。suggest 只产生就绪通知；high 与 autonomous 权限相同。
+
+Planner 的 JSON 严格校验后才转为 Task；每批 1–3 项、依赖只能是已有任务或本批更早索引，合并沿用稳定键和 DAG 规则。只读 scope 拒绝 edit/test/doc。提示词只含目标、授权摘要、任务和独立验收事实，不含项目内容与模型总结。每日 plannerCallsPerDay 默认为 5；scope 摘要省略该默认值以保持 P09 originScopeHash 兼容，非默认值参与摘要。
+
+目标 completed 要求 planner 明确完成且最新独立验收通过；有命令时还要求最近实际命令全部通过。完成不会合并用户分支。调度日志、每日规划计数及任务 frontier 持久化；重启只检查当前状态，不回放历史触发。

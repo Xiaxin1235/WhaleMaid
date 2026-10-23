@@ -128,6 +128,7 @@ export class ToolGate {
     const current = this.registry.get(run.sessionId)
     const original = run.runScope && this.registry.store.scopes.get(run.runScope.originScopeId)
     return (
+      this.registry.isOpen(run.sessionId) &&
       current?.status === 'running' &&
       !current.reason &&
       !!run.runScope &&

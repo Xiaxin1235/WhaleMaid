@@ -65,6 +65,8 @@ test('migrations are ordered/idempotent; PRAGMAs and all required tables exist',
         'checkpoints',
         'evidence',
         'notifications',
+        'autopilot_events',
+        'planner_state',
         'verifications',
         'suggestions',
         'kv_settings',
@@ -77,6 +79,32 @@ test('migrations are ordered/idempotent; PRAGMAs and all required tables exist',
   store.close()
   expect(open(dir).store.status().state).toBe('ok')
   expect(readdirSync(dir)).not.toContain('backups')
+})
+
+test('P10 migration opts existing goals out and preserves old authorization bytes and hashes', () => {
+  const { store, dir } = open(directory(), MIGRATIONS.slice(0, 3))
+  seed(store)
+  const goal = makeGoal()
+  const scope = makeScope()
+  store.close()
+  let scopeData = ''
+  sql(dir, (db) => {
+    const { autopilot: _autopilot, ...oldGoal } = goal
+    void _autopilot
+    db.prepare('UPDATE goals SET data=? WHERE id=?').run(JSON.stringify(oldGoal), goal.id)
+    db.prepare('INSERT INTO scopes(id,goal_id,status,data) VALUES(?,?,?,?)').run(
+      scope.id,
+      goal.id,
+      scope.status,
+      JSON.stringify(scope),
+    )
+    scopeData = String(db.prepare('SELECT data FROM scopes WHERE id=?').get(scope.id)!.data)
+  })
+  const migrated = open(dir).store
+  expect(migrated.goals.get(goal.id)?.autopilot).toEqual({ enabled: false })
+  sql(dir, (db) => {
+    expect(db.prepare('SELECT data FROM scopes WHERE id=?').get(scope.id)!.data).toBe(scopeData)
+  })
 })
 
 test('close/reopen preserves goals, tasks, runs, transitions and global pause', () => {

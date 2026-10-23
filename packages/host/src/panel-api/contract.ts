@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import {
   ProjectGoalSchema,
+  AutopilotEventSchema,
+  PlannerStateSchema,
   VerificationSchema,
   NotificationSchema,
   TaskIdSchema,
@@ -38,7 +40,18 @@ export const VerificationLogSchema = z.strictObject({
   phase: z.enum(['baseline', 'current']),
   index: z.int().nonnegative(),
 })
+export const SetAutopilotSchema = z.strictObject({
+  goalId: GoalIdSchema,
+  enabled: z.boolean(),
+  confirm: z.boolean().optional(),
+  scopeHash: z.string().optional(),
+})
+export const TraceRequestSchema = z.strictObject({ goalId: GoalIdSchema })
+export const TraceResponseSchema = z.strictObject({ markdown: z.string(), filename: z.string() })
 export const PANEL_METHODS = [
+  'set-autopilot',
+  'export-trace',
+
   'verify-task',
   'reconcile-task',
   'resolve-decision',
@@ -82,6 +95,7 @@ export const DraftStatusSchema = z.strictObject({
 export const DraftStartedSchema = z.strictObject({ draftId: z.string() })
 export const GoalDetailSchema = z.strictObject({
   goal: ProjectGoalSchema,
+  globalPaused: z.boolean().default(false),
   scope: AuthorizationScopeSchema.nullable(),
   activeScope: AuthorizationScopeSchema.nullable(),
   tasks: z.array(TaskSchema),
@@ -91,6 +105,8 @@ export const GoalDetailSchema = z.strictObject({
   evidence: z.array(EvidenceSchema).default([]),
   verifications: z.array(VerificationSchema).default([]),
   notifications: z.array(NotificationSchema).default([]),
+  autopilotEvents: z.array(AutopilotEventSchema).default([]),
+  plannerState: PlannerStateSchema.nullable().default(null),
 })
 export const ConfirmResultSchema = z.strictObject({
   goal: ProjectGoalSchema,

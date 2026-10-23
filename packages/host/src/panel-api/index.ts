@@ -1,3 +1,6 @@
+import type { AutopilotScheduler } from '../autopilot/scheduler.js'
+import { exportTrace } from '../autopilot/trace.js'
+import { SetAutopilotSchema, TraceRequestSchema, TraceResponseSchema } from './contract.js'
 import type { Context } from '@deepseek-ai/cordis'
 import { z } from 'zod'
 import type {
@@ -40,6 +43,7 @@ export interface PanelRuntime {
   setPaused(paused: boolean): void
   revokeScope(scopeId: ScopeId, peer: PeerScope): void
   takeoverStore(): void
+  autopilot?: AutopilotScheduler
   verification?: TaskVerifier
   execution?: TaskExecutor
   intake?: GoalIntake
@@ -58,6 +62,14 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'set-autopilot':
+          result = runtime.autopilot!.setAutopilot(SetAutopilotSchema.parse(input))
+          break
+        case 'export-trace':
+          result = TraceResponseSchema.parse(
+            exportTrace(runtime.autopilot!.store, TraceRequestSchema.parse(input).goalId),
+          )
+          break
         case 'verify-task':
           result = await runtime.verification!.verifyTask(VerifyTaskSchema.parse(input).taskId)
           break
@@ -151,7 +163,14 @@ export function installPanelApi(
   snapshot: () => PanelStatus,
   storage: Pick<
     PanelRuntime,
-    'goals' | 'setPaused' | 'revokeScope' | 'takeoverStore' | 'intake' | 'execution' | 'verification'
+    | 'goals'
+    | 'setPaused'
+    | 'revokeScope'
+    | 'takeoverStore'
+    | 'intake'
+    | 'execution'
+    | 'verification'
+    | 'autopilot'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {

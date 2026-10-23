@@ -222,6 +222,32 @@ test('worktree external modification blocks next independent task without launch
   expect(store.tasks.get(makeTask('task_2').id)?.state).toBe('BLOCKED')
   expect(runner.launch).toHaveBeenCalledOnce()
 })
+test('unload closes the gate immediately and drains a checkpoint already being finalized', async () => {
+  const { store, executor, run } = await active()
+  const checkpoint = executor.worktrees.checkpoint.bind(executor.worktrees)
+  let release!: () => void
+  const held = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  const entered = vi.spyOn(executor.worktrees, 'checkpoint').mockImplementation(async (...args) => {
+    await held
+    return checkpoint(...args)
+  })
+  executor.accept({ sessionId: run.sessionId, kind: 'turn-end', at: Date.now(), endReason: 'completed' })
+  expect(entered).toHaveBeenCalledOnce()
+  let drained = false
+  const stopping = executor.dispose().then(() => {
+    drained = true
+  })
+  expect(executor.registry.isOpen(run.sessionId)).toBe(false)
+  await Promise.resolve()
+  expect(drained).toBe(false)
+  release()
+  await stopping
+  expect(drained).toBe(true)
+  expect(store.runs.get(run.run_id)?.status).toBe('ended')
+})
+
 test('changed-file limit still commits evidence and blocks the task', async () => {
   const { store, executor, run } = await active()
   const scope = { ...run.runScope!, limits: { ...run.runScope!.limits, maxChangedFilesPerTask: 1 } }

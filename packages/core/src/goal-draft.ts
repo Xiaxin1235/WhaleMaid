@@ -159,6 +159,7 @@ export function draftToRecords(
     mode: form.mode,
     projectRoot: form.projectRoot,
     status: 'active' as const,
+    autopilot: { enabled: false },
     createdAt: at,
     confirmedAt: at,
     version: 0,

@@ -1,3 +1,4 @@
+import { localDay } from '../autopilot/day.js'
 import { verificationBusy } from '../verify/runner.js'
 import { createHash } from 'node:crypto'
 import { realpath } from 'node:fs/promises'
@@ -33,6 +34,12 @@ export class TaskExecutor {
   private readonly projectLocks = new Set<string>()
   private readonly timers = new Map<RunId, ReturnType<typeof setTimeout>>()
   private readonly finishing = new Set<RunId>()
+  private readonly finalizations = new Set<Promise<void>>()
+  private admission: (via: ExecutionVia, ownRun?: RunId) => boolean = () => true
+  /** Install the host-wide model-capacity boundary for manual and background launches alike. */
+  setAdmission(admit: (via: ExecutionVia, ownRun?: RunId) => boolean): void {
+    this.admission = admit
+  }
   private disposed = false
   constructor(
     readonly store: WhaleStore,
@@ -45,7 +52,7 @@ export class TaskExecutor {
     this.registry = new RunRegistry(store)
     this.worktrees = new WorktreeManager(dataDir)
     this.tracker = new RunTracker({ now: () => Date.now() }, (run) => {
-      void this.finish(run).catch((error) => this.log('run finalization failed', error))
+      this.finalize(run)
     })
     if (store.status().state === 'ok') this.registry.recover()
   }
@@ -57,9 +64,12 @@ export class TaskExecutor {
   async executeNextTask(
     input: GoalId,
     via: ExecutionVia,
+    admit: (ownRun?: RunId) => boolean = () => true,
   ): Promise<{ started: boolean; reason: string; runId?: RunId }> {
     const goalId = GoalIdSchema.parse(input)
     if (this.disposed) throw new Error('executor-disposed')
+    if (!admit()) return { started: false, reason: 'autopilot-stopped' }
+    if (!this.admission(via)) return { started: false, reason: 'capacity-busy' }
     if (verificationBusy()) return { started: false, reason: 'verification-busy' }
     if (this.locks.has(goalId)) return { started: false, reason: 'run-already-active' }
     this.locks.add(goalId)
@@ -97,7 +107,8 @@ export class TaskExecutor {
           .all()
           .filter(
             (run) =>
-              run.startedAt >= Date.now() - 86400000 && this.store.tasks.get(run.taskId)?.goalId === goalId,
+              localDay(run.startedAt) === localDay(Date.now()) &&
+              this.store.tasks.get(run.taskId)?.goalId === goalId,
           ).length >= scope.limits.maxRunsPerDay
       )
         throw new Error('daily-run-limit')
@@ -136,6 +147,8 @@ export class TaskExecutor {
         via,
         check: () => {
           if (
+            !this.admission(via, registered?.run_id) ||
+            !admit(registered?.run_id) ||
             this.disposed ||
             this.store.paused() ||
             this.store.goals.get(goalId)?.status !== 'active' ||
@@ -169,7 +182,7 @@ export class TaskExecutor {
     } catch (error) {
       const reason = error instanceof Error ? error.message : 'execution-error'
       if (registered) this.abort(registered, 'delivery-or-launch-unknown')
-      else if (selected) {
+      else if (selected && !['authorization-changed-before-send', 'autopilot-stopped'].includes(reason)) {
         const task = this.store.tasks.get(selected.id)
         if (task?.state === 'READY') this.registry.transition(task, 'BLOCKED', reason)
       }
@@ -202,7 +215,7 @@ export class TaskExecutor {
       clearTimeout(this.timers.get(run.run_id))
       const timer = setTimeout(() => {
         this.tracker.unwatch(run.sessionId)
-        void this.finish(
+        this.finalize(
           {
             runId: run.run_id,
             sessionId: run.sessionId,
@@ -214,11 +227,17 @@ export class TaskExecutor {
             endedAt: Date.now(),
           },
           reason,
-        ).catch((error) => this.log('aborted run finalization failed', error))
+        )
       }, 5000)
       timer.unref()
       this.timers.set(run.run_id, timer)
     }
+  }
+  private finalize(state: Readonly<RunState>, forcedReason?: string): void {
+    const pending = this.finish(state, forcedReason)
+      .catch((error) => this.log('run finalization failed', error))
+      .finally(() => this.finalizations.delete(pending))
+    this.finalizations.add(pending)
   }
   private async finish(state: Readonly<RunState>, forcedReason?: string): Promise<void> {
     const id = RunIdSchema.parse(state.runId)
@@ -243,6 +262,7 @@ export class TaskExecutor {
           { path: run.worktreePath, baseCommit: run.baseCommit, git: run.baseCommit !== 'non-git' },
           `WhaleDot ${task.goalId} ${task.id} ${id}`,
         )
+        if (this.store.status().state !== 'ok') return
         if (checkpoint.changed)
           this.store.checkpoints.insert({
             id: CheckpointIdSchema.parse(productionIdGen.next('checkpoint')),
@@ -273,6 +293,7 @@ export class TaskExecutor {
         result = { state: 'UNKNOWN', reason: forcedReason ?? 'checkpoint-failed' }
         this.log('checkpoint failed', error)
       }
+      if (this.store.status().state !== 'ok') return
       // Revocation may race an asynchronous git commit; it always wins over completed.
       run = this.store.runs.get(id)!
       if (run.reason && run.reason !== 'finalizing') result = { state: 'UNKNOWN', reason: run.reason }
@@ -298,7 +319,7 @@ export class TaskExecutor {
     }
   }
   /** Unload stops local scheduling and requests cancellation. Durable running rows remain for restart reconciliation. */
-  dispose(): void {
+  async dispose(): Promise<void> {
     this.disposed = true
     for (const timer of this.timers.values()) clearTimeout(timer)
     for (const run of this.store.status().state === 'ok' ? this.store.runs.all() : [])
@@ -311,5 +332,13 @@ export class TaskExecutor {
         }
       }
     this.timers.clear()
+    let deadline: ReturnType<typeof setTimeout> | undefined
+    await Promise.race([
+      Promise.allSettled([...this.finalizations]),
+      new Promise<void>((resolve) => {
+        deadline = setTimeout(resolve, 5000)
+      }),
+    ])
+    clearTimeout(deadline)
   }
 }

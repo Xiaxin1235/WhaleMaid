@@ -71,4 +71,20 @@ export const MIGRATIONS: readonly Migration[] = [
       )
     },
   },
+  {
+    version: 4,
+    up(db) {
+      db.exec(
+        'CREATE TABLE autopilot_events (id TEXT PRIMARY KEY, goal_id TEXT NOT NULL REFERENCES goals(id), data TEXT NOT NULL); CREATE TABLE planner_state (id TEXT PRIMARY KEY REFERENCES goals(id), data TEXT NOT NULL)',
+      )
+      for (const row of db.prepare('SELECT id,data FROM goals').all()) {
+        const goal: unknown = JSON.parse(String(row.data))
+        if (goal && typeof goal === 'object' && !('autopilot' in goal))
+          db.prepare('UPDATE goals SET data=? WHERE id=?').run(
+            JSON.stringify({ ...goal, autopilot: { enabled: false } }),
+            String(row.id),
+          )
+      }
+    },
+  },
 ]

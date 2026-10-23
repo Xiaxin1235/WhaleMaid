@@ -1,3 +1,4 @@
+import { AutopilotView } from './autopilot.js'
 import { VerificationView } from './verification.js'
 import { createElement as h, useEffect, useState } from 'react'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
@@ -67,6 +68,7 @@ const limitLabels: Record<keyof typeof DEFAULT_LIMITS, MessageKey> = {
   maxChangedFilesPerTask: 'limitFiles',
   maxRunMinutes: 'limitMinutes',
   maxRunsPerDay: 'limitRuns',
+  plannerCallsPerDay: 'limitPlannerCalls',
 }
 
 /** Editable proposal and a separate second confirmation; only that final action writes records. */
@@ -736,6 +738,13 @@ export function GoalDetailView({
           'div',
           null,
           h('h2', null, detail.goal.title),
+          h(AutopilotView, {
+            detail,
+            locale,
+            saving,
+            write,
+            call: (method: string, input: unknown) => intakeCall(connection, method, input),
+          }),
           h('p', null, detail.goal.objective),
           h('p', null, detail.goal.expectedOutcome),
           h('p', null, text('projectRoot'), ': ', detail.goal.projectRoot),

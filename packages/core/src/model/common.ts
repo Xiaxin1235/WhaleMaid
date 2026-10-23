@@ -21,7 +21,7 @@ export const TaskStateSchema = z.enum([
   'CANCELLED',
 ])
 export const VerdictSchema = z.enum(['PASS', 'FAIL', 'INSUFFICIENT_EVIDENCE', 'NOT_SCORABLE', 'UNKNOWN'])
-export const GoalStatusSchema = z.enum(['draft', 'active', 'paused', 'succeeded', 'cancelled'])
+export const GoalStatusSchema = z.enum(['draft', 'active', 'paused', 'succeeded', 'completed', 'cancelled'])
 export type TaskKind = z.infer<typeof TaskKindSchema>
 export type TaskState = z.infer<typeof TaskStateSchema>
 export type Verdict = z.infer<typeof VerdictSchema>

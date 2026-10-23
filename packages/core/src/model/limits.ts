@@ -7,6 +7,7 @@ export const DEFAULT_LIMITS = Object.freeze({
   maxChangedFilesPerTask: 20,
   maxRunMinutes: 30,
   maxRunsPerDay: 20,
+  plannerCallsPerDay: 5,
 })
 
 export const LimitsSchema = z.strictObject({
@@ -15,6 +16,7 @@ export const LimitsSchema = z.strictObject({
   maxConcurrentWritePerProject: z.int().positive().default(DEFAULT_LIMITS.maxConcurrentWritePerProject),
   maxChangedFilesPerTask: z.int().nonnegative().default(DEFAULT_LIMITS.maxChangedFilesPerTask),
   maxRunMinutes: z.number().positive().finite().default(DEFAULT_LIMITS.maxRunMinutes),
+  plannerCallsPerDay: z.int().nonnegative().default(DEFAULT_LIMITS.plannerCallsPerDay),
   maxRunsPerDay: z.int().nonnegative().default(DEFAULT_LIMITS.maxRunsPerDay),
 })
 export type Limits = z.infer<typeof LimitsSchema>

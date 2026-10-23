@@ -24,6 +24,7 @@ export const NotificationSchema = z.strictObject({
   reason: z.string().optional(),
   choices: z.array(DecisionChoiceSchema).optional(),
   expiresAt: TimestampSchema.optional(),
+  resolvedReason: z.enum(['expired', 'superseded']).optional(),
   resolvedChoice: DecisionChoiceSchema.optional(),
   resolvedAt: TimestampSchema.optional(),
   deliveredAt: TimestampSchema.optional(),

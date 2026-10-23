@@ -1,3 +1,4 @@
+import { AutopilotScheduler } from './autopilot/scheduler.js'
 import { TaskVerifier } from './verify/verify-task.js'
 import { observeSession } from './verify/reconcile.js'
 import { mkdir } from 'node:fs/promises'
@@ -28,12 +29,14 @@ export const name = 'whaledot'
 export const inject: string[] = []
 
 export interface Config {
+  maxConcurrentRuns?: number
   dataDir?: string
   debugLogSignals?: boolean
   language?: Volatile<LanguageSetting>
 }
 export const Config: Schema<Omit<Config, 'language'> & { language?: LanguageSetting }, Config> =
   Schema.object({
+    maxConcurrentRuns: Schema.number().min(1).step(1).default(1),
     dataDir: Schema.string().description('Data directory; defaults to <DSH_HOME>/whaledot'),
     debugLogSignals: Schema.boolean().default(false),
     language: Schema.union(['auto', 'zh-CN', 'en'])
@@ -81,10 +84,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
     await mkdir(dataDir, { recursive: true })
     const store = new WhaleStore(dataDir, { log: (message, error) => debug.host(message, error) })
-    ctx.effect(() => () => store.close())
+    let managed = false
+    ctx.effect(() => () => {
+      if (!managed) store.close()
+    })
     const scopes = createScopeService(ctx, store, (message, error) => debug.host(message, error))
     const intake = new GoalIntake(store, scopes, dshDraftModel(ctx))
-    ctx.effect(() => () => intake.dispose())
+
     const execution = new TaskExecutor(
       store,
       scopes,
@@ -93,10 +99,35 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       () => resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale),
       (message, error) => debug.host(message, error),
     )
-    ctx.effect(() => () => execution.dispose())
+
     const verification = new TaskVerifier(store, scopes, dataDir, observeSession(ctx), () =>
       resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale),
     )
+    const autopilot = new AutopilotScheduler(
+      store,
+      scopes,
+      {
+        execute: (goalId, admit) => execution.executeNextTask(goalId, { kind: 'background' }, admit),
+        verify: (taskId) => verification.verifyTask(taskId),
+        reconcile: (taskId) => verification.reconcileTask(taskId),
+        requestDecision: (taskId) => verification.requestDecision(taskId),
+        planner: dshDraftModel(ctx),
+        stop: () => verification.dispose(),
+      },
+      {
+        maxConcurrentRuns: config.maxConcurrentRuns ?? 1,
+        locale: () =>
+          resolveLocale(config.language?.get() ?? 'auto', Intl.DateTimeFormat().resolvedOptions().locale),
+        log: (message, error) => debug.host(message, error),
+      },
+    )
+    execution.setAdmission((via, own) => autopilot.hasCapacity(own, via.kind === 'background'))
+    managed = true
+    ctx.effect(() => async () => {
+      intake.dispose()
+      await Promise.all([execution.dispose(), autopilot.dispose()])
+      store.close()
+    })
     installToolGate(
       ctx,
       new ToolGate(
@@ -125,10 +156,15 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       {
         goals: () => store.goals.list(),
         setPaused: (paused) => store.setPaused(paused),
-        takeoverStore: () => store.takeover(),
+        takeoverStore: () => {
+          store.takeover()
+          execution.registry.recover()
+          autopilot.start()
+        },
         intake,
         execution,
         verification,
+        autopilot,
         revokeScope: (scopeId, peer) => {
           scopes.revoke(scopeId, peer)
         },
@@ -167,6 +203,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       })
       void Promise.resolve(child).catch(report)
     }
+    autopilot.start()
     logger.info('plugin loaded')
     debug.host('plugin loaded')
   } catch (error) {

@@ -12,6 +12,13 @@ export const GoalSchema = z.strictObject({
   stopConditions: z.array(TextSchema),
   mode: z.enum(['suggest', 'autonomous', 'high']),
   status: GoalStatusSchema,
+  autopilot: z
+    .strictObject({
+      enabled: z.boolean(),
+      enabledAt: TimestampSchema.optional(),
+      disabledReason: z.string().optional(),
+    })
+    .default({ enabled: false }),
   scopeId: ScopeIdSchema.optional(),
   createdAt: TimestampSchema,
   confirmedAt: TimestampSchema.optional(),

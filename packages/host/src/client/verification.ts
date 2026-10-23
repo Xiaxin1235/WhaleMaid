@@ -118,7 +118,7 @@ export function VerificationView({
         ),
       ),
     ),
-    h('h3', null, text('decisions')),
+    h('h3', null, text('notifications')),
     ...detail.notifications
       .filter((item) => item.resolvedAt === undefined)
       .map((item) =>
