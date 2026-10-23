@@ -7,6 +7,9 @@ $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 $env:DSH_HOME = Join-Path $repo '.dsh-dev'
+# dsh-coopanion keeps its Electron userData under %APPDATA%\DeepSeek Whale by default; a test pet
+# sharing it with the everyday Harness pet makes both fight over window and companion state.
+$env:DSH_PET_TEST_DATA_DIR = Join-Path $repo '.dsh-dev\pet-data'
 
 if ($UseUiKey) { Remove-Item Env:DEEPSEEK_API_KEY -ErrorAction SilentlyContinue }
 else {
