@@ -1,15 +1,21 @@
 # Start the isolated WhaleDot test host (DSH Desktop's own CLI, DSH_HOME=.dsh-dev).
 # The API key is read without echo and lives only in this shell process.
 # -UseUiKey: ignore any DEEPSEEK_API_KEY in the environment and use the key saved in the test UI settings.
-param([string]$Profile = 'whaledot-p02', [switch]$UseUiKey)
+param([string]$Profile = 'whaledot-p02', [switch]$UseUiKey, [string]$TestHome)
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
 Set-Location $repo
 $env:DSH_HOME = Join-Path $repo '.dsh-dev'
+if ($TestHome) {
+  $isolatedRoot = [IO.Path]::GetFullPath($env:DSH_HOME)
+  $taskHome = [IO.Path]::GetFullPath($TestHome)
+  if (-not $taskHome.StartsWith($isolatedRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) { throw 'TestHome must be inside .dsh-dev' }
+  $env:DSH_HOME = $taskHome
+}
 # dsh-coopanion keeps its Electron userData under %APPDATA%\DeepSeek Whale by default; a test pet
 # sharing it with the everyday Harness pet makes both fight over window and companion state.
-$env:DSH_PET_TEST_DATA_DIR = Join-Path $repo '.dsh-dev\pet-data'
+$env:DSH_PET_TEST_DATA_DIR = Join-Path $env:DSH_HOME 'pet-data'
 
 if ($UseUiKey) { Remove-Item Env:DEEPSEEK_API_KEY -ErrorAction SilentlyContinue }
 else {
