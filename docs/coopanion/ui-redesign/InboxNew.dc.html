@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>新版小信封</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#5f6672}a:hover{color:#24303f}
+</style>
+</helmet>
+<div style="width: 420px; height: 780px; box-sizing: border-box; position: relative; background: #eef1f6; font-family: 'Nunito', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #24303f; overflow: hidden">
+  <section aria-label="回复与待办" style="position: absolute; left: 30px; top: 40px; width: 360px; box-sizing: border-box; padding: 18px; border: 1px solid {{line}}; border-radius: 26px; background: #ffffff; box-shadow: 0 14px 34px rgba(30,45,80,0.14); display: flex; flex-direction: column; gap: 12px">
+    <div style="position: relative; margin: -18px -18px 6px; padding: 16px 18px 14px; border-radius: 25px 25px 0 0; background: {{band}}; display: flex; align-items: center; gap: 12px">
+      <svg width="52" height="52" viewBox="18 18 84 84" aria-hidden="true" style="flex: 0 0 auto; border-radius: 50%; background: #ffffff; border: 3px solid #ffffff; box-shadow: 0 3px 8px rgba(30,45,80,0.16); transform: rotate(-6deg)"><circle cx="60" cy="62" r="38" fill="#3f63d6"></circle><ellipse cx="60" cy="70" rx="28" ry="26" fill="#fde7dd"></ellipse><path d="M24 56 Q36 22 60 24 Q86 22 96 58 Q82 40 60 40 Q38 40 24 56 Z" fill="#2f4fc0"></path><ellipse cx="49" cy="71" rx="6" ry="8" fill="#2a3a8c"></ellipse><ellipse cx="71" cy="71" rx="6" ry="8" fill="#2a3a8c"></ellipse><circle cx="51" cy="68" r="2.4" fill="#ffffff"></circle><circle cx="73" cy="68" r="2.4" fill="#ffffff"></circle><ellipse cx="42" cy="80" rx="5" ry="3" fill="#f6b8b0"></ellipse><ellipse cx="78" cy="80" rx="5" ry="3" fill="#f6b8b0"></ellipse><ellipse cx="60" cy="85" rx="4" ry="3.5" fill="#c46a6a"></ellipse></svg>
+      <div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0">
+        <span style="display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; color: {{accent}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16v11H4zM4 7l8 6 8-6"></path></svg>小信封</span>
+        <strong style="font-size: 18px; font-weight: 800">我把消息叼回来啦！</strong>
+        <div style="display: flex; gap: 6px">
+          <span style="font-size: 11px; font-weight: 800; color: #ffffff; background: {{accent}}; padding: 2px 9px; border-radius: 999px">1 件等你</span>
+          <span style="font-size: 11px; font-weight: 700; color: #4b5260; background: rgba(255,255,255,0.75); padding: 2px 9px; border-radius: 999px">2 条新回复</span>
+        </div>
+      </div>
+      <span aria-hidden="true" style="position: absolute; right: 56px; top: 14px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid {{accent}}; opacity: 0.45"></span>
+      <span aria-hidden="true" style="position: absolute; right: 66px; top: 28px; width: 5px; height: 5px; border-radius: 50%; border: 2px solid {{accent}}; opacity: 0.35"></span>
+      <button aria-label="关闭" style="align-self: flex-start; width: 30px; height: 30px; border: 0; border-radius: 50%; background: #ffffff; color: #5f6672; display: grid; place-items: center; padding: 0; box-shadow: 0 1px 3px rgba(30,45,80,0.12)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+      <span aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: -8px; height: 8px; background-image: radial-gradient(circle at 8px 0, {{band}} 7px, transparent 7.5px); background-size: 16px 8px; background-repeat: repeat-x"></span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 18px; background: {{tint}}">
+      <span style="font-size: 11px; font-weight: 800; color: {{accent}}">需要你决定 · 让测试全部通过</span>
+      <span style="font-size: 14px; font-weight: 700; line-height: 1.5">我改完了，但没有验收命令能证明它对了，要怎么办？</span>
+      <div role="radiogroup" aria-label="选项" style="display: flex; flex-direction: column; gap: 6px">
+        <sc-for list="{{options}}" as="o" hint-placeholder-count="3">
+          <button role="radio" aria-checked="{{o.checked}}" style="{{o.style}}">
+            <span style="font-size: 13px; font-weight: 700">{{o.label}}</span>
+            <span style="font-size: 11px; color: #5f6672">{{o.hint}}</span>
+          </button>
+        </sc-for>
+      </div>
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <a href="#" style="font-size: 12px; font-weight: 700; text-decoration: none">去 Harness 处理</a>
+        <button style="border: 0; border-radius: 999px; background: {{accent}}; color: #ffffff; font: inherit; font-size: 13px; font-weight: 800; padding: 8px 18px">就这样</button>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column">
+      <sc-for list="{{replies}}" as="r" hint-placeholder-count="2">
+        <div style="display: flex; flex-direction: column; gap: 4px; padding: 12px 2px; border-top: 1px solid #f0f1f4">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <span aria-hidden="true" style="width: 7px; height: 7px; border-radius: 50%; background: {{accent}}"></span>
+            <strong style="flex: 1; font-size: 14px; font-weight: 800">{{r.title}}</strong>
+            <span style="font-size: 11px; color: #5f6672">{{r.time}}</span>
+          </div>
+          <span style="font-size: 13px; line-height: 1.5; padding-left: 15px">{{r.text}}</span>
+          <div style="display: flex; gap: 14px; padding-left: 15px">
+            <button style="border: 0; background: none; padding: 0; font: inherit; font-size: 12px; font-weight: 800; color: {{accent}}">继续聊</button>
+            <button style="border: 0; background: none; padding: 0; font: inherit; font-size: 12px; font-weight: 700; color: #5f6672">看全文</button>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+    <div aria-hidden="true" style="position: absolute; left: 50%; bottom: -10px; width: 18px; height: 18px; margin-left: -9px; background: #ffffff; border-right: 1px solid {{line}}; border-bottom: 1px solid {{line}}; transform: rotate(45deg)"></div>
+  </section>
+  <div style="position: absolute; left: 140px; top: 590px; width: 140px; height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end">
+    <svg width="120" height="170" viewBox="0 0 120 170" aria-hidden="true">
+      <ellipse cx="60" cy="160" rx="42" ry="7" fill="#d5dbe6"></ellipse>
+      <path d="M18 92 Q8 112 24 120 Q30 104 26 92 Z" fill="#3f63d6"></path>
+      <path d="M36 98 Q60 86 84 98 L92 150 Q60 160 28 150 Z" fill="#26324a"></path>
+      <path d="M44 104 Q60 98 76 104 L80 146 Q60 152 40 146 Z" fill="#ffffff"></path>
+      <circle cx="60" cy="62" r="38" fill="#3f63d6"></circle>
+      <ellipse cx="60" cy="70" rx="28" ry="26" fill="#fde7dd"></ellipse>
+      <path d="M24 56 Q36 22 60 24 Q86 22 96 58 Q82 40 60 40 Q38 40 24 56 Z" fill="#2f4fc0"></path>
+      <ellipse cx="49" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse>
+      <ellipse cx="71" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse>
+      <circle cx="50.5" cy="69.5" r="1.8" fill="#ffffff"></circle>
+      <circle cx="72.5" cy="69.5" r="1.8" fill="#ffffff"></circle>
+      <path d="M53 83 Q60 89 67 83" stroke="#c46a6a" stroke-width="2" fill="none" stroke-linecap="round"></path>
+      <path d="M58 24 Q62 12 70 14" stroke="#2f4fc0" stroke-width="4" fill="none" stroke-linecap="round"></path>
+    </svg>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3d55d8","options":["#3d55d8","#c8643f","#6d4fd6","#2a2f3a"]},"$preview":{"width":420,"height":780}}'>
+class Component extends DCLogic {
+renderVals() {
+const accent = this.props.accent ?? '#3d55d8';
+const line = accent + '2e';
+const optionStyle = on => 'display: flex; flex-direction: column; align-items: flex-start; gap: 1px; text-align: left; font: inherit; color: #24303f; padding: 9px 12px; border-radius: 12px; background: #ffffff; border: ' + (on ? '2px solid ' + accent : '1px solid ' + line);
+const options = [
+  { label: '先看看改了什么', hint: '只读，不会改动任何东西', on: true },
+  { label: '再试一次', hint: '在授权范围内重新执行这一步', on: false },
+  { label: '暂停这个目标', hint: '之后可以随时继续', on: false },
+].map(o => ({ ...o, checked: String(o.on), style: optionStyle(o.on) }));
+const replies = [
+  { title: '另一个想法', time: '18:00', text: '后台会话已经完成，我把结论带回来啦。' },
+  { title: '演示会话', time: '18:00', text: '任务完成啦！要不要休息一下？' },
+];
+const mix = (hex, p) => { const n = parseInt(hex.slice(1, 7), 16); const c = s => Math.round(((n >> s) & 255) * p + 255 * (1 - p)); return 'rgb(' + c(16) + ',' + c(8) + ',' + c(0) + ')'; };
+return { accent, tint: accent + '14', line, band: mix(accent, 0.13), options, replies };
+}
+}
+</script>
+</body>
+</html>

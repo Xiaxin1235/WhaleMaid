@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>新版聊天面板</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#3d55d8}a:hover{color:#2a3fae}
+</style>
+</helmet>
+<div style="width: 420px; height: 780px; box-sizing: border-box; position: relative; background: #eef1f6; font-family: 'Nunito', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #24303f; overflow: hidden">
+  <section aria-label="聊天" style="position: absolute; left: 30px; top: 150px; width: 360px; box-sizing: border-box; padding: 18px; border: 1px solid {{line}}; border-radius: 26px; background: #ffffff; box-shadow: 0 14px 34px rgba(30,45,80,0.14); display: flex; flex-direction: column; gap: 14px">
+    <div style="position: relative; margin: -18px -18px 4px; padding: 16px 18px 14px; border-radius: 25px 25px 0 0; background: {{band}}; display: flex; align-items: center; gap: 12px">
+      <svg width="52" height="52" viewBox="18 18 84 84" aria-hidden="true" style="flex: 0 0 auto; border-radius: 50%; background: #ffffff; border: 3px solid #ffffff; box-shadow: 0 3px 8px rgba(30,45,80,0.16); transform: rotate(-6deg)"><circle cx="60" cy="62" r="38" fill="#3f63d6"></circle><ellipse cx="60" cy="70" rx="28" ry="26" fill="#fde7dd"></ellipse><path d="M24 56 Q36 22 60 24 Q86 22 96 58 Q82 40 60 40 Q38 40 24 56 Z" fill="#2f4fc0"></path><ellipse cx="49" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse><ellipse cx="71" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse><circle cx="50.5" cy="69.5" r="1.8" fill="#ffffff"></circle><circle cx="72.5" cy="69.5" r="1.8" fill="#ffffff"></circle><ellipse cx="42" cy="80" rx="5" ry="3" fill="#f6b8b0"></ellipse><ellipse cx="78" cy="80" rx="5" ry="3" fill="#f6b8b0"></ellipse><path d="M53 83 Q60 89 67 83" stroke="#c46a6a" stroke-width="2" fill="none" stroke-linecap="round"></path></svg>
+      <div style="display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0">
+        <span style="display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; color: {{accent}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 14V6M12 6c-1.5-2-4-2.5-5-1M12 6c1.5-2 4-2.5 5-1M7 18c2 2 8 2 10 0"></path></svg>大肥鱼</span>
+        <strong style="font-size: 19px; font-weight: 800; letter-spacing: 0.3px">我在呢～慢慢说！</strong>
+        <button style="align-self: flex-start; display: flex; align-items: center; gap: 4px; border: 0; background: rgba(255,255,255,0.75); border-radius: 999px; padding: 2px 9px; font: inherit; font-size: 12px; font-weight: 700; color: #4b5260">演示会话<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+      </div>
+      <span aria-hidden="true" style="position: absolute; right: 56px; top: 14px; width: 8px; height: 8px; border-radius: 50%; border: 2px solid {{accent}}; opacity: 0.45"></span>
+      <span aria-hidden="true" style="position: absolute; right: 66px; top: 28px; width: 5px; height: 5px; border-radius: 50%; border: 2px solid {{accent}}; opacity: 0.35"></span>
+      <button aria-label="关闭" style="align-self: flex-start; width: 30px; height: 30px; border: 0; border-radius: 50%; background: #ffffff; color: #5f6672; display: grid; place-items: center; padding: 0; box-shadow: 0 1px 3px rgba(30,45,80,0.12)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+      <span aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: -8px; height: 8px; background-image: radial-gradient(circle at 8px 0, {{band}} 7px, transparent 7.5px); background-size: 16px 8px; background-repeat: repeat-x"></span>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; border-radius: 18px 18px 18px 6px; background: {{tint}}">
+      <span style="font-size: 14px; line-height: 1.55">任务完成啦！要不要休息一下？</span>
+      <a href="#" style="align-self: flex-end; font-size: 12px; font-weight: 700; text-decoration: none; color: {{accent}}">看全文</a>
+    </div>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap">
+      <button style="border: 1px solid {{line}}; background: #ffffff; color: #24303f; font: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 999px">打个招呼</button>
+      <button style="border: 1px solid {{line}}; background: #ffffff; color: #24303f; font: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 999px">给我打气</button>
+      <button style="border: 1px solid {{line}}; background: #ffffff; color: #24303f; font: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 999px">回到会话</button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 16px; border: 1.5px solid {{accent}}; border-radius: 999px; background: #ffffff">
+      <label for="new-msg" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">消息</label>
+      <input id="new-msg" value="继续聊聊刚才的任务" style="flex: 1; min-width: 0; border: 0; outline: none; font: inherit; font-size: 14px; color: #24303f; background: transparent">
+      <button aria-label="发送" style="width: 36px; height: 36px; border: 0; border-radius: 50%; background: {{accent}}; color: #ffffff; display: grid; place-items: center; padding: 0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button>
+    </div>
+    <span style="font-size: 11px; color: #5f6672; text-align: center">Enter 换行 · Ctrl + Enter 发送</span>
+    <div aria-hidden="true" style="position: absolute; left: 50%; bottom: -10px; width: 18px; height: 18px; margin-left: -9px; background: #ffffff; border-right: 1px solid {{line}}; border-bottom: 1px solid {{line}}; transform: rotate(45deg)"></div>
+  </section>
+  <div style="position: absolute; left: 140px; top: 590px; width: 140px; height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end">
+    <svg width="120" height="170" viewBox="0 0 120 170" aria-hidden="true">
+      <ellipse cx="60" cy="160" rx="42" ry="7" fill="#d5dbe6"></ellipse>
+      <path d="M18 92 Q8 112 24 120 Q30 104 26 92 Z" fill="#3f63d6"></path>
+      <path d="M36 98 Q60 86 84 98 L92 150 Q60 160 28 150 Z" fill="#26324a"></path>
+      <path d="M44 104 Q60 98 76 104 L80 146 Q60 152 40 146 Z" fill="#ffffff"></path>
+      <circle cx="60" cy="62" r="38" fill="#3f63d6"></circle>
+      <ellipse cx="60" cy="70" rx="28" ry="26" fill="#fde7dd"></ellipse>
+      <path d="M24 56 Q36 22 60 24 Q86 22 96 58 Q82 40 60 40 Q38 40 24 56 Z" fill="#2f4fc0"></path>
+      <ellipse cx="49" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse>
+      <ellipse cx="71" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse>
+      <circle cx="50.5" cy="69.5" r="1.8" fill="#ffffff"></circle>
+      <circle cx="72.5" cy="69.5" r="1.8" fill="#ffffff"></circle>
+      <path d="M53 83 Q60 89 67 83" stroke="#c46a6a" stroke-width="2" fill="none" stroke-linecap="round"></path>
+      <path d="M58 24 Q62 12 70 14" stroke="#2f4fc0" stroke-width="4" fill="none" stroke-linecap="round"></path>
+    </svg>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3d55d8","options":["#3d55d8","#c8643f","#6d4fd6","#2a2f3a"]},"$preview":{"width":420,"height":780}}'>
+class Component extends DCLogic {
+renderVals() {
+const accent = this.props.accent ?? '#3d55d8';
+const mix = (hex, p) => { const n = parseInt(hex.slice(1, 7), 16); const c = s => Math.round(((n >> s) & 255) * p + 255 * (1 - p)); return 'rgb(' + c(16) + ',' + c(8) + ',' + c(0) + ')'; };
+return { accent, tint: accent + '14', line: accent + '2e', band: mix(accent, 0.13) };
+}
+}
+</script>
+</body>
+</html>

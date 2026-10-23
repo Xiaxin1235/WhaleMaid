@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原版右键菜单</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#4562f5}a:hover{color:#2f48d0}
+</style>
+</helmet>
+<div style="width: 420px; height: 780px; box-sizing: border-box; position: relative; background: #eef1f6; font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #263242; overflow: hidden">
+  <section aria-label="右键菜单" style="position: absolute; left: 34px; top: 40px; width: 352px; box-sizing: border-box; padding: 16px; border: 2.5px solid #223041; border-radius: 22px; background: #fffefa; box-shadow: 0 8px 24px rgba(22,40,70,0.13); display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; align-items: center; gap: 12px">
+      <span style="width: 48px; height: 48px; border-radius: 16px; background: #f4f5fd; display: grid; place-items: center; font-size: 11px; color: #8c9098">头像</span>
+      <div style="display: flex; flex-direction: column; gap: 2px">
+        <small style="font-size: 11px; color: #8c9098">桌上的小伙伴</small>
+        <strong style="font-size: 16px">DeepSeek 大肥鱼</strong>
+        <small style="font-size: 11px; color: #4562f5">在这里陪你</small>
+      </div>
+    </div>
+    <button style="display: flex; align-items: center; justify-content: space-between; gap: 11px; width: 100%; padding: 10px 12px; border: 1px solid #d8dbec; border-radius: 13px; background: #f4f5fd; color: #4562f5; text-align: left; font: inherit">
+      <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 14px">说句话</span><small style="font-size: 11px; color: #8c9098">接着你的会话聊</small></span>
+      <b>›</b>
+    </button>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <label for="old-mode" style="font-size: 12px; color: #4a5462">自主陪伴</label>
+      <select id="old-mode" style="width: 100%; padding: 8px; border-radius: 10px; border: 1px solid #d8dbec; background: #fffefa; color: #263242; font-size: 12px"><option>关闭（停止自主活动）</option></select>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+      <button role="switch" aria-checked="true" style="position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px; border: 1px solid #e8e5df; border-radius: 13px; background: transparent; font: inherit; color: #263242; text-align: left"><span style="font-size: 13px">散散步</span><small style="font-size: 10px; color: #8c9098">自在走动</small><i style="position: absolute; right: 10px; top: 12px; width: 22px; height: 12px; border-radius: 10px; background: #4562f5"></i></button>
+      <button role="switch" aria-checked="false" style="position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px; border: 1px solid #e8e5df; border-radius: 13px; background: transparent; font: inherit; color: #263242; text-align: left"><span style="font-size: 13px">歇一会</span><small style="font-size: 10px; color: #8c9098">忙起来会醒</small><i style="position: absolute; right: 10px; top: 12px; width: 22px; height: 12px; border-radius: 10px; background: #d9d8d2"></i></button>
+      <button role="switch" aria-checked="true" style="position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px; border: 1px solid #e8e5df; border-radius: 13px; background: transparent; font: inherit; color: #263242; text-align: left"><span style="font-size: 13px">提醒我</span><small style="font-size: 10px; color: #8c9098">要紧事不漏掉</small><i style="position: absolute; right: 10px; top: 12px; width: 22px; height: 12px; border-radius: 10px; background: #4562f5"></i></button>
+      <button role="switch" aria-checked="true" style="position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 10px; border: 1px solid #e8e5df; border-radius: 13px; background: transparent; font: inherit; color: #263242; text-align: left"><span style="font-size: 13px">小小声</span><small style="font-size: 10px; color: #8c9098">动作与说话音效</small><i style="position: absolute; right: 10px; top: 12px; width: 22px; height: 12px; border-radius: 10px; background: #4562f5"></i></button>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px">
+      <button style="border: 0; background: none; color: #8c9098; font: inherit; font-size: 12px; padding: 4px 0">暂时藏起来</button>
+      <a href="#" style="font-size: 11px; text-decoration: none">源码 · AGPL ↗</a>
+    </div>
+  </section>
+  <div style="position: absolute; left: 140px; top: 560px; width: 140px; height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end">
+    <svg width="120" height="170" viewBox="0 0 120 170" aria-hidden="true">
+      <ellipse cx="60" cy="160" rx="42" ry="7" fill="#d5dbe6"></ellipse>
+      <path d="M18 92 Q8 112 24 120 Q30 104 26 92 Z" fill="#3f63d6"></path>
+      <path d="M36 98 Q60 86 84 98 L92 150 Q60 160 28 150 Z" fill="#26324a"></path>
+      <path d="M44 104 Q60 98 76 104 L80 146 Q60 152 40 146 Z" fill="#ffffff"></path>
+      <circle cx="60" cy="62" r="38" fill="#3f63d6"></circle>
+      <ellipse cx="60" cy="70" rx="28" ry="26" fill="#fde7dd"></ellipse>
+      <path d="M24 56 Q36 22 60 24 Q86 22 96 58 Q82 40 60 40 Q38 40 24 56 Z" fill="#2f4fc0"></path>
+      <ellipse cx="49" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse>
+      <ellipse cx="71" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse>
+      <circle cx="50.5" cy="69.5" r="1.8" fill="#ffffff"></circle>
+      <circle cx="72.5" cy="69.5" r="1.8" fill="#ffffff"></circle>
+      <path d="M55 84 Q60 87 65 84" stroke="#c46a6a" stroke-width="2" fill="none" stroke-linecap="round"></path>
+      <path d="M58 24 Q62 12 70 14" stroke="#2f4fc0" stroke-width="4" fill="none" stroke-linecap="round"></path>
+    </svg>
+    <span style="font-size: 10px; color: #6b7280">角色占位（实际为鲸鱼娘）</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":420,"height":780}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

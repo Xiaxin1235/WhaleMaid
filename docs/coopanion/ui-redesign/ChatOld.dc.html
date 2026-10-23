@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>原版聊天面板</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#4562f5}a:hover{color:#2f48d0}
+</style>
+</helmet>
+<div style="width: 420px; height: 780px; box-sizing: border-box; position: relative; background: #eef1f6; font-family: -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #263242; overflow: hidden">
+  <section aria-label="聊天面板" style="position: absolute; left: 24px; top: 28px; width: 372px; box-sizing: border-box; padding: 20px 18px 16px; border: 2.5px solid #223041; border-radius: 22px; background: #fffefa; box-shadow: 0 8px 24px rgba(22,40,70,0.13); display: flex; flex-direction: column; gap: 12px">
+    <div style="display: flex; justify-content: space-between; align-items: flex-start">
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <span style="font-size: 12px; color: #4562f5; letter-spacing: 0.5px">DeepSeek 大肥鱼</span>
+        <strong style="font-size: 22px">我在，慢慢说。</strong>
+      </div>
+      <button aria-label="关闭聊天" style="width: 28px; height: 28px; border: 0; background: none; color: #8c9098; font-size: 22px; line-height: 1; padding: 0">×</button>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border: 1.5px solid #d8dbec; border-radius: 14px; background: #f4f5fd">
+      <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0">
+        <span style="font-size: 11px; color: #4562f5">在这里陪你</span>
+        <strong style="font-size: 14px">演示会话</strong>
+        <span style="font-size: 11px; color: #8c9098">/workspace/dsh-coopanion · #demo</span>
+      </div>
+      <a href="#" style="font-size: 13px; text-decoration: none; white-space: nowrap">换一段 ›</a>
+    </div>
+    <p style="margin: 0; padding-left: 10px; border-left: 3px solid #d8dbec; font-size: 13px; color: #4a5462">任务完成啦！要不要休息一下？</p>
+    <a href="#" style="font-size: 13px; text-decoration: none">读完整回复 ↗</a>
+    <div style="display: flex; align-items: center; gap: 8px">
+      <button style="border: 0; background: #f0f2fd; color: #4562f5; font-size: 12px; padding: 7px 11px; border-radius: 20px">打个招呼</button>
+      <button style="border: 0; background: #f0f2fd; color: #4562f5; font-size: 12px; padding: 7px 11px; border-radius: 20px">给我打气</button>
+      <a href="#" style="margin-left: auto; font-size: 12px; text-decoration: none">回到会话 ↗</a>
+    </div>
+    <p style="margin: 0; font-size: 12px; color: #8c9098">消息交给「演示会话」，完成后只展示最终回复。</p>
+    <label for="old-msg" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0)">消息</label>
+    <textarea id="old-msg" rows="4" style="resize: none; width: 100%; box-sizing: border-box; border: 1.5px solid #8ea0f8; outline: 3px solid #dfe4fe; border-radius: 14px; padding: 11px; font: inherit; font-size: 14px; color: #263242; background: #fffefa">继续聊聊刚才的任务</textarea>
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <span style="font-size: 11px; color: #8c9098">⌘ / Ctrl + Enter 发送</span>
+      <button style="border: 0; color: #fff; background: #4562f5; border-radius: 12px; padding: 10px 14px; font-size: 13px">捎给这段对话 ↗</button>
+    </div>
+  </section>
+  <div style="position: absolute; left: 140px; top: 560px; width: 140px; height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end">
+    <svg width="120" height="170" viewBox="0 0 120 170" aria-hidden="true">
+      <ellipse cx="60" cy="160" rx="42" ry="7" fill="#d5dbe6"></ellipse>
+      <path d="M18 92 Q8 112 24 120 Q30 104 26 92 Z" fill="#3f63d6"></path>
+      <path d="M36 98 Q60 86 84 98 L92 150 Q60 160 28 150 Z" fill="#26324a"></path>
+      <path d="M44 104 Q60 98 76 104 L80 146 Q60 152 40 146 Z" fill="#ffffff"></path>
+      <circle cx="60" cy="62" r="38" fill="#3f63d6"></circle>
+      <ellipse cx="60" cy="70" rx="28" ry="26" fill="#fde7dd"></ellipse>
+      <path d="M24 56 Q36 22 60 24 Q86 22 96 58 Q82 40 60 40 Q38 40 24 56 Z" fill="#2f4fc0"></path>
+      <ellipse cx="49" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse>
+      <ellipse cx="71" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse>
+      <circle cx="50.5" cy="69.5" r="1.8" fill="#ffffff"></circle>
+      <circle cx="72.5" cy="69.5" r="1.8" fill="#ffffff"></circle>
+      <path d="M55 84 Q60 87 65 84" stroke="#c46a6a" stroke-width="2" fill="none" stroke-linecap="round"></path>
+      <path d="M58 24 Q62 12 70 14" stroke="#2f4fc0" stroke-width="4" fill="none" stroke-linecap="round"></path>
+    </svg>
+    <span style="font-size: 10px; color: #6b7280">角色占位（实际为鲸鱼娘）</span>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":420,"height":780}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

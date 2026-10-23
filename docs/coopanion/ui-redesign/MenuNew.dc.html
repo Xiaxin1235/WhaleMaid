@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>新版右键菜单</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#5f6672}a:hover{color:#24303f}
+</style>
+</helmet>
+<div style="width: 420px; height: 780px; box-sizing: border-box; position: relative; background: #eef1f6; font-family: 'Nunito', 'PingFang SC', 'Microsoft YaHei', sans-serif; color: #24303f; overflow: hidden">
+  <section aria-label="菜单" style="position: absolute; left: 50px; top: 120px; width: 320px; box-sizing: border-box; padding: 16px; border: 1px solid {{line}}; border-radius: 26px; background: #ffffff; box-shadow: 0 14px 34px rgba(30,45,80,0.14); display: flex; flex-direction: column; gap: 14px">
+    <div style="position: relative; margin: -16px -16px 6px; padding: 16px 16px 14px; border-radius: 25px 25px 0 0; background: {{band}}; display: flex; align-items: center; gap: 12px">
+      <svg width="54" height="54" viewBox="18 18 84 84" aria-hidden="true" style="flex: 0 0 auto; border-radius: 50%; background: #ffffff; border: 3px solid #ffffff; box-shadow: 0 3px 8px rgba(30,45,80,0.16); transform: rotate(-6deg)"><circle cx="60" cy="62" r="38" fill="#3f63d6"></circle><ellipse cx="60" cy="70" rx="28" ry="26" fill="#fde7dd"></ellipse><path d="M24 56 Q36 22 60 24 Q86 22 96 58 Q82 40 60 40 Q38 40 24 56 Z" fill="#2f4fc0"></path><path d="M49 70 Q46 74 49 76 M71 70 Q74 74 71 76" stroke="#2a3a8c" stroke-width="3" fill="none" stroke-linecap="round"></path><path d="M44 72 Q49 66 54 72 M66 72 Q71 66 76 72" stroke="#2a3a8c" stroke-width="3" fill="none" stroke-linecap="round"></path><ellipse cx="42" cy="80" rx="5" ry="3" fill="#f6b8b0"></ellipse><ellipse cx="78" cy="80" rx="5" ry="3" fill="#f6b8b0"></ellipse><path d="M52 82 Q60 90 68 82" stroke="#c46a6a" stroke-width="2" fill="none" stroke-linecap="round"></path></svg>
+      <div style="display: flex; flex-direction: column; gap: 4px; flex: 1">
+        <span style="display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 800; color: {{accent}}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 14V6M12 6c-1.5-2-4-2.5-5-1M12 6c1.5-2 4-2.5 5-1M7 18c2 2 8 2 10 0"></path></svg>大肥鱼</span>
+        <strong style="font-size: 18px; font-weight: 800">要我做点什么？</strong>
+        <span style="align-self: flex-start; display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #4b5260; background: rgba(255,255,255,0.75); padding: 2px 9px; border-radius: 999px"><span aria-hidden="true" style="width: 6px; height: 6px; border-radius: 50%; background: #3fb37f"></span>在这里陪你</span>
+      </div>
+      <span aria-hidden="true" style="position: absolute; right: 22px; top: 16px; width: 9px; height: 9px; border-radius: 50%; border: 2px solid {{accent}}; opacity: 0.45"></span>
+      <span aria-hidden="true" style="position: absolute; right: 34px; top: 32px; width: 5px; height: 5px; border-radius: 50%; border: 2px solid {{accent}}; opacity: 0.35"></span>
+      <span aria-hidden="true" style="position: absolute; right: 18px; top: 40px; width: 6px; height: 6px; border-radius: 50%; border: 2px solid {{accent}}; opacity: 0.3"></span>
+      <span aria-hidden="true" style="position: absolute; left: 0; right: 0; bottom: -8px; height: 8px; background-image: radial-gradient(circle at 8px 0, {{band}} 7px, transparent 7.5px); background-size: 16px 8px; background-repeat: repeat-x"></span>
+    </div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px">
+      <button style="display: flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 14px; background: {{accent}}; color: #ffffff; font: inherit; font-size: 14px; font-weight: 700; padding: 11px 0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.5 7.2L4 20l1-4.6A8 8 0 1 1 21 12z"></path></svg>说句话</button>
+      <button style="display: flex; align-items: center; justify-content: center; gap: 6px; border: 1px solid {{line}}; border-radius: 14px; background: #ffffff; color: #24303f; font: inherit; font-size: 14px; font-weight: 700; padding: 11px 0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 4l4 3 4-3 4 4-3 3v9H7v-9L4 8z"></path></svg>换装扮</button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px">
+      <span style="font-size: 12px; font-weight: 700; color: #5f6672">自主陪伴</span>
+      <div role="radiogroup" aria-label="自主陪伴" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; background: #f3f4f7; border-radius: 12px">
+        <button role="radio" aria-checked="false" style="border: 0; border-radius: 9px; background: transparent; color: #5f6672; font: inherit; font-size: 13px; font-weight: 700; padding: 7px 0">关闭</button>
+        <button role="radio" aria-checked="true" style="border: 0; border-radius: 9px; background: #ffffff; color: {{accent}}; font: inherit; font-size: 13px; font-weight: 800; padding: 7px 0; box-shadow: 0 1px 3px rgba(30,45,80,0.12)">安静</button>
+        <button role="radio" aria-checked="false" style="border: 0; border-radius: 9px; background: transparent; color: #5f6672; font: inherit; font-size: 13px; font-weight: 700; padding: 7px 0">互动</button>
+      </div>
+    </div>
+    <div style="display: flex; flex-direction: column">
+      <sc-for list="{{toggles}}" as="t" hint-placeholder-count="4">
+        <button role="switch" aria-checked="{{t.checked}}" style="display: flex; align-items: center; gap: 10px; border: 0; border-bottom: 1px solid #f0f1f4; background: none; padding: 10px 2px; font: inherit; color: #24303f; text-align: left">
+          <span style="display: flex; flex-direction: column; flex: 1; gap: 1px"><span style="font-size: 14px; font-weight: 700">{{t.label}}</span><span style="font-size: 11px; color: #5f6672">{{t.hint}}</span></span>
+          <span aria-hidden="true" style="{{t.trackStyle}}"><span style="{{t.knobStyle}}"></span></span>
+        </button>
+      </sc-for>
+    </div>
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <button style="border: 0; background: none; color: #5f6672; font: inherit; font-size: 13px; font-weight: 700; padding: 4px 0">暂时藏起来</button>
+      <a href="#" style="font-size: 11px; text-decoration: none">源码 · AGPL</a>
+    </div>
+    <div aria-hidden="true" style="position: absolute; left: 50%; bottom: -10px; width: 18px; height: 18px; margin-left: -9px; background: #ffffff; border-right: 1px solid {{line}}; border-bottom: 1px solid {{line}}; transform: rotate(45deg)"></div>
+  </section>
+  <div style="position: absolute; left: 140px; top: 590px; width: 140px; height: 190px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end">
+    <svg width="120" height="170" viewBox="0 0 120 170" aria-hidden="true">
+      <ellipse cx="60" cy="160" rx="42" ry="7" fill="#d5dbe6"></ellipse>
+      <path d="M18 92 Q8 112 24 120 Q30 104 26 92 Z" fill="#3f63d6"></path>
+      <path d="M36 98 Q60 86 84 98 L92 150 Q60 160 28 150 Z" fill="#26324a"></path>
+      <path d="M44 104 Q60 98 76 104 L80 146 Q60 152 40 146 Z" fill="#ffffff"></path>
+      <circle cx="60" cy="62" r="38" fill="#3f63d6"></circle>
+      <ellipse cx="60" cy="70" rx="28" ry="26" fill="#fde7dd"></ellipse>
+      <path d="M24 56 Q36 22 60 24 Q86 22 96 58 Q82 40 60 40 Q38 40 24 56 Z" fill="#2f4fc0"></path>
+      <ellipse cx="49" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse>
+      <ellipse cx="71" cy="72" rx="5" ry="7" fill="#2a3a8c"></ellipse>
+      <circle cx="50.5" cy="69.5" r="1.8" fill="#ffffff"></circle>
+      <circle cx="72.5" cy="69.5" r="1.8" fill="#ffffff"></circle>
+      <path d="M53 83 Q60 89 67 83" stroke="#c46a6a" stroke-width="2" fill="none" stroke-linecap="round"></path>
+      <path d="M58 24 Q62 12 70 14" stroke="#2f4fc0" stroke-width="4" fill="none" stroke-linecap="round"></path>
+    </svg>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#3d55d8","options":["#3d55d8","#c8643f","#6d4fd6","#2a2f3a"]},"$preview":{"width":420,"height":780}}'>
+class Component extends DCLogic {
+renderVals() {
+const accent = this.props.accent ?? '#3d55d8';
+const track = on => 'position: relative; width: 36px; height: 20px; border-radius: 999px; flex: 0 0 auto; background: ' + (on ? accent : '#d6d8de');
+const knob = on => 'position: absolute; top: 2px; left: ' + (on ? '18px' : '2px') + '; width: 16px; height: 16px; border-radius: 50%; background: #ffffff; box-shadow: 0 1px 2px rgba(0,0,0,0.2)';
+const toggles = [
+  { label: '散散步', hint: '自在走动', checked: true },
+  { label: '歇一会', hint: '忙起来会醒', checked: false },
+  { label: '提醒我', hint: '要紧事不漏掉', checked: true },
+  { label: '小小声', hint: '动作与说话音效', checked: true },
+].map(t => ({ ...t, checked: String(t.checked), trackStyle: track(t.checked), knobStyle: knob(t.checked) }));
+const mix = (hex, p) => { const n = parseInt(hex.slice(1, 7), 16); const c = s => Math.round(((n >> s) & 255) * p + 255 * (1 - p)); return 'rgb(' + c(16) + ',' + c(8) + ',' + c(0) + ')'; };
+return { accent, tint: accent + '14', line: accent + '2e', band: mix(accent, 0.13), toggles };
+}
+}
+</script>
+</body>
+</html>
