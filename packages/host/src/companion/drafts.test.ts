@@ -6,12 +6,13 @@ import { afterEach, expect, test, vi } from 'vitest'
 import type { PeerScope } from '@deepseek-ai/dsh-client-connection'
 import { WhaleStore, productionClock, productionIdGen, sha256 } from '../store/index.js'
 import { ScopeService } from '../scope-service.js'
-import { makeGoal } from '../../../core/tests/fixtures.js'
+import { makeGoal, makeTask } from '../../../core/tests/fixtures.js'
 import { CompanionMemory } from './memory.js'
 import { MemoryDrafts } from './drafts.js'
 import { NotificationIdSchema, lessonTrigger, decideDelivery } from '@whaledot/core'
 import { MIGRATIONS } from '../store/migrations.js'
 import { notificationDeliveryHistory } from '../notify/history.js'
+import { decideNext, DEFAULT_LIMITS, RunIdSchema, RunSchema } from '@whaledot/core'
 const cleanup: (() => void | Promise<void>)[] = []
 afterEach(async () => {
   for (const f of cleanup.splice(0).reverse()) await f()
@@ -64,7 +65,8 @@ function fixture() {
         }),
     ),
   }
-  const drafts = new MemoryDrafts(memory, { generate }, inbox, vi.fn())
+  const log = vi.fn()
+  const drafts = new MemoryDrafts(memory, { generate }, inbox, log)
   cleanup.push(() => drafts.dispose())
   return {
     store,
@@ -74,13 +76,20 @@ function fixture() {
     settings,
     generate,
     inbox,
+    log,
     advance: (ms: number) => {
       now += ms
     },
   }
 }
+function failedTask(f: ReturnType<typeof fixture>) {
+  f.store.tasks.insert(
+    makeTask('task_failed', { failureSummary: 'Windows 路径含空格时未加引号导致读取失败。' }),
+  )
+}
 test('three structured triggers draft once, dedupe for 24 hours, cap 3 pending per project', async () => {
   const f = fixture()
+  failedTask(f)
   for (const trigger of ['completed', 'blocked', 'decision'] as const) {
     await f.drafts.draftLesson(f.goal.id, trigger)
     await f.drafts.draftLesson(f.goal.id, trigger)
@@ -131,6 +140,7 @@ test('model receives only structured facts, with notes redacted, and no session 
 })
 test('existing goal and notification events and future structured decision outcomes trigger drafts', async () => {
   const f = fixture()
+  failedTask(f)
   f.drafts.start()
   const g = f.store.goals.get(f.goal.id)!
   f.store.goals.update({ ...g, status: 'completed', version: g.version + 1 }, g.version)
@@ -208,6 +218,7 @@ test('expired, stale and invalid custom confirmations never mutate memories; sta
 })
 test('P04 muted policy defers proposal delivery and persistent attempt prevents a second dispatch', async () => {
   const f = fixture()
+  failedTask(f)
   await f.drafts.draftLesson(f.goal.id, 'completed')
   f.store.setNotificationPreferences({ muted: true, maxPerHour: 4 })
   await f.drafts.deliver()
@@ -265,4 +276,145 @@ test('v6 to v7 preserves confirmed memory row bytes while adding the proposal le
   expect(upgraded.status().state).toBe('ok')
   expect(read()).toEqual(before)
   expect(upgraded.memoryProposals.list()).toEqual([])
+})
+
+test.each(['none', 'PASS'] as const)(
+  'uneventful completion (%s verification) skips model and records dedupe',
+  async (verdict) => {
+    const f = fixture()
+    f.store.tasks.insert(makeTask('task_clean', { failureSummary: '  ' }))
+    if (verdict === 'PASS') {
+      const judgment = { verdict, progress: 'neutral' as const, reasons: ['report-only'] }
+      f.store.runs.insert(
+        RunSchema.parse({
+          run_id: 'run_clean',
+          taskId: 'task_clean',
+          sessionId: 'test-clean',
+          worktreePath: 'C:/test',
+          baseCommit: 'test',
+          startedAt: 1,
+        }),
+      )
+      f.store.verifications.insert({
+        id: RunIdSchema.parse('run_clean'),
+        taskId: makeTask('task_clean').id,
+        checkpoint: 'test',
+        createdAt: 1,
+        baseline: [],
+        current: [],
+        judgment,
+        decision: decideNext({ judgment, attempts: 0, limits: DEFAULT_LIMITS, stalled: 0, tampered: false }),
+      })
+    }
+    await f.drafts.draftLesson(f.goal.id, 'completed')
+    await f.drafts.draftLesson(f.goal.id, 'completed')
+    expect(f.generate).not.toHaveBeenCalled()
+    expect(f.drafts.list()).toHaveLength(0)
+    expect(f.store.memoryMeta().drafts[`lesson:${f.goal.id}:completed`]).toBe(f.memory.now())
+    expect(f.log).toHaveBeenCalledWith('project lesson skipped before model: uneventful completion')
+  },
+)
+test('failed completion can yield skip or a normal lesson; locale and quality instructions are explicit', async () => {
+  const f = fixture()
+  failedTask(f)
+  f.generate.mockResolvedValueOnce('{"skip":true}')
+  await f.drafts.draftLesson(f.goal.id, 'completed')
+  expect(f.generate).toHaveBeenCalledTimes(1)
+  expect(f.drafts.list()).toHaveLength(0)
+  expect(f.log).toHaveBeenCalledWith('project lesson skipped by model')
+  expect(f.generate.mock.calls[0]![0]).toContain('text 用简体中文')
+  expect(f.generate.mock.calls[0]![0]).toContain('When unsure, return skip')
+  f.advance(86400000)
+  await f.drafts.draftLesson(f.goal.id, 'completed')
+  expect(f.drafts.list()).toHaveLength(1)
+  expect(f.drafts.list()[0]?.status).toBe('pending')
+})
+test.each(['note', 'decision', 'failed-decision', 'UNKNOWN'] as const)(
+  'completion with %s remains eligible for model',
+  async (reason) => {
+    const f = fixture()
+    if (reason === 'note')
+      f.store.userNotes.insert({
+        id: 'note',
+        goalId: f.goal.id,
+        notificationId: NotificationIdSchema.parse('notification_note'),
+        at: 1,
+        text: '项目约束需要保留。',
+      })
+    if (reason === 'decision' || reason === 'failed-decision')
+      f.store.notificationChoices.insert({
+        id: 'choice',
+        goalId: f.goal.id,
+        notificationId: NotificationIdSchema.parse('notification_choice'),
+        suggestionId: 'choice',
+        reason: '方向不再适合',
+        action: 'abandon',
+        source: 'panel',
+        at: 1,
+        result: reason === 'decision' ? 'succeeded' : 'failed',
+      })
+    if (reason === 'UNKNOWN') {
+      const task = makeTask('task_unknown'),
+        judgment = { verdict: 'UNKNOWN' as const, progress: 'neutral' as const, reasons: ['no-verifier'] }
+      f.store.tasks.insert(task)
+      f.store.runs.insert(
+        RunSchema.parse({
+          run_id: 'run_unknown',
+          taskId: task.id,
+          sessionId: 'test-unknown',
+          worktreePath: 'C:/test',
+          baseCommit: 'test',
+          startedAt: 1,
+        }),
+      )
+      f.store.verifications.insert({
+        id: RunIdSchema.parse('run_unknown'),
+        taskId: task.id,
+        checkpoint: 'test',
+        createdAt: 1,
+        baseline: [],
+        current: [],
+        judgment,
+        decision: decideNext({ judgment, attempts: 0, limits: DEFAULT_LIMITS, stalled: 0, tampered: false }),
+      })
+    }
+    await f.drafts.draftLesson(f.goal.id, 'completed')
+    expect(f.generate).toHaveBeenCalledTimes(1)
+  },
+)
+test('invalid consolidation items do not discard valid siblings or reserve their sources', async () => {
+  const f = await consolidateFixture()
+  const ids = f.store.memories.list().map((m) => m.id)
+  const proposal = (replaces: string[]) => ({ kind: 'fact', text: '合并测试', replaces })
+  f.generate.mockResolvedValue(
+    JSON.stringify({
+      proposals: [
+        proposal(ids.slice(0, 11)),
+        proposal([ids[0]!, 'missing']),
+        proposal([ids[0]!, ids[0]!]),
+        proposal(ids.slice(0, 2)),
+        proposal([ids[1]!, ids[2]!]),
+        proposal(ids.slice(2, 4)),
+      ],
+    }),
+  )
+  expect(await f.drafts.consolidate({ kind: 'personal' })).toEqual({ status: 'pending' })
+  expect(f.drafts.list().map((p) => p.replaces.map((r) => r.id))).toEqual([ids.slice(0, 2), ids.slice(2, 4)])
+  expect(f.log).toHaveBeenCalledTimes(4)
+  expect(f.store.memories.list()).toHaveLength(61)
+  f.store.setNotificationPreferences({ muted: false, maxPerHour: 4 })
+  await f.drafts.deliver()
+  expect(f.inbox.ask.mock.calls[0]![1]).toMatchObject({
+    detail: expect.stringContaining('将合并 2 条，原记录会归档'),
+  })
+})
+test('automatic consolidation remains limited to once per 24 hours even above 60', async () => {
+  const f = await consolidateFixture()
+  await f.drafts.consolidate({ kind: 'personal' }, false)
+  f.drafts.resolve(f.drafts.list()[0]!.id, 'decline')
+  expect(await f.drafts.consolidate({ kind: 'personal' }, false)).toEqual({ status: 'not-due' })
+  expect(f.generate).toHaveBeenCalledTimes(1)
+  f.advance(86400000)
+  await f.drafts.consolidate({ kind: 'personal' }, false)
+  expect(f.generate).toHaveBeenCalledTimes(2)
 })

@@ -82,6 +82,7 @@ export function MemoryProposals({
         h('span', null, ` · ${c[p.memoryKind]}`),
         h('small', null, ` · ${p.scope.kind === 'personal' ? c.personal : memoryScopeKey(p.scope).slice(8)}`),
         h('p', null, p.text),
+        p.replaces.length > 0 && h('p', null, c.mergeSources(p.replaces.length)),
         p.replaces.length > 0 &&
           h(
             'details',

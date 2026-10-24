@@ -1,6 +1,17 @@
 import { z } from 'zod'
 import { MemoryScopeSchema, MemoryKindSchema, MemoryTextSchema } from './index.js'
 import { GoalIdSchema } from '../model/ids.js'
+/** Generation limits do not change the historical proposal storage schema below. */
+export const MAX_CONSOLIDATION_SOURCES = 10
+export const LessonDraftSchema = z.union([
+  z.strictObject({ skip: z.literal(true) }),
+  z.strictObject({ kind: z.enum(['decision', 'constraint']), text: MemoryTextSchema }),
+])
+export const ConsolidationDraftSchema = z.strictObject({
+  kind: MemoryKindSchema,
+  text: MemoryTextSchema,
+  replaces: z.array(z.string()).min(2).max(MAX_CONSOLIDATION_SOURCES),
+})
 /** A draft is never a Memory: expiry and resolution cannot grant execution authority. */
 export const MemoryProposalSchema = z.strictObject({
   id: z.string().min(1).max(128),
