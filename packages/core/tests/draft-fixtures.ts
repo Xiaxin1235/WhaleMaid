@@ -32,6 +32,7 @@ export function confirmed(projectRoot = 'C:\\proj'): ConfirmedGoalForm {
     protectedNames: [...DEFAULT_PROTECTED_NAMES],
     allowedActions: [...DEFAULT_INTAKE_ACTIONS],
     permissionPreset: 'read-only',
+    commandMode: 'confirmed',
     verifyCommands: [],
     limits: { ...DEFAULT_LIMITS },
     limitsExpandedConfirmed: false,

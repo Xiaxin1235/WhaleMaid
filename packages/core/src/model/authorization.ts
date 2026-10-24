@@ -30,25 +30,35 @@ export const ProtectedNamesSchema = z
   .default([...DEFAULT_PROTECTED_NAMES])
 
 export const ScopeHashSchema = z.string().regex(/^[a-f0-9]{64}$/)
-export const ScopeContentSchema = z.strictObject({
-  id: ScopeIdSchema,
-  goalId: GoalIdSchema,
-  allowedPaths: z.array(TextSchema),
-  protectedPaths: z.array(TextSchema),
-  protectedNames: ProtectedNamesSchema,
-  legacyAuthorization: z.literal(true).optional(),
-  allowedActions: z.array(ActionKindSchema),
-  forbiddenActions: z.array(ActionKindSchema),
-  // Commands are exact user-confirmed strings, not whitespace-normalized shell text.
-  verifyCommands: z.array(z.string().min(1)),
-  limits: LimitsSchema.default(DEFAULT_LIMITS),
-  permissionPreset: z.enum(['read-only', 'workspace-write']),
-  supersedes: ScopeIdSchema.optional(),
-  status: z.enum(['active', 'revoked', 'superseded']),
-  grantedAt: TimestampSchema,
-  revokedAt: TimestampSchema.optional(),
-})
-export const AuthorizationScopeSchema = ScopeContentSchema.extend({ hash: ScopeHashSchema })
+export function checkCommandMode(
+  scope: { commandMode: 'confirmed' | 'trusted'; permissionPreset: string },
+  ctx: z.RefinementCtx,
+) {
+  if (scope.commandMode === 'trusted' && scope.permissionPreset !== 'workspace-write')
+    ctx.addIssue({ code: 'custom', path: ['commandMode'], message: 'trusted-requires-workspace-write' })
+}
+export const ScopeContentSchema = z
+  .strictObject({
+    id: ScopeIdSchema,
+    goalId: GoalIdSchema,
+    allowedPaths: z.array(TextSchema),
+    protectedPaths: z.array(TextSchema),
+    protectedNames: ProtectedNamesSchema,
+    legacyAuthorization: z.literal(true).optional(),
+    allowedActions: z.array(ActionKindSchema),
+    forbiddenActions: z.array(ActionKindSchema),
+    // Commands are exact user-confirmed strings, not whitespace-normalized shell text.
+    verifyCommands: z.array(z.string().min(1)),
+    limits: LimitsSchema.default(DEFAULT_LIMITS),
+    permissionPreset: z.enum(['read-only', 'workspace-write']),
+    commandMode: z.enum(['confirmed', 'trusted']).default('confirmed'),
+    supersedes: ScopeIdSchema.optional(),
+    status: z.enum(['active', 'revoked', 'superseded']),
+    grantedAt: TimestampSchema,
+    revokedAt: TimestampSchema.optional(),
+  })
+  .superRefine(checkCommandMode)
+export const AuthorizationScopeSchema = ScopeContentSchema.safeExtend({ hash: ScopeHashSchema })
 export const ScopeSchema = AuthorizationScopeSchema
 export type AuthorizationScope = z.infer<typeof AuthorizationScopeSchema>
 export type ScopeContent = z.infer<typeof ScopeContentSchema>

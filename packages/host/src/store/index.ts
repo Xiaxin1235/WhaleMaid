@@ -461,7 +461,15 @@ export class WhaleStore {
         .run(next.id, next.goalId, next.status, JSON.stringify(next))
       const goal = this.goals.get(next.goalId)
       if (!goal) throw new Error('goal-not-found')
-      this.goals.update({ ...goal, scopeId: next.id, version: goal.version + 1 }, goal.version)
+      this.goals.update(
+        {
+          ...goal,
+          scopeId: next.id,
+          ...(previousInput ? { autopilot: { enabled: false } } : {}),
+          version: goal.version + 1,
+        },
+        goal.version,
+      )
     })
   }
 
@@ -471,7 +479,9 @@ export class WhaleStore {
     const previous = this.scopes.get(row.id)
     if (!previous || previous.status !== 'active' || row.status === 'active')
       throw new Error('scope-inactive')
-    const immutable = AuthorizationScopeSchema.omit({ status: true, revokedAt: true, hash: true })
+    const immutable = z
+      .strictObject(AuthorizationScopeSchema.shape)
+      .omit({ status: true, revokedAt: true, hash: true })
     const content = immutable.parse(
       Object.fromEntries(
         Object.entries(previous).filter(([key]) => !['status', 'revokedAt', 'hash'].includes(key)),

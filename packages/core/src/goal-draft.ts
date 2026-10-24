@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ProtectedNamesSchema, DEFAULT_PROTECTED_NAMES } from './model/authorization.js'
+import { ProtectedNamesSchema, DEFAULT_PROTECTED_NAMES, checkCommandMode } from './model/authorization.js'
 import type { Clock, IdGen, Result } from './infra.js'
 import { GoalIdSchema, TaskIdSchema } from './model/ids.js'
 import { TaskKindSchema } from './model/common.js'
@@ -73,6 +73,8 @@ export const ConfirmedGoalFormSchema = z
     ),
     allowedActions: z.array(IntakeActionSchema).max(8),
     permissionPreset: z.enum(['read-only', 'workspace-write']),
+    commandMode: z.enum(['confirmed', 'trusted']).default('confirmed'),
+    trustedConfirmed: z.literal(true).optional(),
     verifyCommands: z
       .array(
         z
@@ -87,7 +89,14 @@ export const ConfirmedGoalFormSchema = z
     confirm: z.literal(true),
   })
   .superRefine(checkTasks)
+  .superRefine(checkCommandMode)
   .superRefine((form, ctx) => {
+    if (form.commandMode === 'trusted' && !form.trustedConfirmed)
+      ctx.addIssue({
+        code: 'custom',
+        path: ['trustedConfirmed'],
+        message: 'trusted-requires-risk-confirmation',
+      })
     if (
       !form.limitsExpandedConfirmed &&
       Object.entries(form.limits).some(
@@ -193,6 +202,7 @@ export function draftToRecords(
     verifyCommands: form.verifyCommands,
     limits: form.limits,
     permissionPreset: form.permissionPreset,
+    commandMode: form.commandMode,
   }
   return { goal, scopeDraft, tasks: merged.tasks, rejected: merged.rejected }
 }

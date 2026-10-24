@@ -3,6 +3,7 @@ import { GoalIdSchema } from '../model/ids.js'
 import type { ProjectGoal } from '../model/goal.js'
 import type { AuthorizationScope } from '../model/authorization.js'
 import type { Locale } from '../i18n/index.js'
+import { t } from '../i18n/index.js'
 import { redactSecrets } from './redact.js'
 
 export const CompanionNoteSchema = z
@@ -201,6 +202,6 @@ export function describeAction(
   if (action.enabled && g.status !== 'active') return { ok: false, reason: c.invalid }
   return {
     ok: true,
-    detail: `${g.title}\n${c.autopilot}: ${state(g.autopilot.enabled)} → ${state(action.enabled)}\n${c.autoEffect}${action.enabled && scope ? `\n${c.paths}: ${scope.allowedPaths.join(', ')}\n${c.permission}: ${scope.permissionPreset}\n${c.actions}: ${scope.allowedActions.join(', ')}\n${c.protected}: ${scope.protectedPaths.join(', ')}\n${c.commands}: ${scope.verifyCommands.join(', ')}\n${c.quotas}: ${c.runs} ${scope.limits.maxRunsPerDay}, ${c.plans} ${scope.limits.plannerCallsPerDay}` : ''}`,
+    detail: `${g.title}\n${c.autopilot}: ${state(g.autopilot.enabled)} → ${state(action.enabled)}\n${c.autoEffect}${action.enabled && scope ? `\n${c.paths}: ${scope.allowedPaths.join(', ')}\n${c.permission}: ${scope.permissionPreset}\n${t(locale, 'commandMode')}: ${t(locale, scope.commandMode === 'trusted' ? 'commandTrusted' : 'commandConfirmed')}\n${c.actions}: ${scope.allowedActions.join(', ')}\n${c.protected}: ${scope.protectedPaths.join(', ')}\n${c.commands}: ${scope.verifyCommands.join(', ')}\n${c.quotas}: ${c.runs} ${scope.limits.maxRunsPerDay}, ${c.plans} ${scope.limits.plannerCallsPerDay}` : ''}`,
   }
 }

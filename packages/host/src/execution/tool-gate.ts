@@ -1,6 +1,8 @@
 import { realpath, lstat, readdir } from 'node:fs/promises'
 import { dirname, basename, join } from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
+import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval'
+import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ToolExecution, PreToolDecision } from '@deepseek-ai/dsh-tools'
 import {
@@ -40,11 +42,23 @@ export interface GateExecution {
   rootCallId?: unknown
   parent?: unknown
   token?: unknown
+  callId?: unknown
+}
+interface PendingApproval {
+  run: Run
+  exec: GateExecution
+  reason: string
+  category: string
+  commandHash: string
+  requestId?: string
+  outcome?: ApprovalOutcome | 'timeout'
 }
 /** The registry is the only authority for ownership. No argument of unrelated sessions is observed. */
 export class ToolGate {
   private readonly roots = new Map<unknown, string>()
   private readonly tokens = new Map<unknown, string>()
+  private readonly approvals = new Map<string, PendingApproval>()
+  private readonly admitted = new WeakMap<GateExecution, Run>()
   constructor(
     private readonly registry: RunRegistry,
     private readonly locale: () => Locale,
@@ -107,13 +121,18 @@ export class ToolGate {
         this.registry.close(run.sessionId)
         return this.deny(run, exec.name, 'none', 'run-inactive')
       }
+      this.admitted.set(exec, run)
       if (exec.rootCallId) this.roots.set(exec.rootCallId, run.sessionId)
       if (exec.token) this.tokens.set(exec.token, run.sessionId)
       this.registry.store.runs.update({ ...run, toolCalls: run.toolCalls + 1 })
       if (!this.live(run)) return this.deny(run, exec.name, 'none', 'run-inactive')
       const scope = authorizationOfRun(run.runScope!)
-      const mapped = toolCallToIntents(exec.name, exec.arguments, { cwd: run.worktreePath })
+      const mapped = toolCallToIntents(exec.name, exec.arguments, {
+        cwd: run.worktreePath,
+        commandMode: scope.commandMode,
+      })
       if ('unknown' in mapped) return this.deny(run, exec.name, 'unknown', 'unknown-tool-or-arguments')
+      let ask: { intent: Extract<ActionIntent, { type: 'run-command' }>; category: string } | undefined
       for (const intent of mapped.intents) {
         let resolved: ActionIntent = intent
         if ('path' in intent) {
@@ -123,7 +142,9 @@ export class ToolGate {
         } else if (intent.type === 'run-command')
           resolved = { ...intent, cwd: await resolveRealTarget(intent.cwd) }
         const decision = checkAction(scope, resolved)
-        if (decision.decision !== 'allow') return this.deny(run, exec.name, intent.type, decision.ruleId)
+        if (decision.decision === 'ask' && scope.commandMode === 'trusted' && resolved.type === 'run-command')
+          ask = { intent: resolved, category: decision.reason }
+        else if (decision.decision !== 'allow') return this.deny(run, exec.name, intent.type, decision.ruleId)
         // Search tools enumerate directories recursively. Checking only their root could disclose protected descendants.
         if (
           'path' in resolved &&
@@ -133,12 +154,120 @@ export class ToolGate {
           return this.deny(run, exec.name, intent.type, 'protected-search-descendant')
       }
       if (!this.live(run)) return this.deny(run, exec.name, 'none', 'run-inactive')
+      if (ask) {
+        const reason = `whaledot-danger:${randomUUID()}`
+        this.approvals.set(reason, {
+          run,
+          exec,
+          reason,
+          category: ask.category,
+          commandHash: createHash('sha256').update(ask.intent.cmdline).digest('hex'),
+        })
+        const goal = this.registry.store.goals.get(scope.goalId)
+        const values = {
+          command: ask.intent.cmdline,
+          category: ask.category,
+          cwd: ask.intent.cwd,
+          goal: `${goal?.title ?? scope.goalId} (${scope.goalId})`,
+        }
+        return {
+          kind: 'ask',
+          reason,
+          displayReason: {
+            en: t('en', 'dangerApproval', values),
+            'zh-CN': t('zh-CN', 'dangerApproval', values),
+            zh: t('zh-CN', 'dangerApproval', values),
+          },
+        }
+      }
       return next()
     } catch {
       return run
         ? this.deny(run, exec.name, 'unknown', 'gate-error')
         : { kind: 'deny', reason: t(this.locale(), 'gateOutside', { rule: 'gate-error' }) }
     }
+  }
+  /** Observe committed DSH audit events, regardless of which UI answerer claims the waterfall. */
+  approvalEvent(sessionId: string, event: SessionEvent): void {
+    if (event.type === 'approval/asked') {
+      const pending = event.data.reason && this.approvals.get(event.data.reason)
+      if (
+        pending &&
+        pending.exec.agent?.session.id === sessionId &&
+        pending.exec.callId === event.data.callId
+      )
+        pending.requestId = event.data.id
+    } else if (event.type === 'approval/decided') {
+      for (const pending of this.approvals.values()) {
+        if (pending.exec.agent?.session.id !== sessionId || pending.requestId !== event.data.id) continue
+        const current = this.registry.get(pending.run.sessionId)
+        const expired =
+          Date.now() >= pending.run.startedAt + pending.run.runScope!.limits.maxRunMinutes * 60000
+        this.recordApproval(
+          pending,
+          event.data.outcome === 'cancelled' && (expired || current?.reason === 'run-timeout')
+            ? 'timeout'
+            : event.data.outcome,
+        )
+      }
+    }
+  }
+  /** A missing approval service or unobservable audit must remain fail-closed. */
+  result(exec: GateExecution): void {
+    this.admitted.delete(exec)
+    for (const pending of this.approvals.values()) {
+      if (pending.exec.token !== undefined ? pending.exec.token !== exec.token : pending.exec !== exec)
+        continue
+      try {
+        if (!pending.outcome)
+          this.recordApproval(pending, this.live(pending.run) ? 'unavailable' : 'cancelled')
+      } finally {
+        this.approvals.delete(pending.reason)
+      }
+    }
+  }
+  /** Recheck after asynchronous approval, immediately before tool dispatch. */
+  guard(exec: GateExecution): string | undefined {
+    const owner = this.owner(exec),
+      run = this.admitted.get(exec) ?? (owner ? this.registry.get(owner) : undefined)
+    const expired =
+      run?.runScope?.commandMode === 'trusted' &&
+      Date.now() >= run.startedAt + run.runScope.limits.maxRunMinutes * 60000
+    if (run && (!this.live(run) || expired)) {
+      this.deny(run, exec.name, 'run-command', expired ? 'run-timeout' : 'run-inactive')
+      return 'whaledot-run-inactive'
+    }
+    for (const pending of this.approvals.values()) {
+      if (pending.exec.token !== undefined ? pending.exec.token !== exec.token : pending.exec !== exec)
+        continue
+      if (pending.outcome !== 'allowed-once') return 'whaledot-approval-not-granted-or-audited'
+    }
+    return undefined
+  }
+  private recordApproval(pending: PendingApproval, outcome: ApprovalOutcome | 'timeout') {
+    if (pending.outcome) return
+    const summary = JSON.stringify({
+      type: 'danger-approval',
+      category: pending.category,
+      commandHash: pending.commandHash,
+      outcome,
+      at: Date.now(),
+    })
+    this.registry.store.transaction(() => {
+      if (outcome !== 'allowed-once') {
+        const run = this.registry.get(pending.run.sessionId) ?? pending.run
+        this.registry.store.runs.update({ ...run, deniedCalls: run.deniedCalls + 1 })
+      }
+      this.registry.store.evidence.insert({
+        id: EvidenceIdSchema.parse(productionIdGen.next('evidence')),
+        runId: pending.run.run_id,
+        kind: 'log',
+        hash: createHash('sha256').update(summary).digest('hex'),
+        summary,
+        verdict: 'UNKNOWN',
+      })
+    })
+    pending.outcome = outcome
   }
   private live(run: Run): boolean {
     const current = this.registry.get(run.sessionId)
@@ -193,4 +322,13 @@ export class ToolGate {
 /** Install the pre-execution narrowing policy while the tool runtime exists. */
 export function installToolGate(ctx: Context, gate: ToolGate): void {
   ctx.on('tools/pre-execute', (exec: ToolExecution, next) => gate.check(exec, next))
+  ctx.on('session/event', (session, event) => {
+    gate.approvalEvent(session.id, event)
+  })
+  ctx.on('tools/result', (exec) => {
+    gate.result(exec)
+  })
+  ctx.inject(['tools'], (child) => {
+    child.effect(() => child.tools.guard((exec) => gate.guard(exec)))
+  })
 }

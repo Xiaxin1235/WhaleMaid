@@ -145,6 +145,62 @@ export class GoalIntake {
   /** Recheck the exact form values and atomically create goal, grant and initial tasks. */
   async confirm(input: unknown, peer: PeerScope) {
     owner(peer)
+    const form = await this.validateForm(input)
+    owner(peer)
+    const records = draftToRecords(undefined, form, { clock: this.clock, idGen: this.idGen })
+    const result = this.store.transaction(() => {
+      this.store.goals.insert(records.goal)
+      const scope = this.scopes.grant(records.scopeDraft, peer)
+      records.tasks.forEach((task) => this.store.tasks.insert(task))
+      const goal = this.store.goals.get(records.goal.id)!
+      return { goal, scope, rejected: records.rejected }
+    })
+    if (form.draftId) {
+      clearTimeout(this.jobs.get(form.draftId)?.expiry)
+      this.jobs.delete(form.draftId)
+    }
+    return result
+  }
+  /** Reuse P07's exact owner-reviewed authorization form; no companion capability can grant. */
+  async reauthorize(input: unknown, peer: PeerScope) {
+    owner(peer)
+    const request = ConfirmedGoalFormSchema.safeExtend({
+      goalId: GoalIdSchema,
+      scopeHash: z.string().regex(/^[a-f0-9]{64}$/),
+    }).parse(input)
+    const { goalId, scopeHash, ...content } = request
+    const form = await this.validateForm(content)
+    owner(peer)
+    return this.store.transaction(() => {
+      const goal = this.store.goals.get(goalId),
+        previous = this.scopes.activeScopeFor(goalId)
+      if (
+        !goal ||
+        !['active', 'paused'].includes(goal.status) ||
+        goal.projectRoot !== form.projectRoot ||
+        previous?.hash !== scopeHash
+      )
+        throw Error('scope-version-conflict')
+      if (
+        this.store.runs
+          .all()
+          .some((run) => run.status === 'running' && this.store.tasks.get(run.taskId)?.goalId === goalId)
+      )
+        throw Error('goal-running')
+      const records = draftToRecords(undefined, form, { clock: this.clock, idGen: this.idGen })
+      this.scopes.grant(
+        {
+          ...records.scopeDraft,
+          goalId,
+          forbiddenActions: previous.forbiddenActions,
+          supersedes: previous.id,
+        },
+        peer,
+      )
+      return this.detail({ goalId }, peer)
+    })
+  }
+  private async validateForm(input: unknown) {
     const form = ConfirmedGoalFormSchema.parse(input)
     const facts = await this.inspect(form.projectRoot)
     if (facts.projectRoot !== form.projectRoot) throw new Error('project-root-changed')
@@ -169,20 +225,7 @@ export class GoalIntake {
       throw new Error('missing-default-protection')
     if (form.verifyCommands.some((command) => classifyCommand(command).class === 'forbidden'))
       throw new Error('forbidden-verify-command')
-    owner(peer)
-    const records = draftToRecords(undefined, form, { clock: this.clock, idGen: this.idGen })
-    const result = this.store.transaction(() => {
-      this.store.goals.insert(records.goal)
-      const scope = this.scopes.grant(records.scopeDraft, peer)
-      records.tasks.forEach((task) => this.store.tasks.insert(task))
-      const goal = this.store.goals.get(records.goal.id)!
-      return { goal, scope, rejected: records.rejected }
-    })
-    if (form.draftId) {
-      clearTimeout(this.jobs.get(form.draftId)?.expiry)
-      this.jobs.delete(form.draftId)
-    }
-    return result
+    return form
   }
   /** Read persisted goal details and the current grant, including its revoked status. */
   detail(input: unknown, peer: ManagementActor) {

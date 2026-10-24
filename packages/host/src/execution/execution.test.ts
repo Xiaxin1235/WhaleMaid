@@ -11,6 +11,7 @@ import { ScopeService } from '../scope-service.js'
 import { WorktreeManager } from './worktree.js'
 import { TaskExecutor } from './execute-task.js'
 import { ToolGate } from './tool-gate.js'
+import type { SessionEvent } from '@deepseek-ai/dsh-session/types'
 import { dshRunner } from './dsh-runner.js'
 import type { DshRunner, LaunchRequest } from './dsh-runner.js'
 const cleanups: (() => Promise<unknown> | void)[] = []
@@ -18,7 +19,7 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup()
 })
 const owner = { principal: { kind: 'owner' }, signal: new AbortController().signal } as PeerScope
-async function setup(git = true) {
+async function setup(git = true, commandMode: 'confirmed' | 'trusted' = 'confirmed') {
   const dir = await mkdtemp(join(tmpdir(), 'whaledot-execution-'))
   cleanups.push(() => rm(dir, { recursive: true, force: true }))
   const project = join(dir, 'project'),
@@ -52,6 +53,7 @@ async function setup(git = true) {
       forbiddenActions: [],
       verifyCommands: ['pnpm test'],
       permissionPreset: git ? 'workspace-write' : 'read-only',
+      commandMode,
     },
     owner,
   )
@@ -104,8 +106,8 @@ test('gate passes unrelated calls without touching even a throwing argument gett
   expect(await gate.check(exec, next)).toEqual({ kind: 'allow' })
   expect(next).toHaveBeenCalledOnce()
 })
-async function active() {
-  const setupResult = await setup()
+async function active(commandMode: 'confirmed' | 'trusted' = 'confirmed') {
+  const setupResult = await setup(true, commandMode)
   const { executor, store, goal } = setupResult
   const task = makeTask()
   store.tasks.insert(task)
@@ -115,6 +117,154 @@ async function active() {
   const gate = new ToolGate(executor.registry, () => 'zh-CN')
   return { ...setupResult, gate, run, next: vi.fn(async () => ({ kind: 'allow' as const })) }
 }
+
+test.each(['allowed-once', 'rejected', 'unavailable', 'cancelled', 'timeout'] as const)(
+  'trusted danger uses real ask and records %s once',
+  async (answer) => {
+    const { gate, run, store, next } = await active('trusted')
+    const exec = {
+      name: 'pwsh',
+      arguments: { command: 'Remove-Item a.txt', description: 'delete fixture' },
+      agent: { session: { id: run.sessionId } },
+      callId: 'call-danger',
+      token: Symbol(),
+    }
+    const decision = await gate.check(exec, next)
+    expect(decision.kind).toBe('ask')
+    expect(next).not.toHaveBeenCalled()
+    if (decision.kind !== 'ask') return
+    expect(decision.displayReason?.['zh-CN']).toContain('Remove-Item a.txt')
+    expect(decision.displayReason?.en).toContain(run.worktreePath)
+    if (answer === 'timeout')
+      vi.spyOn(Date, 'now').mockReturnValue(run.startedAt + run.runScope!.limits.maxRunMinutes * 60000)
+    const execute = vi.fn()
+    gate.approvalEvent(run.sessionId, {
+      type: 'approval/asked',
+      data: { id: 'approval-1', callId: exec.callId, reason: decision.reason! },
+    } as SessionEvent)
+    const outcome = answer === 'timeout' ? 'cancelled' : answer
+    gate.approvalEvent(run.sessionId, {
+      type: 'approval/decided',
+      data: { id: 'approval-1', outcome },
+    } as SessionEvent)
+    if (outcome === 'allowed-once' && !gate.guard(exec)) execute()
+    vi.restoreAllMocks()
+    expect(execute).toHaveBeenCalledTimes(answer === 'allowed-once' ? 1 : 0)
+    expect(store.runs.get(run.run_id)?.deniedCalls).toBe(answer === 'allowed-once' ? 0 : 1)
+    gate.result(exec)
+    const logs = store.evidence.list(run.run_id).filter((e) => e.summary.includes('danger-approval'))
+    expect(logs).toHaveLength(1)
+    expect(JSON.parse(logs[0]!.summary)).toMatchObject({
+      outcome: answer,
+      category: 'delete',
+      commandHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+    })
+    expect(logs[0]!.summary).not.toContain('Remove-Item a.txt')
+  },
+)
+
+test('closing or replacing authorization while waiting discards late approval; no grant persists', async () => {
+  const { gate, run, executor, store, next } = await active('trusted')
+  const exec = {
+    name: 'pwsh',
+    arguments: { command: 'rm a.txt', description: 'delete' },
+    agent: { session: { id: run.sessionId } },
+    token: Symbol(),
+  }
+  const decision = await gate.check(exec, next)
+  if (decision.kind !== 'ask') throw Error('expected ask')
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/asked',
+    data: { id: 'approval-late', reason: decision.reason! },
+  } as SessionEvent)
+  executor.registry.close(run.sessionId)
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/decided',
+    data: { id: 'approval-late', outcome: 'allowed-once' },
+  } as SessionEvent)
+  expect(gate.guard(exec)).toBe('whaledot-run-inactive')
+  expect(store.runs.get(run.run_id)?.deniedCalls).toBe(1)
+})
+
+test('trusted ordinary commands pass but file/protected targets remain denied; confirmed still denies asks', async () => {
+  const trusted = await active('trusted')
+  const call = (name: string, args: unknown) =>
+    trusted.gate.check(
+      { name, arguments: args, agent: { session: { id: trusted.run.sessionId } } },
+      trusted.next,
+    )
+  expect(await call('pwsh', { command: 'node scripts/gen.mjs', description: 'generate' })).toEqual({
+    kind: 'allow',
+  })
+  expect(await call('pwsh', { command: 'type C:/Windows/win.ini', description: 'outside' })).toMatchObject({
+    kind: 'ask',
+  })
+  expect(await call('read', { file_path: 'C:/Windows/win.ini' })).toMatchObject({ kind: 'deny' })
+  expect(await call('pwsh', { command: 'type .env', description: 'protected' })).toMatchObject({
+    kind: 'deny',
+  })
+  expect(await call('write', { file_path: '.git/config', content: 'x' })).toMatchObject({ kind: 'deny' })
+  const old = await active()
+  expect(
+    await old.gate.check(
+      {
+        name: 'pwsh',
+        arguments: { command: 'node scripts/gen.mjs', description: 'generate' },
+        agent: { session: { id: old.run.sessionId } },
+      },
+      old.next,
+    ),
+  ).toMatchObject({ kind: 'deny' })
+})
+
+test('native approvals cannot dispatch without committed audit or after the run deadline', async () => {
+  const { gate, run, next } = await active('trusted')
+  const exec = {
+    name: 'pwsh',
+    arguments: { command: 'rm a.txt', description: 'delete' },
+    agent: { session: { id: run.sessionId } },
+    token: Symbol(),
+  }
+  const ask = await gate.check(exec, next)
+  if (ask.kind !== 'ask') throw Error('expected ask')
+  expect(gate.guard(exec)).toBe('whaledot-approval-not-granted-or-audited')
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/asked',
+    data: { id: 'deadline-ask', reason: ask.reason },
+  } as SessionEvent)
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/decided',
+    data: { id: 'deadline-ask', outcome: 'allowed-once' },
+  } as SessionEvent)
+  expect(gate.guard(exec)).toBeUndefined()
+  try {
+    vi.spyOn(Date, 'now').mockReturnValue(run.startedAt + run.runScope!.limits.maxRunMinutes * 60000)
+    expect(gate.guard(exec)).toBe('whaledot-run-inactive')
+  } finally {
+    vi.restoreAllMocks()
+  }
+})
+
+test('an admitted nested call retains its stop boundary after ephemeral lineage is cleared', async () => {
+  const { gate, run, next, executor } = await active('trusted')
+  const parent = Symbol(),
+    root = 'root-call'
+  await gate.check(
+    {
+      name: 'read',
+      arguments: { file_path: 'a.txt' },
+      agent: { session: { id: run.sessionId } },
+      token: parent,
+      rootCallId: root,
+    },
+    next,
+  )
+  const child = { name: 'read', arguments: { file_path: 'a.txt' }, parent, rootCallId: root, token: Symbol() }
+  expect(await gate.check(child, next)).toEqual({ kind: 'allow' })
+  executor.registry.close(run.sessionId)
+  expect(gate.trackedEntries()).toBe(0)
+  expect(gate.guard(child)).toBe('whaledot-run-inactive')
+})
 test('gate permits in-scope reads and rejects outside, protected, malformed, ended and revoked calls without recording raw args', async () => {
   const { gate, run, next, store, scopes, scope } = await active()
   const call = (name: string, args: unknown) =>

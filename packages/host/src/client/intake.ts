@@ -78,12 +78,14 @@ export function IntakeView({
   onCancel,
   onCreated,
   initialDraftId,
+  existing,
 }: {
   connection: ConnectionHandle
   locale: Locale
   onCancel(): void
   onCreated(id: string): void
   initialDraftId?: string | undefined
+  existing?: Detail | undefined
 }) {
   const text = (key: MessageKey) => t(locale, key)
   const [description, setDescription] = useState(''),
@@ -95,6 +97,8 @@ export function IntakeView({
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [approving, setApproving] = useState(false)
+  const [riskOpen, setRiskOpen] = useState(false)
+  const [authorizationVersion, setAuthorizationVersion] = useState(existing?.activeScope?.hash)
   function edit(patch: Partial<ConfirmedGoalForm>) {
     setForm((previous) => previous && { ...previous, ...patch })
     setApproving(false)
@@ -123,6 +127,7 @@ export function IntakeView({
       ],
       protectedNames: [...DEFAULT_PROTECTED_NAMES],
       permissionPreset: 'read-only',
+      commandMode: 'confirmed',
       allowedActions: [...DEFAULT_INTAKE_ACTIONS],
       verifyCommands: [],
       limits: { ...DEFAULT_LIMITS },
@@ -139,6 +144,40 @@ export function IntakeView({
       ].map((value) => ({ text: value, selected: false })),
     )
   }
+  useEffect(() => {
+    if (!existing?.activeScope) return
+    const scope = existing.activeScope,
+      goal = existing.goal
+    setAuthorizationVersion(scope.hash)
+    setForm({
+      title: goal.title,
+      objective: goal.objective,
+      expectedOutcome: goal.expectedOutcome,
+      acceptance: goal.acceptance,
+      stopConditions: goal.stopConditions,
+      mode: goal.mode,
+      initialTasks: [{ title: text('taskAnalyze'), kind: 'analyze', dependsOnIndex: [] }],
+      projectRoot: goal.projectRoot,
+      allowedPaths: scope.allowedPaths,
+      protectedPaths: scope.protectedPaths,
+      protectedNames: scope.protectedNames,
+      allowedActions: scope.allowedActions.filter(
+        (action): action is ConfirmedGoalForm['allowedActions'][number] =>
+          IntakeActionSchema.safeParse(action).success,
+      ),
+      permissionPreset: scope.permissionPreset,
+      commandMode: scope.commandMode,
+      ...(scope.commandMode === 'trusted' ? { trustedConfirmed: true as const } : {}),
+      verifyCommands: scope.verifyCommands,
+      limits: scope.limits,
+      limitsExpandedConfirmed: true,
+      confirm: true,
+    })
+    setCommands(scope.verifyCommands.map((command) => ({ text: command, selected: true })))
+    void intakeCall(connection, 'project-facts', { projectRoot: goal.projectRoot })
+      .then((value) => setFacts(ProjectFactsSchema.parse(value)))
+      .catch((error) => setError(String(error)))
+  }, [connection, existing?.goal.id])
   useEffect(() => {
     if (!draftId) return
     const controller = new AbortController()
@@ -209,6 +248,8 @@ export function IntakeView({
         allowedPaths: [next.projectRoot],
         protectedPaths: [pathAt(next.projectRoot, '.git'), pathAt(next.projectRoot, '.env*')],
         permissionPreset: 'read-only',
+        commandMode: 'confirmed',
+        trustedConfirmed: undefined,
       })
       setError('')
     } catch (error) {
@@ -245,8 +286,19 @@ export function IntakeView({
     }
     setBusy(true)
     try {
-      const result = ConfirmResultSchema.parse(await intakeCall(connection, 'confirm-goal', parsed.data))
-      onCreated(result.goal.id)
+      if (existing?.activeScope) {
+        const result = GoalDetailSchema.parse(
+          await intakeCall(connection, 'reauthorize-goal', {
+            ...parsed.data,
+            goalId: existing.goal.id,
+            scopeHash: authorizationVersion,
+          }),
+        )
+        onCreated(result.goal.id)
+      } else {
+        const result = ConfirmResultSchema.parse(await intakeCall(connection, 'confirm-goal', parsed.data))
+        onCreated(result.goal.id)
+      }
     } catch (error) {
       setError(String(error))
       setApproving(false)
@@ -273,7 +325,7 @@ export function IntakeView({
   return h(
     'section',
     { className: 'whaledot-intake' },
-    h('h2', null, text('createGoal')),
+    h('h2', null, text(existing ? 'reauthorizeScope' : 'createGoal')),
     error &&
       h(
         'p',
@@ -323,51 +375,54 @@ export function IntakeView({
               permission: text(form.permissionPreset === 'read-only' ? 'readOnly' : 'workspaceWrite'),
               count: form.limits.maxRunsPerDay,
               commands: selected.join('; ') || text('none'),
+              mode: text(form.commandMode === 'trusted' ? 'commandTrusted' : 'commandConfirmed'),
             }),
           ),
-          approving && h('p', { role: 'alert' }, text('secondConfirmation')),
-          group(
-            'goalInformation',
-            field(text('goalTitle'), form.title, (title) => edit({ title })),
-            field(text('objective'), form.objective, (objective) => edit({ objective }), true),
-            field(
-              text('expectedOutcome'),
-              form.expectedOutcome,
-              (expectedOutcome) => edit({ expectedOutcome }),
-              true,
-            ),
-            field(
-              text('acceptance'),
-              form.acceptance.join('\n'),
-              (value) => edit({ acceptance: lines(value) }),
-              true,
-            ),
-            field(
-              text('stopConditions'),
-              form.stopConditions.join('\n'),
-              (value) => edit({ stopConditions: lines(value) }),
-              true,
-            ),
-            h(
-              'label',
-              null,
-              text('goalMode'),
+          approving &&
+            h('p', { role: 'alert' }, text(existing ? 'secondReauthorization' : 'secondConfirmation')),
+          !existing &&
+            group(
+              'goalInformation',
+              field(text('goalTitle'), form.title, (title) => edit({ title })),
+              field(text('objective'), form.objective, (objective) => edit({ objective }), true),
+              field(
+                text('expectedOutcome'),
+                form.expectedOutcome,
+                (expectedOutcome) => edit({ expectedOutcome }),
+                true,
+              ),
+              field(
+                text('acceptance'),
+                form.acceptance.join('\n'),
+                (value) => edit({ acceptance: lines(value) }),
+                true,
+              ),
+              field(
+                text('stopConditions'),
+                form.stopConditions.join('\n'),
+                (value) => edit({ stopConditions: lines(value) }),
+                true,
+              ),
               h(
-                'select',
-                {
-                  value: form.mode,
-                  onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
-                    edit({ mode: e.target.value as ConfirmedGoalForm['mode'] }),
-                },
-                ...(['suggest', 'autonomous', 'high'] as const).map((mode) =>
-                  h('option', { key: mode, value: mode }, text(mode)),
+                'label',
+                null,
+                text('goalMode'),
+                h(
+                  'select',
+                  {
+                    value: form.mode,
+                    onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
+                      edit({ mode: e.target.value as ConfirmedGoalForm['mode'] }),
+                  },
+                  ...(['suggest', 'autonomous', 'high'] as const).map((mode) =>
+                    h('option', { key: mode, value: mode }, text(mode)),
+                  ),
                 ),
               ),
             ),
-          ),
           group(
             'projectScope',
-            field(text('projectRoot'), form.projectRoot, (projectRoot) => edit({ projectRoot })),
+            !existing && field(text('projectRoot'), form.projectRoot, (projectRoot) => edit({ projectRoot })),
             h(
               'button',
               {
@@ -380,9 +435,11 @@ export function IntakeView({
             h(
               'p',
               null,
-              facts?.isGit
-                ? `${text('gitProject')}: ${facts.branch ?? text('none')}; ${text(facts.clean ? 'cleanWorkspace' : 'dirtyWorkspace')}`
-                : text('nonGitReadOnly'),
+              !facts
+                ? text('loading')
+                : facts.isGit
+                  ? `${text('gitProject')}: ${facts.branch ?? text('none')}; ${text(facts.clean ? 'cleanWorkspace' : 'dirtyWorkspace')}`
+                  : text('nonGitReadOnly'),
             ),
             field(
               text('allowedPaths'),
@@ -415,7 +472,11 @@ export function IntakeView({
                 {
                   value: form.permissionPreset,
                   onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
-                    edit({ permissionPreset: e.target.value as ConfirmedGoalForm['permissionPreset'] }),
+                    edit({
+                      permissionPreset: e.target.value as ConfirmedGoalForm['permissionPreset'],
+                      commandMode: 'confirmed',
+                      trustedConfirmed: undefined,
+                    }),
                 },
                 h('option', { value: 'read-only' }, text('readOnly')),
                 h(
@@ -428,6 +489,37 @@ export function IntakeView({
                 ),
               ),
             ),
+            h(
+              'label',
+              { className: 'whaledot-check' },
+              h('input', {
+                type: 'checkbox',
+                checked: form.commandMode === 'trusted',
+                disabled: form.permissionPreset !== 'workspace-write',
+                onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+                  if (e.target.checked) setRiskOpen(true)
+                  else edit({ commandMode: 'confirmed', trustedConfirmed: undefined })
+                },
+              }),
+              text('enableTrusted'),
+            ),
+            riskOpen &&
+              h(
+                'div',
+                { role: 'dialog', 'aria-label': text('enableTrusted') },
+                h('p', { style: { whiteSpace: 'pre-wrap' } }, text('trustedRisk')),
+                h(
+                  'button',
+                  {
+                    onClick: () => {
+                      edit({ commandMode: 'trusted', trustedConfirmed: true })
+                      setRiskOpen(false)
+                    },
+                  },
+                  text('confirmTrusted'),
+                ),
+                h('button', { onClick: () => setRiskOpen(false) }, text('cancel')),
+              ),
             ...IntakeActionSchema.options.map((action) =>
               h(
                 'label',
@@ -531,111 +623,118 @@ export function IntakeView({
                 text('confirmHigherLimits'),
               ),
           ),
-          group(
-            'initialTasks',
-            ...form.initialTasks.map((task, index) =>
-              h(
-                'div',
-                { key: index, className: 'whaledot-task-editor' },
-                h('strong', null, `${text('task')} ${index + 1}`),
-                field(text('taskTitle'), task.title, (title) =>
-                  edit({
-                    initialTasks: form.initialTasks.map((item, i) =>
-                      i === index ? { ...item, title } : item,
-                    ),
-                  }),
-                ),
+          !existing &&
+            group(
+              'initialTasks',
+              ...form.initialTasks.map((task, index) =>
                 h(
-                  'label',
-                  null,
-                  text('taskKind'),
+                  'div',
+                  { key: index, className: 'whaledot-task-editor' },
+                  h('strong', null, `${text('task')} ${index + 1}`),
+                  field(text('taskTitle'), task.title, (title) =>
+                    edit({
+                      initialTasks: form.initialTasks.map((item, i) =>
+                        i === index ? { ...item, title } : item,
+                      ),
+                    }),
+                  ),
                   h(
-                    'select',
-                    {
-                      value: task.kind,
-                      disabled: index === 0,
-                      onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
-                        edit({
-                          initialTasks: form.initialTasks.map((item, i) =>
-                            i === index ? { ...item, kind: e.target.value as typeof task.kind } : item,
-                          ),
-                        }),
-                    },
-                    ...Object.entries(kinds).map(([kind, key]) =>
-                      h('option', { key: kind, value: kind }, text(key)),
+                    'label',
+                    null,
+                    text('taskKind'),
+                    h(
+                      'select',
+                      {
+                        value: task.kind,
+                        disabled: index === 0,
+                        onChange: (e: React.ChangeEvent<HTMLSelectElement>) =>
+                          edit({
+                            initialTasks: form.initialTasks.map((item, i) =>
+                              i === index ? { ...item, kind: e.target.value as typeof task.kind } : item,
+                            ),
+                          }),
+                      },
+                      ...Object.entries(kinds).map(([kind, key]) =>
+                        h('option', { key: kind, value: kind }, text(key)),
+                      ),
                     ),
                   ),
-                ),
-                field(text('taskDependencies'), task.dependsOnIndex.map((id) => id + 1).join(','), (value) =>
-                  edit({
-                    initialTasks: form.initialTasks.map((item, i) =>
-                      i === index
-                        ? {
-                            ...item,
-                            dependsOnIndex: value.trim()
-                              ? value.split(',').map((id) => Number(id.trim()) - 1)
-                              : [],
-                          }
-                        : item,
-                    ),
-                  }),
-                ),
-                h(
-                  'small',
-                  null,
-                  `${text('taskDependencies')}: ${task.dependsOnIndex.map((id) => `${id + 1}. ${form.initialTasks[id]?.title ?? '?'}`).join(' → ') || text('none')}`,
-                ),
-                h(
-                  'button',
-                  {
-                    disabled: form.initialTasks.length <= 1,
-                    onClick: () =>
+                  field(
+                    text('taskDependencies'),
+                    task.dependsOnIndex.map((id) => id + 1).join(','),
+                    (value) =>
                       edit({
-                        initialTasks: form.initialTasks
-                          .filter((_, i) => i !== index)
-                          .map((item) => ({
-                            ...item,
-                            dependsOnIndex: item.dependsOnIndex
-                              .filter((id) => id !== index)
-                              .map((id) => (id > index ? id - 1 : id)),
-                          })),
+                        initialTasks: form.initialTasks.map((item, i) =>
+                          i === index
+                            ? {
+                                ...item,
+                                dependsOnIndex: value.trim()
+                                  ? value.split(',').map((id) => Number(id.trim()) - 1)
+                                  : [],
+                              }
+                            : item,
+                        ),
                       }),
-                  },
-                  text('removeTask'),
-                ),
-                h(
-                  'button',
-                  {
-                    disabled: index <= 1,
-                    onClick: () => {
-                      const tasks = [...form.initialTasks]
-                      ;[tasks[index - 1], tasks[index]] = [tasks[index]!, tasks[index - 1]!]
-                      edit({
-                        initialTasks: tasks.map((item) => ({
-                          ...item,
-                          dependsOnIndex: item.dependsOnIndex.map((id) =>
-                            id === index ? index - 1 : id === index - 1 ? index : id,
-                          ),
-                        })),
-                      })
+                  ),
+                  h(
+                    'small',
+                    null,
+                    `${text('taskDependencies')}: ${task.dependsOnIndex.map((id) => `${id + 1}. ${form.initialTasks[id]?.title ?? '?'}`).join(' → ') || text('none')}`,
+                  ),
+                  h(
+                    'button',
+                    {
+                      disabled: form.initialTasks.length <= 1,
+                      onClick: () =>
+                        edit({
+                          initialTasks: form.initialTasks
+                            .filter((_, i) => i !== index)
+                            .map((item) => ({
+                              ...item,
+                              dependsOnIndex: item.dependsOnIndex
+                                .filter((id) => id !== index)
+                                .map((id) => (id > index ? id - 1 : id)),
+                            })),
+                        }),
                     },
-                  },
-                  text('moveUp'),
+                    text('removeTask'),
+                  ),
+                  h(
+                    'button',
+                    {
+                      disabled: index <= 1,
+                      onClick: () => {
+                        const tasks = [...form.initialTasks]
+                        ;[tasks[index - 1], tasks[index]] = [tasks[index]!, tasks[index - 1]!]
+                        edit({
+                          initialTasks: tasks.map((item) => ({
+                            ...item,
+                            dependsOnIndex: item.dependsOnIndex.map((id) =>
+                              id === index ? index - 1 : id === index - 1 ? index : id,
+                            ),
+                          })),
+                        })
+                      },
+                    },
+                    text('moveUp'),
+                  ),
                 ),
               ),
+              h(
+                'button',
+                {
+                  disabled: form.initialTasks.length >= 5,
+                  onClick: () =>
+                    edit({
+                      initialTasks: [
+                        ...form.initialTasks,
+                        { title: '', kind: 'analyze', dependsOnIndex: [] },
+                      ],
+                    }),
+                },
+                text('addTask'),
+              ),
             ),
-            h(
-              'button',
-              {
-                disabled: form.initialTasks.length >= 5,
-                onClick: () =>
-                  edit({
-                    initialTasks: [...form.initialTasks, { title: '', kind: 'analyze', dependsOnIndex: [] }],
-                  }),
-              },
-              text('addTask'),
-            ),
-          ),
           preview &&
             preview.rejected.length > 0 &&
             h(
@@ -654,7 +753,7 @@ export function IntakeView({
                 void confirm()
               },
             },
-            text(approving ? 'finalConfirm' : 'confirmAuthorization'),
+            text(approving ? (existing ? 'finalReauthorize' : 'finalConfirm') : 'confirmAuthorization'),
           ),
           approving &&
             h('button', { disabled: busy, onClick: () => setApproving(false) }, text('backToEdit')),
@@ -689,6 +788,7 @@ export function GoalDetailView({
   const [detail, setDetail] = useState<Detail>(),
     [error, setError] = useState(''),
     [saving, setSaving] = useState(false)
+  const [reauthorizing, setReauthorizing] = useState(false)
   const text = (key: MessageKey) => t(locale, key)
   useEffect(() => {
     let disposed = false
@@ -729,6 +829,17 @@ export function GoalDetailView({
     }
   }
   const scope = detail?.scope
+  if (reauthorizing && detail)
+    return h(IntakeView, {
+      connection,
+      locale,
+      existing: detail,
+      onCancel: () => setReauthorizing(false),
+      onCreated: () => {
+        setReauthorizing(false)
+        void write('goal-detail', { goalId })
+      },
+    })
   return h(
     'section',
     { className: 'whaledot-detail' },
@@ -877,6 +988,9 @@ export function GoalDetailView({
                   null,
                   ...Object.entries({
                     [text('permissionPreset')]: scope.permissionPreset,
+                    [text('commandMode')]: text(
+                      scope.commandMode === 'trusted' ? 'commandTrusted' : 'commandConfirmed',
+                    ),
                     [text('allowedPaths')]: scope.allowedPaths.join('\n'),
                     [text('protectedPaths')]: scope.protectedPaths.join('\n'),
                     [text('protectedNamesAll')]: scope.protectedNames.join(', '),
@@ -892,6 +1006,18 @@ export function GoalDetailView({
                       )
                       .join('; '),
                   }).flatMap(([key, value]) => [h('dt', { key: key + 'dt' }, key), h('dd', { key }, value)]),
+                ),
+                h(
+                  'button',
+                  {
+                    disabled:
+                      saving ||
+                      !detail.activeScope ||
+                      !['active', 'paused'].includes(detail.goal.status) ||
+                      detail.runs.some((run) => run.status === 'running'),
+                    onClick: () => setReauthorizing(true),
+                  },
+                  text('reauthorizeScope'),
                 ),
                 h(
                   'button',

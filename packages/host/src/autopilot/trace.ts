@@ -26,6 +26,21 @@ export function exportTrace(store: WhaleStore, goalId: GoalId): { markdown: stri
       evidence: runs.flatMap((run) => store.evidence.list(run.run_id)),
     }),
     section('Checkpoints', store.checkpoints.list(goalId)),
+    section(
+      'Dangerous command approvals (one-shot)',
+      runs.flatMap((run) =>
+        store.evidence.list(run.run_id).flatMap((evidence) => {
+          try {
+            const entry: unknown = JSON.parse(evidence.summary)
+            return entry && typeof entry === 'object' && 'type' in entry && entry.type === 'danger-approval'
+              ? [{ runId: run.run_id, ...entry }]
+              : []
+          } catch {
+            return []
+          }
+        }),
+      ),
+    ),
     section('Decisions and user choices', {
       notifications: store.notifications.list().filter((n) => n.goalId === goalId),
       suggestions: store.suggestions.list().filter((s) => s.bindTo.goalId === goalId),

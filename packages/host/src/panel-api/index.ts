@@ -249,6 +249,9 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
         case 'confirm-goal':
           result = ConfirmResultSchema.parse(await runtime.intake!.confirm(input, peer))
           break
+        case 'reauthorize-goal':
+          result = GoalDetailSchema.parse(await runtime.intake!.reauthorize(input, peer))
+          break
         case 'goal-detail':
           result = GoalDetailSchema.parse(runtime.intake!.detail(input, peer))
           break

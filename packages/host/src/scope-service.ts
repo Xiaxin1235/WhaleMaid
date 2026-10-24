@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PeerScope } from '@deepseek-ai/dsh-client-connection'
-import { ScopeContentSchema, ScopeIdSchema, hashScope } from '@whaledot/core'
+import { ScopeContentSchema, ScopeIdSchema, hashScope, checkCommandMode } from '@whaledot/core'
 import type { AuthorizationScope, Clock, GoalId, IdGen, ScopeHasher, ScopeId } from '@whaledot/core'
 import { WhaleStore, productionClock, productionIdGen, sha256 } from './store/index.js'
 
@@ -11,12 +11,15 @@ declare module '@deepseek-ai/cordis' {
   }
 }
 
-export const ScopeDraftSchema = ScopeContentSchema.omit({
-  id: true,
-  status: true,
-  grantedAt: true,
-  revokedAt: true,
-})
+export const ScopeDraftSchema = z
+  .strictObject(ScopeContentSchema.shape)
+  .omit({
+    id: true,
+    status: true,
+    grantedAt: true,
+    revokedAt: true,
+  })
+  .superRefine(checkCommandMode)
 export type ScopeDraft = z.input<typeof ScopeDraftSchema>
 
 /** Identity comes from admitted Connection peers, never from draft fields. */

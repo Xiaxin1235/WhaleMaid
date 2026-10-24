@@ -2,7 +2,7 @@ import { AuthorizationScopeSchema } from './model/authorization.js'
 import type { AuthorizationScope } from './model/authorization.js'
 import type { TaskKind } from './model/common.js'
 import { normalizeWindowsPath, isWithinPath } from './windows-path.js'
-export const RunScopeSchema = AuthorizationScopeSchema.extend({
+export const RunScopeSchema = AuthorizationScopeSchema.safeExtend({
   originScopeId: AuthorizationScopeSchema.shape.id,
   originScopeHash: AuthorizationScopeSchema.shape.hash,
 })
@@ -35,6 +35,7 @@ export function deriveRunScope(
     protectedPaths: rewrite(scope.protectedPaths),
     protectedNames: [...scope.protectedNames],
     permissionPreset: readonly ? 'read-only' : scope.permissionPreset,
+    commandMode: readonly ? 'confirmed' : scope.commandMode,
     allowedActions: scope.allowedActions.filter((action) => !readonly || action !== 'write-file'),
     originScopeId: scope.id,
     originScopeHash: scope.hash,

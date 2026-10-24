@@ -73,6 +73,22 @@ test('new version supersedes the old grant atomically and preserves all original
     'immutable-scope',
   )
 })
+
+test('reading legacy authorization supplies confirmed without rewriting its JSON or digest', () => {
+  const { service, draft, dir, store } = setup()
+  const scope = service.grant(draft, owner)
+  const legacy = Object.fromEntries(Object.entries(scope).filter(([key]) => key !== 'commandMode'))
+  const bytes = JSON.stringify(legacy)
+  const db = new DatabaseSync(join(dir, 'whaledot.db'))
+  try {
+    db.prepare('UPDATE scopes SET data=? WHERE id=?').run(bytes, scope.id)
+    expect(service.activeScopeFor(scope.goalId)).toMatchObject({ hash: scope.hash, commandMode: 'confirmed' })
+    expect(store.scopes.get(scope.id)?.commandMode).toBe('confirmed')
+    expect(db.prepare('SELECT data FROM scopes WHERE id=?').get(scope.id)?.data).toBe(bytes)
+  } finally {
+    db.close()
+  }
+})
 test('replacement failure rolls back previous status and goal binding', () => {
   const { service, store, draft, dir } = setup()
   const first = service.grant(draft, owner)

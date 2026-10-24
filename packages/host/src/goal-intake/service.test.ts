@@ -200,6 +200,53 @@ test('all new routes deny unauthenticated callers before dispatch', async () => 
       error: { code: 'whaledot/unauthorized' },
     })
 })
+
+test('P07 owner reauthorization replaces hash, disables autopilot, and retains tasks and exact verification commands', async () => {
+  const { project, intake, store } = setup()
+  execFileSync('git', ['init', project], { windowsHide: true })
+  const form = {
+    ...confirmed(project),
+    permissionPreset: 'workspace-write' as const,
+    verifyCommands: ['pnpm test'],
+  }
+  const created = await intake.confirm(form, peer)
+  const goal = store.goals.get(created.goal.id)!
+  store.goals.update({ ...goal, autopilot: { enabled: true }, version: goal.version + 1 }, goal.version)
+  const tasksBefore = store.tasks.list(goal.id)
+  await expect(
+    intake.reauthorize(
+      { ...form, goalId: goal.id, scopeHash: created.scope.hash, commandMode: 'trusted' },
+      peer,
+    ),
+  ).rejects.toThrow('trusted-requires-risk-confirmation')
+  const result = await intake.reauthorize(
+    {
+      ...form,
+      goalId: goal.id,
+      scopeHash: created.scope.hash,
+      commandMode: 'trusted',
+      trustedConfirmed: true,
+    },
+    peer,
+  )
+  expect(result.scope?.commandMode).toBe('trusted')
+  expect(result.scope?.hash).not.toBe(created.scope.hash)
+  expect(result.scope?.verifyCommands).toEqual(['pnpm test'])
+  expect(result.goal.autopilot.enabled).toBe(false)
+  expect(store.tasks.list(goal.id)).toEqual(tasksBefore)
+  await expect(
+    intake.reauthorize({ ...form, goalId: goal.id, scopeHash: created.scope.hash }, peer),
+  ).rejects.toThrow('scope-version-conflict')
+  await expect(
+    intake.reauthorize({ ...form, goalId: goal.id, scopeHash: result.scope!.hash }, {
+      ...peer,
+      principal: { kind: 'companion' },
+    } as unknown as PeerScope),
+  ).rejects.toThrow('owner')
+  const back = await intake.reauthorize({ ...form, goalId: goal.id, scopeHash: result.scope!.hash }, peer)
+  expect(back.scope?.commandMode).toBe('confirmed')
+  expect(back.goal.autopilot.enabled).toBe(false)
+})
 test('DSH adapter sends one empty-tools request, requires terminal success and supports missing-model fallback', async () => {
   const options: unknown[] = []
   const ctx = {

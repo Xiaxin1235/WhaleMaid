@@ -124,6 +124,7 @@ export const PANEL_METHODS = [
   'cancel-draft',
   'project-facts',
   'confirm-goal',
+  'reauthorize-goal',
   'goal-detail',
   'set-goal-paused',
   'companion-rebuild',

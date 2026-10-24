@@ -67,7 +67,7 @@ export function resolveToolPath(cwd: string, path: string): string | null {
 export function toolCallToIntents(
   name: string,
   args: unknown,
-  ctx: { cwd: string },
+  ctx: { cwd: string; commandMode?: 'confirmed' | 'trusted' },
 ): { intents: ActionIntent[] } | { unknown: true } {
   const unknown = { unknown: true } as const
   const pathIntent = (path: string, write = false): { intents: ActionIntent[] } | { unknown: true } => {
@@ -164,7 +164,8 @@ export function toolCallToIntents(
       if (!cwd) return unknown
       const intents: ActionIntent[] = [{ type: 'run-command', cmdline: p.data.command, cwd }]
       const read = readOnlyCommandPaths(p.data.command, cwd)
-      if ('paths' in read) for (const path of read.paths) intents.push({ type: 'read-file', path })
+      if (ctx.commandMode !== 'trusted' && 'paths' in read)
+        for (const path of read.paths) intents.push({ type: 'read-file', path })
       return { intents }
     }
     case 'web_fetch': {

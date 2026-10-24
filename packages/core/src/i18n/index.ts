@@ -2,6 +2,19 @@ export type Locale = 'zh-CN' | 'en'
 export type LanguageSetting = 'auto' | Locale
 
 export const en = {
+  commandMode: 'Command mode',
+  commandTrusted: 'Trusted',
+  commandConfirmed: 'Confirmed individually',
+  enableTrusted: 'Trusted command execution',
+  confirmTrusted: 'I understand the risks; enable trusted execution',
+  reauthorizeScope: 'Review and replace authorization',
+  finalReauthorize: 'Replace authorization and turn off autopilot',
+  secondReauthorization:
+    'Review these exact values, then confirm replacement. Autopilot will be turned off and must be confirmed again for this new authorization.',
+  dangerApproval:
+    'One-time dangerous command approval\nCommand: {command}\nCategory: {category}\nWorking directory: {cwd}\nGoal: {goal}\nNo answer means no execution. Allow once only.',
+  trustedRisk:
+    'Arbitrary commands in trusted mode can read or write files outside the authorized directories. WhaleDot cannot see what a script such as node build.js does. Path boundaries apply only to file tools and recognizable command text.\nDanger detection uses command text and is best effort. Deletion inside scripts, encoded commands or indirect calls may evade detection.\nThe three main fallbacks are execution in an independent worktree, WhaleDot checkpoints and rollback, and asking every time for dangerous commands outside the authorized directories. These do not provide filesystem isolation for arbitrary scripts.',
   reasonReport: 'Report only',
   reasonTampering: 'Acceptance machinery changed',
   reasonRegression: 'Verification regressed',
@@ -95,7 +108,7 @@ export const en = {
   autopilotStart: 'Start autopilot',
   autopilotStop: 'Stop autopilot',
   autopilotConfirm:
-    'Automatically execute in {path} with {preset}, at most {runs} runs and {plans} planner calls per day. You can stop at any time. Start?',
+    'Automatically execute in {path} with {preset}. Command mode: {mode}. At most {runs} runs and {plans} planner calls per day. You can stop at any time. Start?',
   autopilotRunning: 'Running · {task}',
   autopilotWaiting: 'Waiting for your decision',
   autopilotBudget: 'Daily quota used (continues tomorrow)',
@@ -225,7 +238,7 @@ export const en = {
   rejectedTasks: 'Proposals excluded by task validation',
   invalidForm: 'Complete required fields and check dependencies and limits before confirming.',
   authorizationSummary:
-    'WhaleDot will advance work within {path} with {permission} permissions, at most {count} runs per day. These commands may run automatically: {commands}',
+    'WhaleDot will advance work within {path} with {permission} permissions, at most {count} runs per day. Command mode: {mode}. Confirmed verification commands: {commands}',
   none: 'None',
   confirmAuthorization: 'Confirm and authorize',
   secondConfirmation:
@@ -273,6 +286,18 @@ export const en = {
 
 export type MessageKey = keyof typeof en
 export const zhCN: Record<MessageKey, string> = {
+  commandMode: '命令模式',
+  commandTrusted: '高权限',
+  commandConfirmed: '逐条确认',
+  enableTrusted: '高权限执行',
+  confirmTrusted: '已理解风险，开启高权限执行',
+  reauthorizeScope: '重新确认授权',
+  finalReauthorize: '替换授权并关闭自动推进',
+  secondReauthorization: '请检查本页实际值，再次确认替换授权。自动推进将关闭，需针对新授权重新确认。',
+  dangerApproval:
+    '危险命令单次审批\n命令：{command}\n危险类别：{category}\n工作目录：{cwd}\n所属目标：{goal}\n不回答就不执行；只允许一次。',
+  trustedRisk:
+    '高权限模式下，任意命令可以读写授权目录以外的文件。例如 node build.js 里的脚本做什么，WhaleDot 看不到。路径限制只对文件工具和能识别的命令文字有效。\n危险操作按命令文字识别，只能尽力而为。脚本内部、编码命令、间接调用里的删除可能识别不出来。\n主要兜底手段有三个：任务在独立 worktree 里执行；WhaleDot 的检查点和回滚；授权目录以外的危险命令一律询问。这些手段不能为任意脚本提供文件系统隔离。',
   reasonReport: '仅报告验收',
   reasonTampering: '验收机制被修改',
   reasonRegression: '验收发生回归',
@@ -366,7 +391,7 @@ export const zhCN: Record<MessageKey, string> = {
   autopilotStart: '开始自主推进',
   autopilotStop: '停止自主推进',
   autopilotConfirm:
-    '将在 {path} 内以 {preset} 自动执行，每天最多 {runs} 次任务、{plans} 次规划，可随时停止。是否开始？',
+    '将在 {path} 内以 {preset} 自动执行，命令模式：{mode}，每天最多 {runs} 次任务、{plans} 次规划，可随时停止。是否开始？',
   autopilotRunning: '运行中 · {task}',
   autopilotWaiting: '等待你决定',
   autopilotBudget: '今日额度已用完（明天继续）',
@@ -495,7 +520,7 @@ export const zhCN: Record<MessageKey, string> = {
   rejectedTasks: '被任务校验排除的提议',
   invalidForm: '请填写必填字段，并检查任务依赖和执行限制后再确认。',
   authorizationSummary:
-    'WhaleDot 将在 {path} 内以 {permission} 权限推进，每天最多运行 {count} 次。以下命令可能会自动运行：{commands}',
+    'WhaleDot 将在 {path} 内以 {permission} 权限推进，每天最多运行 {count} 次。命令模式：{mode}。已确认的精确验收命令：{commands}',
   none: '无',
   confirmAuthorization: '确认并授权',
   secondConfirmation: '请检查以下实际值，再点击一次以创建目标并授予本页授权。',

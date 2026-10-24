@@ -5,6 +5,7 @@ import { AuthorizationScopeSchema, ScopeContentSchema, ScopeHashSchema } from '.
 import type { AuthorizationScope, ScopeContent } from './model/authorization.js'
 import { readOnlyCommandPaths } from './read-only-command.js'
 import { isWithinPath, normalizeWindowsPath } from './windows-path.js'
+import { inspectTrustedCommand } from './trusted-command.js'
 
 export type ScopeHashError = { code: 'invalid-scope-content' | 'invalid-scope-path' }
 
@@ -45,6 +46,8 @@ export function canonicalScopeContent(scope: ScopeContent): Result<string, Scope
     ok: true,
     value: stableJson({
       ...parsed.data,
+      // Confirmed is the legacy meaning of an absent field. Preserve existing digests and bytes.
+      commandMode: parsed.data.commandMode === 'confirmed' ? undefined : parsed.data.commandMode,
       // Omit the newly introduced default so old authorization and run digests stay stable.
       limits: Object.fromEntries(
         Object.entries(parsed.data.limits).filter(
@@ -112,8 +115,23 @@ export interface CommandClass {
 
 const LOCAL_TEST_COMMAND = /^(?:pnpm|npm)\s+(?:test|run\s+(?:test|build|lint|typecheck))(?:\s+--run)?$/i
 
-/** Classify known hazards; only a small literal allowlist is safe and all unknown shell syntax asks. */
-export function classifyCommand(cmdline: string, cwd = 'C:/'): CommandClass {
+/** Confirmed uses the original literal allowlist; trusted uses best-effort textual hazard checks. */
+export function classifyCommand(cmdline: string, cwd = 'C:/', scope?: AuthorizationScope): CommandClass {
+  if (scope?.commandMode === 'trusted') {
+    const legacy = classifyCommand(cmdline, cwd)
+    if (legacy.reasons.includes('system-configuration') || legacy.reasons.includes('invalid-command'))
+      return { class: 'forbidden', reasons: legacy.reasons }
+    const inspection = inspectTrustedCommand(cmdline, cwd, scope)
+    const reasons = [
+      ...new Set([
+        ...legacy.reasons.filter(
+          (reason) => !['unrecognized-command', 'compound-or-dynamic-command'].includes(reason),
+        ),
+        ...inspection.reasons,
+      ]),
+    ]
+    return { class: reasons.length ? 'needs-approval' : 'safe', reasons }
+  }
   const line = cmdline.trim()
   if (line.length === 0 || [...line].some((char) => char.charCodeAt(0) < 32 && !'\t\r\n'.includes(char))) {
     return { class: 'forbidden', reasons: ['invalid-command'] }
@@ -206,9 +224,24 @@ export function checkAction(scope: AuthorizationScope, action: ActionIntent): Ga
     case 'run-command': {
       if (!isPathAllowed(scope, action.cwd))
         return decision('deny', 'path-outside-scope', 'Command working directory is not authorized')
-      const command = classifyCommand(action.cmdline, action.cwd)
+      const command = classifyCommand(action.cmdline, action.cwd, scope)
       if (command.class === 'forbidden')
         return decision('deny', 'command-forbidden', command.reasons.join(', '))
+      if (scope.commandMode === 'trusted') {
+        const { paths, protectedPattern } = inspectTrustedCommand(action.cmdline, action.cwd, scope)
+        if (
+          protectedPattern ||
+          paths.some((path) => !isPathAllowed({ ...scope, allowedPaths: [path.slice(0, 3)] }, path))
+        )
+          return decision(
+            'deny',
+            'protected-command-path',
+            'Command text targets a protected or ambiguous path',
+          )
+        return command.class === 'needs-approval'
+          ? decision('ask', 'trusted-command-approval', command.reasons.join(', '))
+          : decision('allow', 'trusted-command-allowed', 'Ordinary command under trusted authorization')
+      }
       const read = readOnlyCommandPaths(action.cmdline, action.cwd)
       if ('paths' in read && read.paths.some((path) => !isPathAllowed(scope, path)))
         return decision('deny', 'path-outside-scope', 'Read command target is outside authorization')

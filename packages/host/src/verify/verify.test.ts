@@ -30,6 +30,7 @@ async function setup(
     state?: TaskState
     limits?: Partial<Limits>
     tamper?: boolean
+    commandMode?: 'confirmed' | 'trusted'
   } = {},
 ) {
   const dir = await mkdtemp(join(tmpdir(), 'whaledot-verify-'))
@@ -68,6 +69,7 @@ async function setup(
       forbiddenActions: [],
       verifyCommands: options.commands ?? ['node verify.mjs'],
       permissionPreset: 'workspace-write',
+      commandMode: options.commandMode ?? 'confirmed',
       limits: { ...DEFAULT_LIMITS, ...options.limits },
     },
     owner,
@@ -169,6 +171,15 @@ test('report-only tasks need a real nonempty final response and no writes', asyn
     reasons: ['report-only'],
   })
   expect(f.store.tasks.get(f.task.id)?.state).toBe('SUCCEEDED')
+})
+
+test('trusted mode does not discover or expand independent verification commands', async () => {
+  const f = await setup({ commandMode: 'trusted', after: 'good' })
+  const command = vi.spyOn(f.verifier.runner, 'command')
+  const report = await f.verifier.verifyTask(f.task.id)
+  expect(report.judgment.verdict).toBe('PASS')
+  expect(command.mock.calls.map((args) => args[1])).toEqual(['node verify.mjs', 'node verify.mjs'])
+  expect(f.run.runScope?.verifyCommands).toEqual(['node verify.mjs'])
 })
 test('tampering never executes acceptance code or automatically retries; choices are persisted, bound and single-use', async () => {
   const f = await setup({ after: 'good', tamper: true })

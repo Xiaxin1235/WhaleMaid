@@ -63,6 +63,7 @@ export function AutopilotView({
           text('autopilotConfirm', {
             path: goal.projectRoot,
             preset: scope.permissionPreset,
+            mode: text(scope.commandMode === 'trusted' ? 'commandTrusted' : 'commandConfirmed'),
             runs: scope.limits.maxRunsPerDay,
             plans: scope.limits.plannerCallsPerDay,
           }),
