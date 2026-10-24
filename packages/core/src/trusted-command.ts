@@ -5,6 +5,14 @@ import type { CommandWord } from './trusted-command-parser.js'
 
 /** Intersection of simple globs, so visible shell globs cannot bypass protected names. */
 function overlap(a: string, b: string): boolean {
+  // A single star cannot cross a directory separator; globstar can.
+  const left = a.match(/\*\*|./gu) ?? [],
+    right = b.match(/\*\*|./gu) ?? []
+  const repeat = (token: string | undefined) => token === '*' || token === '**'
+  const wildcard = (token: string) => repeat(token) || token === '?'
+  const compatible = (x: string, y: string) =>
+    (wildcard(x) && wildcard(y)) ||
+    (wildcard(x) ? y !== '\\' || x === '**' : wildcard(y) ? x !== '\\' || y === '**' : x === y)
   const queue: [number, number][] = [[0, 0]],
     seen = new Set<string>()
   while (queue.length) {
@@ -12,15 +20,13 @@ function overlap(a: string, b: string): boolean {
       key = `${i}:${j}`
     if (seen.has(key)) continue
     seen.add(key)
-    if (i === a.length && j === b.length) return true
-    if (a[i] === '*') queue.push([i + 1, j])
-    if (b[j] === '*') queue.push([i, j + 1])
-    if (
-      i < a.length &&
-      j < b.length &&
-      (a[i] === '*' || b[j] === '*' || a[i] === '?' || b[j] === '?' || a[i] === b[j])
-    )
-      queue.push([a[i] === '*' ? i : i + 1, b[j] === '*' ? j : j + 1])
+    if (i === left.length && j === right.length) return true
+    if (repeat(left[i])) queue.push([i + 1, j])
+    if (repeat(right[j])) queue.push([i, j + 1])
+    if (left[i] === '**' && left[i + 1] === '\\') queue.push([i + 2, j])
+    if (right[j] === '**' && right[j + 1] === '\\') queue.push([i, j + 2])
+    if (i < left.length && j < right.length && compatible(left[i]!, right[j]!))
+      queue.push([repeat(left[i]) ? i : i + 1, repeat(right[j]) ? j : j + 1])
   }
   return false
 }
@@ -54,6 +60,14 @@ function inspectPaths(words: CommandWord[], cwd: string, scope: AuthorizationSco
   const result = empty(),
     base = normalizeWindowsPath(cwd)!
   const roots = scope.allowedPaths.map(normalizeWindowsPath)
+  const target = words[0]?.value === '&' || words[0]?.value === '.' ? words[1] : words[0]
+  const executable = programName(target?.value ?? '')
+  const commandOptions =
+    executable === 'schtasks'
+      ? ['query', 'create', 'change', 'delete', 'run', 'tn', 'tr']
+      : executable === 'taskkill'
+        ? ['im', 'pid', 'fi']
+        : []
   for (const word of words) {
     const candidate = word.value.replace(/^[-/][\w-]+[=:]/, '')
     if (unresolved(candidate)) {
@@ -77,7 +91,7 @@ function inspectPaths(words: CommandWord[], cwd: string, scope: AuthorizationSco
             .some((part) => scope.protectedNames.some((name) => overlap(part, name.toLowerCase()))) ||
           scope.protectedPaths.some((root) => {
             const value = root.replaceAll('/', '\\').toLowerCase()
-            return overlap(pattern, value) || overlap(pattern, `${value}\\*`)
+            return overlap(pattern, value) || overlap(pattern, `${value}\\**`)
           })
       }
     }
@@ -95,7 +109,13 @@ function inspectPaths(words: CommandWord[], cwd: string, scope: AuthorizationSco
       /^\/(?:[a-z]|mir|purge|wait|min|max|grant(?::r)?|deny|remove(?::[gd])?|setowner|reset|verify|save|restore)(?::.*)?$/i.test(
         candidate,
       )
-    if (/^[a-z]:$/i.test(candidate) || (/^[\\/]/.test(candidate) && !absolute && !slashOption))
+    if (
+      /^[a-z]:$/i.test(candidate) ||
+      (/^[\\/]/.test(candidate) &&
+        !absolute &&
+        !slashOption &&
+        !commandOptions.includes(candidate.slice(1).toLowerCase()))
+    )
       result.reasons.push('ambiguous-command-path')
   }
   return result
@@ -228,6 +248,8 @@ export function inspectTrustedCommand(
       return result
     }
     if (['pnpm', 'npm', 'yarn'].includes(executable)) {
+      if (/^(?:--?\S+\s+)*(?:uninstall|remove|rm|un)(?:\s|$)/.test(lower.join(' ')))
+        result.reasons.push('package-install')
       if (['exec', 'dlx'].includes(lower[0] ?? '')) {
         packageTail(1)
         return result
@@ -313,6 +335,23 @@ export function inspectTrustedCommand(
       }
       return result
     }
+    if (executable === 'forfiles') {
+      let body: CommandWord | undefined
+      for (let i = 0; i < args.length; i++) {
+        const flag = lower[i]!
+        if (['/c', '-c'].includes(flag) && !body && args[i + 1]) body = args[++i]
+        else if (
+          ['/m', '-m', '/p', '-p', '/d', '-d'].includes(flag) &&
+          args[i + 1] &&
+          !/^[-/][a-z]$/i.test(args[i + 1]!.value)
+        )
+          i++
+        else if (!['/s', '-s'].includes(flag)) unparsed()
+      }
+      if (body) merge(result, inspectScript(body.value, depth + 1))
+      else unparsed()
+      return result
+    }
     if (['powershell', 'pwsh'].includes(executable)) {
       const commandAt = lower.findIndex((word) => parameter(word, 'command'))
       const encoded = lower.some((word) => parameter(word, 'encodedcommand'))
@@ -351,12 +390,32 @@ export function inspectTrustedCommand(
     )
       result.reasons.push('dynamic-execution')
     if (
-      ['format', 'diskpart', 'fsutil', 'bcdedit', 'vssadmin', 'wbadmin', 'takeown'].includes(executable) ||
+      [
+        'format',
+        'diskpart',
+        'fsutil',
+        'bcdedit',
+        'vssadmin',
+        'wbadmin',
+        'takeown',
+        'rundll32',
+        'regsvr32',
+        'shutdown',
+        'restart-computer',
+        'stop-computer',
+        'register-scheduledtask',
+        'unregister-scheduledtask',
+        'mshta',
+      ].includes(executable) ||
+      (executable === 'schtasks' && lower.some((word) => /^\/(?:create|change|delete|run)$/.test(word))) ||
+      (executable === 'wmic' && lower.some((word) => ['call', 'create', 'set', 'delete'].includes(word))) ||
       (executable === 'cipher' && lower.some((word) => /^\/w(?::|$)/.test(word))) ||
       (executable === 'icacls' &&
         lower.some((word) => /^\/(?:grant|deny|remove|setowner|reset)(?::|$)/.test(word)))
     )
       result.reasons.push('system-configuration')
+    if (['taskkill', 'stop-process', 'kill', 'spps', 'tskill'].includes(executable))
+      result.reasons.push('process-control')
     const deletion = executable.replace(/@[^@]+$/, '')
     if (
       [
@@ -380,15 +439,25 @@ export function inspectTrustedCommand(
       (executable === 'robocopy' && lower.some((word) => /^\/(?:mir|purge)$/.test(word)))
     )
       result.reasons.push('delete')
+    if (['del', 'erase', 'rd', 'rmdir'].includes(executable) && lower.includes('/s'))
+      result.reasons.push('recursive-delete')
     if (executable === 'git') {
       const sub = lower.find((word) =>
-        ['clean', 'rm', 'checkout', 'restore', 'stash', 'branch'].includes(word),
+        ['clean', 'rm', 'checkout', 'restore', 'stash', 'branch', 'switch'].includes(word),
       )
       if (
         sub === 'clean' ||
         sub === 'rm' ||
-        (sub === 'checkout' && lower.includes('--') && lower.includes('.')) ||
-        (sub === 'restore' && !lower.includes('--staged')) ||
+        (sub === 'checkout' &&
+          (lower.includes('.') ||
+            lower.includes('-f') ||
+            lower.includes('--force') ||
+            (lower.indexOf('--') >= 0 && lower.indexOf('--') < lower.length - 1))) ||
+        (sub === 'switch' && lower.some((word) => ['-f', '--force', '--discard-changes'].includes(word))) ||
+        (sub === 'restore' &&
+          (!lower.includes('--staged') ||
+            lower.includes('--worktree') ||
+            args.some((word) => word.value === '-W'))) ||
         (sub === 'stash' && lower.some((word) => word === 'drop' || word === 'clear')) ||
         (sub === 'branch' && args.some((word) => word.value === '-D'))
       )
