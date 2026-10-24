@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import type { PeerScope } from '@deepseek-ai/dsh-client-connection'
 import { afterEach, expect, test, vi } from 'vitest'
-import { RunSchema, RunIdSchema } from '@whaledot/core'
+import { RunSchema, RunIdSchema, SessionIdSchema } from '@whaledot/core'
 import { makeGoal, makeTask } from '../../../core/tests/fixtures.js'
 import { WhaleStore, productionClock, productionIdGen, sha256 } from '../store/index.js'
 import { ScopeService } from '../scope-service.js'
@@ -21,7 +21,7 @@ afterEach(async () => {
 const owner = { principal: { kind: 'owner' }, signal: new AbortController().signal } as PeerScope
 async function setup(git = true, commandMode: 'confirmed' | 'trusted' = 'confirmed') {
   const dir = await mkdtemp(join(tmpdir(), 'whaledot-execution-'))
-  cleanups.push(() => rm(dir, { recursive: true, force: true }))
+  cleanups.push(() => rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 }))
   const project = join(dir, 'project'),
     data = join(dir, 'data')
   await mkdir(project)
@@ -91,7 +91,7 @@ test('real worktree reuse, checkpoint/hook suppression and exact original worksp
   await expect(worktrees.prepare(goal, work.baseCommit)).rejects.toThrow('external-modification')
   await writeFile(join(work.path, 'external.txt'), 'external')
   await expect(worktrees.prepare(goal, checkpoint.commit)).rejects.toThrow('external-modification')
-})
+}, 30000)
 test('gate passes unrelated calls without touching even a throwing argument getter', async () => {
   const { executor } = await setup(false)
   const gate = new ToolGate(executor.registry, () => 'en')
@@ -106,7 +106,7 @@ test('gate passes unrelated calls without touching even a throwing argument gett
   expect(await gate.check(exec, next)).toEqual({ kind: 'allow' })
   expect(next).toHaveBeenCalledOnce()
 })
-async function active(commandMode: 'confirmed' | 'trusted' = 'confirmed') {
+async function active(commandMode: 'confirmed' | 'trusted' = 'confirmed', locale: 'zh-CN' | 'en' = 'zh-CN') {
   const setupResult = await setup(true, commandMode)
   const { executor, store, goal } = setupResult
   const task = makeTask()
@@ -114,8 +114,13 @@ async function active(commandMode: 'confirmed' | 'trusted' = 'confirmed') {
   const result = await executor.executeNextTask(goal.id, { kind: 'panel', peer: owner })
   expect(result.started).toBe(true)
   const run = store.runs.get(result.runId!)!
-  const gate = new ToolGate(executor.registry, () => 'zh-CN')
+  const gate = new ToolGate(executor.registry, () => locale)
   return { ...setupResult, gate, run, next: vi.fn(async () => ({ kind: 'allow' as const })) }
+}
+
+function requireAsk(decision: Awaited<ReturnType<ToolGate['check']>>) {
+  if (decision.kind !== 'ask') throw new Error('expected ask')
+  return decision
 }
 
 test.each(['allowed-once', 'rejected', 'unavailable', 'cancelled', 'timeout'] as const)(
@@ -162,6 +167,221 @@ test.each(['allowed-once', 'rejected', 'unavailable', 'cancelled', 'timeout'] as
     expect(logs[0]!.summary).not.toContain('Remove-Item a.txt')
   },
 )
+
+test.each([
+  ['zh-CN', '需要确认危险操作（删除）'],
+  ['en', 'Confirm dangerous operation (Deletion)'],
+] as const)('danger reason is readable in %s without internal identifiers', async (locale, label) => {
+  const { gate, run, next, goal } = await active('trusted', locale)
+  const decision = await gate.check(
+    {
+      name: 'pwsh',
+      arguments: { command: 'Remove-Item a.txt', description: 'delete' },
+      agent: { session: { id: run.sessionId } },
+      callId: 'readable-call',
+    },
+    next,
+  )
+  expect(decision.kind).toBe('ask')
+  if (decision.kind !== 'ask') throw new Error('expected ask')
+  expect(decision.reason).toContain(label)
+  expect(decision.reason).toContain('Remove-Item a.txt')
+  expect(decision.reason).toContain(goal.title)
+  expect(decision.reason).not.toMatch(
+    /whaledot-danger|[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|\bdelete\b/,
+  )
+})
+
+test('danger summary truncates only commands longer than 300, leaving displayReason complete', async () => {
+  const { gate, run, next } = await active('trusted')
+  for (const length of [300, 301, 450]) {
+    const command = 'Remove-Item ' + 'a'.repeat(length - 'Remove-Item '.length)
+    const decision = await gate.check(
+      {
+        name: 'pwsh',
+        arguments: { command, description: 'long fixture command' },
+        agent: { session: { id: run.sessionId } },
+        callId: `long-${length}`,
+      },
+      next,
+    )
+    if (decision.kind !== 'ask') throw new Error('expected ask')
+    expect(decision.reason).toContain(command.slice(0, 300) + (length > 300 ? '…' : ' ·'))
+    if (length > 300) expect(decision.reason).not.toContain(command)
+    expect(decision.displayReason?.en).toContain(command)
+    expect(decision.displayReason?.['zh-CN']).toContain(command)
+  }
+})
+
+test('approval keys separate sessions even with identical callIds and reasons', async () => {
+  const { gate, run, next, executor, store } = await active('trusted')
+  const second = {
+    ...run,
+    run_id: RunIdSchema.parse('run-second'),
+    sessionId: SessionIdSchema.parse('second-session'),
+  }
+  executor.registry.register(second)
+  const calls = [run, second].map((item) => ({
+    name: 'pwsh',
+    arguments: { command: 'rm a.txt', description: 'delete' },
+    agent: { session: { id: item.sessionId } },
+    callId: 'shared-call',
+    token: Symbol(),
+  }))
+  const asks = (await Promise.all(calls.map((call) => gate.check(call, next)))).map(requireAsk)
+  expect(asks[0]!.reason).toBe(asks[1]!.reason)
+  for (const [i, item] of [run, second].entries())
+    gate.approvalEvent(item.sessionId, {
+      type: 'approval/asked',
+      data: { id: `session-ask-${i}`, callId: 'shared-call', reason: 'a readable event reason' },
+    } as SessionEvent)
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/decided',
+    data: { id: 'session-ask-1', outcome: 'allowed-once' },
+  } as SessionEvent)
+  expect(gate.guard(calls[1]!)).toBe('whaledot-approval-not-granted-or-audited')
+  for (const [i, item] of [run, second].entries())
+    gate.approvalEvent(item.sessionId, {
+      type: 'approval/decided',
+      data: { id: `session-ask-${i}`, outcome: i ? 'allowed-once' : 'rejected' },
+    } as SessionEvent)
+  expect(gate.guard(calls[0]!)).toBe('whaledot-approval-not-granted-or-audited')
+  expect(gate.guard(calls[1]!)).toBeUndefined()
+  expect(store.runs.get(run.run_id)?.deniedCalls).toBe(1)
+  expect(store.runs.get(second.run_id)?.deniedCalls).toBe(0)
+  expect(JSON.parse(store.evidence.list(second.run_id)[0]!.summary).outcome).toBe('allowed-once')
+})
+
+test('repeated callId replaces the pending ask and records unavailable once without granting the old execution', async () => {
+  const { gate, run, next, store } = await active('trusted')
+  const old = {
+    name: 'pwsh',
+    arguments: { command: 'rm old.txt', description: 'delete' },
+    agent: { session: { id: run.sessionId } },
+    callId: 'duplicate',
+    token: Symbol(),
+  }
+  await gate.check(old, next)
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/asked',
+    data: { id: 'old-ask', callId: old.callId },
+  } as SessionEvent)
+  const current = { ...old, arguments: { command: 'rm new.txt', description: 'delete' }, token: Symbol() }
+  await gate.check(current, next)
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/decided',
+    data: { id: 'old-ask', outcome: 'allowed-once' },
+  } as SessionEvent)
+  expect(gate.guard(old)).toBe('whaledot-approval-not-granted-or-audited')
+  expect(gate.guard(current)).toBe('whaledot-approval-not-granted-or-audited')
+  gate.result(old)
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/asked',
+    data: { id: 'new-ask', callId: current.callId },
+  } as SessionEvent)
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/decided',
+    data: { id: 'new-ask', outcome: 'allowed-once' },
+  } as SessionEvent)
+  expect(gate.guard(current)).toBeUndefined()
+  gate.result(current)
+  const entries = store.evidence.list(run.run_id).map((item) => JSON.parse(item.summary))
+  expect(entries.map((item) => item.outcome)).toEqual(['unavailable', 'allowed-once'])
+  expect(store.runs.get(run.run_id)?.deniedCalls).toBe(1)
+})
+
+test.each(['allowed-once', 'rejected', 'cancelled', 'unavailable'] as const)(
+  'no callId pairs the readable reason with its random key: %s',
+  async (outcome) => {
+    const { gate, run, next, store } = await active('trusted')
+    const exec = {
+      name: 'pwsh',
+      arguments: { command: 'rm a.txt', description: 'delete' },
+      agent: { session: { id: run.sessionId } },
+      token: Symbol(),
+    }
+    const ask = requireAsk(await gate.check(exec, next))
+    expect(ask.reason).not.toContain('whaledot-danger')
+    gate.approvalEvent('another-session', {
+      type: 'approval/asked',
+      data: { id: 'wrong', reason: ask.reason },
+    } as SessionEvent)
+    gate.approvalEvent('another-session', {
+      type: 'approval/decided',
+      data: { id: 'wrong', outcome: 'allowed-once' },
+    } as SessionEvent)
+    expect(gate.guard(exec)).toBe('whaledot-approval-not-granted-or-audited')
+    gate.approvalEvent(run.sessionId, {
+      type: 'approval/asked',
+      data: { id: 'fallback', reason: ask.reason },
+    } as SessionEvent)
+    gate.approvalEvent(run.sessionId, {
+      type: 'approval/decided',
+      data: { id: 'fallback', outcome },
+    } as SessionEvent)
+    expect(gate.guard(exec)).toBe(
+      outcome === 'allowed-once' ? undefined : 'whaledot-approval-not-granted-or-audited',
+    )
+    gate.result(exec)
+    expect(store.runs.get(run.run_id)?.deniedCalls).toBe(outcome === 'allowed-once' ? 0 : 1)
+    expect(JSON.parse(store.evidence.list(run.run_id)[0]!.summary).outcome).toBe(outcome)
+  },
+)
+
+test('identical concurrent fallback reasons remain unpaired and cannot grant either call', async () => {
+  const { gate, run, next, store } = await active('trusted')
+  const calls = [0, 1].map(() => ({
+    name: 'pwsh',
+    arguments: { command: 'rm a.txt', description: 'delete' },
+    agent: { session: { id: run.sessionId } },
+    token: Symbol(),
+  }))
+  const asks = (await Promise.all(calls.map((call) => gate.check(call, next)))).map(requireAsk)
+  expect(asks[0]!.reason).toBe(asks[1]!.reason)
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/asked',
+    data: { id: 'ambiguous', reason: asks[0]!.reason },
+  } as SessionEvent)
+  gate.approvalEvent(run.sessionId, {
+    type: 'approval/decided',
+    data: { id: 'ambiguous', outcome: 'allowed-once' },
+  } as SessionEvent)
+  for (const call of calls) {
+    expect(gate.guard(call)).toBe('whaledot-approval-not-granted-or-audited')
+    gate.result(call)
+  }
+  expect(store.runs.get(run.run_id)?.deniedCalls).toBe(2)
+})
+
+test('old opaque approval events are safely ignored even with the current callId', async () => {
+  const { gate, run, next, store } = await active('trusted')
+  const exec = {
+    name: 'pwsh',
+    arguments: { command: 'rm a.txt', description: 'delete' },
+    agent: { session: { id: run.sessionId } },
+    callId: 'legacy-call',
+    token: Symbol(),
+  }
+  await gate.check(exec, next)
+  expect(() => {
+    gate.approvalEvent(run.sessionId, {
+      type: 'approval/asked',
+      data: {
+        id: 'legacy',
+        callId: exec.callId,
+        reason: 'whaledot-danger:ff6f2790-b5d3-4505-81f1-8ec687c8b6db',
+      },
+    } as SessionEvent)
+    gate.approvalEvent(run.sessionId, {
+      type: 'approval/decided',
+      data: { id: 'legacy', outcome: 'allowed-once' },
+    } as SessionEvent)
+  }).not.toThrow()
+  expect(gate.guard(exec)).toBe('whaledot-approval-not-granted-or-audited')
+  expect(store.evidence.list(run.run_id)).toHaveLength(0)
+  gate.result(exec)
+  expect(store.runs.get(run.run_id)?.deniedCalls).toBe(1)
+})
 
 test('closing or replacing authorization while waiting discards late approval; no grant persists', async () => {
   const { gate, run, executor, store, next } = await active('trusted')

@@ -7,6 +7,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ToolExecution, PreToolDecision } from '@deepseek-ai/dsh-tools'
 import {
   t,
+  commandDangerCategory,
   authorizationOfRun,
   checkAction,
   isPathAllowed,
@@ -45,6 +46,9 @@ export interface GateExecution {
   callId?: unknown
 }
 interface PendingApproval {
+  key: string
+  sessionId: string
+  callId: string | undefined
   run: Run
   exec: GateExecution
   reason: string
@@ -58,6 +62,7 @@ export class ToolGate {
   private readonly roots = new Map<unknown, string>()
   private readonly tokens = new Map<unknown, string>()
   private readonly approvals = new Map<string, PendingApproval>()
+  private readonly pendingExecutions = new WeakMap<GateExecution, PendingApproval>()
   private readonly admitted = new WeakMap<GateExecution, Run>()
   constructor(
     private readonly registry: RunRegistry,
@@ -155,15 +160,32 @@ export class ToolGate {
       }
       if (!this.live(run)) return this.deny(run, exec.name, 'none', 'run-inactive')
       if (ask) {
-        const reason = `whaledot-danger:${randomUUID()}`
-        this.approvals.set(reason, {
+        const goal = this.registry.store.goals.get(scope.goalId)
+        const locale = this.locale()
+        const reason = t(locale, 'dangerApprovalSummary', {
+          category: commandDangerCategory(locale, ask.category),
+          command:
+            ask.intent.cmdline.length > 300 ? ask.intent.cmdline.slice(0, 300) + '…' : ask.intent.cmdline,
+          goal: goal?.title ?? t(locale, 'dangerUnknownGoal'),
+        })
+        const sessionId = exec.agent?.session.id ?? run.sessionId
+        const callId = typeof exec.callId === 'string' && exec.callId.length ? exec.callId : undefined
+        const key = callId === undefined ? randomUUID() : JSON.stringify([sessionId, callId])
+        const previous = this.approvals.get(key)
+        if (previous) this.recordApproval(previous, 'unavailable')
+        const pending: PendingApproval = {
+          key,
+          sessionId,
+          callId,
           run,
           exec,
           reason,
           category: ask.category,
           commandHash: createHash('sha256').update(ask.intent.cmdline).digest('hex'),
-        })
-        const goal = this.registry.store.goals.get(scope.goalId)
+        }
+        this.approvals.set(key, pending)
+        // Retain replaced calls for guard checks; a new ask must never grant an old execution.
+        this.pendingExecutions.set(exec, pending)
         const values = {
           command: ask.intent.cmdline,
           category: ask.category,
@@ -190,16 +212,24 @@ export class ToolGate {
   /** Observe committed DSH audit events, regardless of which UI answerer claims the waterfall. */
   approvalEvent(sessionId: string, event: SessionEvent): void {
     if (event.type === 'approval/asked') {
-      const pending = event.data.reason && this.approvals.get(event.data.reason)
-      if (
-        pending &&
-        pending.exec.agent?.session.id === sessionId &&
-        pending.exec.callId === event.data.callId
-      )
-        pending.requestId = event.data.id
+      if (event.data.reason?.startsWith('whaledot-danger:')) return
+      const matches =
+        event.data.callId === undefined
+          ? [...this.approvals.values()].filter(
+              (pending) =>
+                pending.callId === undefined &&
+                pending.sessionId === sessionId &&
+                pending.reason === event.data.reason,
+            )
+          : [this.approvals.get(JSON.stringify([sessionId, event.data.callId]))].filter(
+              (pending): pending is PendingApproval => pending !== undefined,
+            )
+      // The random-key fallback also retains its readable reason; ambiguous text cannot grant.
+      if (matches.length === 1 && !matches[0]!.requestId && !matches[0]!.outcome)
+        matches[0]!.requestId = event.data.id
     } else if (event.type === 'approval/decided') {
       for (const pending of this.approvals.values()) {
-        if (pending.exec.agent?.session.id !== sessionId || pending.requestId !== event.data.id) continue
+        if (pending.sessionId !== sessionId || pending.requestId !== event.data.id) continue
         const current = this.registry.get(pending.run.sessionId)
         const expired =
           Date.now() >= pending.run.startedAt + pending.run.runScope!.limits.maxRunMinutes * 60000
@@ -215,6 +245,7 @@ export class ToolGate {
   /** A missing approval service or unobservable audit must remain fail-closed. */
   result(exec: GateExecution): void {
     this.admitted.delete(exec)
+    this.pendingExecutions.delete(exec)
     for (const pending of this.approvals.values()) {
       if (pending.exec.token !== undefined ? pending.exec.token !== exec.token : pending.exec !== exec)
         continue
@@ -222,7 +253,7 @@ export class ToolGate {
         if (!pending.outcome)
           this.recordApproval(pending, this.live(pending.run) ? 'unavailable' : 'cancelled')
       } finally {
-        this.approvals.delete(pending.reason)
+        this.approvals.delete(pending.key)
       }
     }
   }
@@ -237,6 +268,9 @@ export class ToolGate {
       this.deny(run, exec.name, 'run-command', expired ? 'run-timeout' : 'run-inactive')
       return 'whaledot-run-inactive'
     }
+    const admittedApproval = this.pendingExecutions.get(exec)
+    if (admittedApproval && admittedApproval.outcome !== 'allowed-once')
+      return 'whaledot-approval-not-granted-or-audited'
     for (const pending of this.approvals.values()) {
       if (pending.exec.token !== undefined ? pending.exec.token !== exec.token : pending.exec !== exec)
         continue

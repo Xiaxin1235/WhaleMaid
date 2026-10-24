@@ -13,6 +13,27 @@ export const en = {
     'Review these exact values, then confirm replacement. Autopilot will be turned off and must be confirmed again for this new authorization.',
   dangerApproval:
     'One-time dangerous command approval\nCommand: {command}\nCategory: {category}\nWorking directory: {cwd}\nGoal: {goal}\nNo answer means no execution. Allow once only.',
+  dangerApprovalSummary: 'Confirm dangerous operation ({category}): {command} · Goal: {goal}',
+  dangerUnknownGoal: 'Untitled goal',
+  dangerOther: 'Dangerous operation',
+  dangerDelete: 'Deletion',
+  dangerRecursiveDelete: 'Recursive deletion',
+  dangerRepositoryDelete: 'Repository deletion or overwrite',
+  dangerResetHard: 'Discard repository changes',
+  dangerPush: 'Push to remote',
+  dangerInstall: 'Dependency installation or removal',
+  dangerPublish: 'Package publication',
+  dangerUpload: 'Network upload',
+  dangerMoveOutside: 'Move outside authorization',
+  dangerDynamicExecution: 'Dynamic execution',
+  dangerDynamicInvocation: 'Dynamic invocation',
+  dangerOutsidePath: 'Path outside authorization',
+  dangerParentEscape: 'Parent directory escape',
+  dangerAmbiguousPath: 'Ambiguous path',
+  dangerUnresolvedPath: 'Unresolved path',
+  dangerUnparsedCommand: 'Unparsed command',
+  dangerProcessControl: 'Process control',
+  dangerWriteCheck: 'Write requires path review',
   trustedRisk:
     'Arbitrary commands in trusted mode can read or write files outside the authorized directories. WhaleDot cannot see what a script such as node build.js does. Path boundaries apply only to file tools and recognizable command text.\nDanger detection uses command text and is best effort. Unresolved wrappers, invocation targets and paths require approval. Script bodies, runtime downloads, generated code and encoded payloads remain opaque; deletion may only be recognized as dynamic execution.\nThe three main fallbacks are execution in an independent worktree, WhaleDot checkpoints and rollback, and asking every time for dangerous commands outside the authorized directories. These do not provide filesystem isolation for arbitrary scripts.',
   reasonReport: 'Report only',
@@ -296,6 +317,27 @@ export const zhCN: Record<MessageKey, string> = {
   secondReauthorization: '请检查本页实际值，再次确认替换授权。自动推进将关闭，需针对新授权重新确认。',
   dangerApproval:
     '危险命令单次审批\n命令：{command}\n危险类别：{category}\n工作目录：{cwd}\n所属目标：{goal}\n不回答就不执行；只允许一次。',
+  dangerApprovalSummary: '需要确认危险操作（{category}）：{command} · 目标：{goal}',
+  dangerUnknownGoal: '未命名目标',
+  dangerOther: '危险操作',
+  dangerDelete: '删除',
+  dangerRecursiveDelete: '递归删除',
+  dangerRepositoryDelete: '版本库删除或覆盖',
+  dangerResetHard: '丢弃版本库改动',
+  dangerPush: '推送到远程',
+  dangerInstall: '安装或卸载依赖',
+  dangerPublish: '发布软件包',
+  dangerUpload: '网络上传',
+  dangerMoveOutside: '移出授权范围',
+  dangerDynamicExecution: '动态执行',
+  dangerDynamicInvocation: '动态调用',
+  dangerOutsidePath: '授权范围外的路径',
+  dangerParentEscape: '越出当前目录',
+  dangerAmbiguousPath: '路径含义不明确',
+  dangerUnresolvedPath: '路径尚未解析',
+  dangerUnparsedCommand: '命令尚未解析',
+  dangerProcessControl: '进程控制',
+  dangerWriteCheck: '写入路径需核对',
   trustedRisk:
     '高权限模式下，任意命令可以读写授权目录以外的文件。例如 node build.js 里的脚本做什么，WhaleDot 看不到。路径限制只对文件工具和能识别的命令文字有效。\n危险操作按命令文字识别，只能尽力而为。无法拆解的包装器、调用目标和路径需要审批。脚本内部、运行时下载或生成的代码、编码内容仍不可见，删除可能只能识别为动态执行。\n主要兜底手段有三个：任务在独立 worktree 里执行；WhaleDot 的检查点和回滚；授权目录以外的危险命令一律询问。这些手段不能为任意脚本提供文件系统隔离。',
   reasonReport: '仅报告验收',
@@ -642,6 +684,33 @@ export function verificationText(locale: Locale, code: string): string {
   if (code === 'planner-need-user') return t(locale, 'plannerNeedUserReason')
   if (code.startsWith('denied-actions:')) return t(locale, 'reasonDenied', { count: code.slice(15) })
   return keys[code] ? t(locale, keys[code]) : code
+}
+
+/** Render command danger categories as human-readable labels, without exposing internal codes. */
+export function commandDangerCategory(locale: Locale, reasons: string): string {
+  const keys: Record<string, MessageKey> = {
+    delete: 'dangerDelete',
+    'recursive-delete': 'dangerRecursiveDelete',
+    'repository-delete': 'dangerRepositoryDelete',
+    'git-reset-hard': 'dangerResetHard',
+    'git-push': 'dangerPush',
+    'package-install': 'dangerInstall',
+    'package-publish': 'dangerPublish',
+    'network-upload': 'dangerUpload',
+    'move-outside-scope': 'dangerMoveOutside',
+    'dynamic-execution': 'dangerDynamicExecution',
+    'dynamic-invocation': 'dangerDynamicInvocation',
+    'outside-command-path': 'dangerOutsidePath',
+    'parent-path-escape': 'dangerParentEscape',
+    'ambiguous-command-path': 'dangerAmbiguousPath',
+    'unresolved-command-path': 'dangerUnresolvedPath',
+    'unparsed-command': 'dangerUnparsedCommand',
+    'process-control': 'dangerProcessControl',
+    'write-outside-check': 'dangerWriteCheck',
+  }
+  return [
+    ...new Set(reasons.split(',').map((reason) => t(locale, keys[reason.trim()] ?? 'dangerOther'))),
+  ].join(locale === 'zh-CN' ? '、' : ', ')
 }
 
 /** Localize scheduler actions and reasons while retaining unknown diagnostic codes. */
