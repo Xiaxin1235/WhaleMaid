@@ -1,6 +1,7 @@
 import type { NotificationDeliverer } from '../notify/deliverer.js'
 import type { CompanionMemory } from '../companion/memory.js'
-import { MemoryTextSchema } from '@whaledot/core'
+import type { MemoryDrafts } from '../companion/drafts.js'
+import { MemoryTextSchema, MemoryScopeSchema } from '@whaledot/core'
 import type { NotificationRouter } from '../notify/router.js'
 import { NotificationPreferencesSchema } from '@whaledot/core'
 import {
@@ -49,6 +50,8 @@ import type { PanelStatus } from './contract.js'
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
+  memoryDrafts?: MemoryDrafts
+  setDraftProjectLessons?: (enabled: boolean) => Promise<void>
   memory?: CompanionMemory
   snapshot(): PanelStatus
   setLanguage(patch: ReturnType<typeof languagePatch>): Promise<void>
@@ -78,6 +81,33 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'memory-proposals': {
+          const query = z.strictObject({ goalId: z.string().optional() }).parse(input)
+          result = runtime.memoryDrafts!.list().filter((p) => !query.goalId || p.goalId === query.goalId)
+          break
+        }
+        case 'memory-proposal-resolve': {
+          const q = z
+            .strictObject({
+              id: z.string().min(1),
+              choice: z.enum(['confirm', 'decline']),
+              text: MemoryTextSchema.optional(),
+            })
+            .parse(input)
+          result = runtime.memoryDrafts!.resolve(q.id, q.choice, q.text, 'panel')
+          break
+        }
+        case 'memories-consolidate': {
+          const q = z.strictObject({ scope: MemoryScopeSchema }).parse(input)
+          result = await runtime.memoryDrafts!.consolidate(q.scope)
+          break
+        }
+        case 'memory-draft-settings': {
+          const q = z.strictObject({ enabled: z.boolean() }).parse(input)
+          await runtime.setDraftProjectLessons!(q.enabled)
+          result = q
+          break
+        }
         case 'memories-list': {
           const query = z.strictObject({ includeArchived: z.boolean().optional() }).parse(input)
           result = runtime.memory!.panelList(query.includeArchived)
@@ -281,12 +311,39 @@ export function installPanelApi(
     | 'notificationRouter'
     | 'rebuildCompanion'
     | 'memory'
+    | 'memoryDrafts'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {
     const runtime: PanelRuntime = {
       snapshot,
       ...storage,
+      async setDraftProjectLessons(enabled) {
+        const settings = child.get('settings') as Context['settings'] | undefined
+        const editor = child.get('configEditor') as Context['configEditor'] | undefined
+        const entry = editor?.entries().find((entry) => entry.fiber === ctx.fiber)
+        const form = settings?.describe().find((form) => form.ns === entry?.options.id)
+        if (!form || !settings) throw Error('settings-unavailable')
+        const value = z
+          .object({
+            companion: z
+              .object({ memory: z.object({}).passthrough().optional() })
+              .passthrough()
+              .optional(),
+          })
+          .passthrough()
+          .parse(form.value)
+        await settings.update(
+          form.ns,
+          {
+            companion: {
+              ...value.companion,
+              memory: { ...value.companion?.memory, draftProjectLessons: enabled },
+            },
+          },
+          form.revision,
+        )
+      },
       async setLanguage(patch) {
         const settings = child.get('settings') as Context['settings'] | undefined
         // Match the exact plugin fiber, not a hard-coded profile entry name.

@@ -4,8 +4,10 @@ import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client
 import { MemorySchema, memoryCopy, memoryScopeKey } from '@whaledot/core'
 import type { Locale, Memory } from '@whaledot/core'
 import { PANEL_CHANNEL, PANEL_PREFIX } from '../panel-api/contract.js'
+import { MemoryProposals } from './memory-proposals.js'
 
 const ListSchema = z.object({
+  settings: z.object({ draftProjectLessons: z.boolean() }),
   memories: z.array(MemorySchema.extend({ stale: z.boolean() })),
   characters: z.number(),
   estimatedTokens: z.number(),
@@ -51,7 +53,7 @@ export function Memories({ connection, locale }: { connection: ConnectionHandle;
     } catch (e) {
       const code =
         (e as { code?: string; message?: string })?.message ?? (e as { code?: string })?.code ?? String(e)
-      setError(code.includes('stale-version') ? c.conflict : code)
+      setError(code.includes('stale-version') ? c.conflict : code.includes('scope-full') ? c.scopeFull : code)
     } finally {
       setBusy(false)
     }
@@ -81,6 +83,19 @@ export function Memories({ connection, locale }: { connection: ConnectionHandle;
     { 'data-whaledot-memories': true },
     h('h2', null, c.title),
     h(
+      'label',
+      null,
+      h('input', {
+        type: 'checkbox',
+        checked: data?.settings.draftProjectLessons ?? false,
+        disabled: busy,
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) =>
+          void run(() => call('memory-draft-settings', { enabled: e.target.checked })),
+      }),
+      c.drafts,
+    ),
+    h(MemoryProposals, { connection, locale }),
+    h(
       'p',
       null,
       `${c.usage}：${data?.characters ?? 0} / ${data?.estimatedTokens ?? 0} · ${c.calls}：${data?.calls7d ?? 0}`,
@@ -94,6 +109,14 @@ export function Memories({ connection, locale }: { connection: ConnectionHandle;
         'section',
         { key },
         h('h3', null, key === 'personal' ? c.personal : key.slice(8)),
+        button(c.consolidate, async () => {
+          const reply = z
+            .object({ status: z.string() })
+            .parse(await call('memories-consolidate', { scope: rows[0]!.scope }))
+          if (reply.status === 'unavailable') throw Error(c.organizeUnavailable)
+          if (reply.status === 'pending-limit') throw Error(c.pendingLimit)
+          if (reply.status === 'disabled') throw Error(c.disabled)
+        }),
         ...rows.map((row) =>
           h(
             'article',

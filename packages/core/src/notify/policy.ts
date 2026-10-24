@@ -1,12 +1,29 @@
 import type { Notification } from '../model/notification.js'
 import type { NotificationPreferences } from './model.js'
+/** Shared interruption policy also serves memory proposals, which need no task/authorization binding. */
+export type DeliveryNotice = Omit<
+  Pick<
+    Notification,
+    | 'id'
+    | 'kind'
+    | 'goalId'
+    | 'dedupeKey'
+    | 'resolvedAt'
+    | 'expiresAt'
+    | 'deliveryAttemptedAt'
+    | 'remindAt'
+    | 'deliveredAt'
+    | 'reason'
+  >,
+  'id' | 'kind' | 'goalId'
+> & { id: string; kind: Notification['kind'] | 'memory-proposal'; goalId?: string | undefined }
 export interface DeliveryContext {
   now: number
   localMinutes: number
   nextQuietEnd: number
   preferences: NotificationPreferences
-  recent: Notification[]
-  history: Notification[]
+  recent: DeliveryNotice[]
+  history: DeliveryNotice[]
 }
 export type DeliveryDecision = {
   action: 'deliver-now' | 'hold' | 'digest' | 'drop'
@@ -15,7 +32,7 @@ export type DeliveryDecision = {
 }
 const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3))
 /** Decide interruption policy from explicit time and local-calendar facts, never an ambient clock. */
-export function decideDelivery(n: Notification, c: DeliveryContext): DeliveryDecision {
+export function decideDelivery(n: DeliveryNotice, c: DeliveryContext): DeliveryDecision {
   const result = (action: DeliveryDecision['action'], reason: string, until?: number): DeliveryDecision => ({
     action,
     reason,

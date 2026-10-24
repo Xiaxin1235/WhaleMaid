@@ -77,6 +77,10 @@ export const RouteResultSchema = z.strictObject({
 })
 export const ReminderSchema = z.strictObject({ notificationId: z.string().min(1) })
 export const PANEL_METHODS = [
+  'memory-proposals',
+  'memory-proposal-resolve',
+  'memories-consolidate',
+  'memory-draft-settings',
   'memories-list',
   'memory-update',
   'memory-archive',

@@ -69,4 +69,9 @@ test('scope cap, replacement allowance, bounded retrieval and stale references',
     searchMemories(rows, { kind: 'personal' }, 'pref 99', 100 * 86400000, { m99: 99 * 86400000 }).items[0]
       ?.stale,
   ).toBe(false)
+  const boundary = Array.from({ length: 10 }, (_, i) => row(i, 'x'.repeat(300)))
+  boundary[9] = { ...boundary[9]!, id: 'm9' + 'z'.repeat(101) }
+  const bounded = searchMemories(boundary, { kind: 'personal' }, undefined, 0)
+  expect(JSON.stringify(bounded).length).toBeLessThanOrEqual(4000)
+  expect(bounded.truncated).toBe(true)
 })

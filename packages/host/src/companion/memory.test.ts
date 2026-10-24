@@ -40,6 +40,16 @@ function fixture(ask?: MemoryDependencies['ask']) {
   return { store, memory, actor, settings, askFn, dir }
 }
 const input = { scope: 'personal', kind: 'preference', text: '叫我阿星' }
+test('a full scope refuses a new proposal before disturbing the human and explains consolidation', async () => {
+  const f = fixture()
+  for (let i = 0; i < 100; i++) f.memory.save({ kind: 'personal' }, 'fact', `fixture ${i}`, { via: 'panel' })
+  expect(await f.memory.propose(input, f.actor)).toMatchObject({
+    status: 'rejected:scope-full',
+    message: expect.stringContaining('先整理'),
+  })
+  expect(f.askFn).not.toHaveBeenCalled()
+  expect(f.store.memories.list()).toHaveLength(100)
+})
 test('memory tool gate rejects ordinary and execution identities, including inherited calls', async () => {
   const f = fixture()
   f.store.setCompanionSession({ sessionId: 'companion', createdAt: 1, previous: [] })
@@ -79,6 +89,7 @@ test('only same companion agent human answer can save; model consent arguments c
   expect(MemoryProposeSchema.safeParse({ ...input, confirmed: true }).success).toBe(false)
   expect(await f.memory.propose(input, f.actor)).toMatchObject({ status: 'saved' })
   expect(f.askFn.mock.calls[0]?.[0]).toBe(f.actor.agent)
+  expect(f.askFn.mock.calls[0]?.[1].detail).toContain('改成这样再记')
   expect(f.store.memories.list()[0]?.text).toBe('叫我阿星')
   expect(f.memory.block()).toContain('叫我阿星')
   await expect(

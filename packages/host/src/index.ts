@@ -30,13 +30,19 @@ import { CompanionService } from './companion/service.js'
 import type { CompanionSettings } from './companion/service.js'
 import { CompanionSessionManager, dshCompanionHost } from './companion/session.js'
 import { CompanionMemory, memoryQuestionAdapter } from './companion/memory.js'
+import { MemoryDrafts } from './companion/drafts.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
 export const inject: string[] = []
 
 export interface CompanionConfig {
-  memory?: { enabled?: boolean; suggest?: boolean; maxChars?: number; draftProjectLessons?: boolean }
+  memory?: {
+    enabled?: boolean
+    suggest?: boolean
+    maxChars?: number
+    draftProjectLessons?: Volatile<boolean>
+  }
   enabled?: boolean
   personaPath?: string
   shareSessionTitles?: boolean
@@ -50,31 +56,34 @@ export interface Config {
   language?: Volatile<LanguageSetting>
   companion?: CompanionConfig
 }
-export const Config: Schema<Omit<Config, 'language'> & { language?: LanguageSetting }, Config> =
-  Schema.object({
-    maxConcurrentRuns: Schema.number().min(1).step(1).default(1),
-    dataDir: Schema.string().description('Data directory; defaults to <DSH_HOME>/whaledot'),
-    debugLogSignals: Schema.boolean().default(false),
-    language: Schema.union(['auto', 'zh-CN', 'en'])
-      .default('auto')
-      .volatile()
-      .description('WhaleDot language / 语言'),
-    companion: Schema.object({
-      memory: Schema.object({
-        enabled: Schema.boolean().default(true),
-        suggest: Schema.boolean().default(true),
-        maxChars: Schema.number().min(256).max(2000).step(1).default(2000),
-        draftProjectLessons: Schema.boolean().default(false),
-      }).default({}),
-      enabled: Schema.boolean().default(true).description('Companion session “大肥鱼”'),
-      personaPath: Schema.string().description('Custom persona file (optional)'),
-      shareSessionTitles: Schema.boolean().default(true).description('Let the companion see session titles'),
-      readSessionContent: Schema.boolean()
-        .default(true)
-        .description('Let the companion read session content'),
-      excludedSessions: Schema.array(String).default([]).description('Session ids or title keywords to hide'),
+type ConfigInput = Omit<Config, 'language' | 'companion'> & {
+  language?: LanguageSetting
+  companion?: Omit<CompanionConfig, 'memory'> & {
+    memory?: { enabled?: boolean; suggest?: boolean; maxChars?: number; draftProjectLessons?: boolean }
+  }
+}
+export const Config: Schema<ConfigInput, Config> = Schema.object({
+  maxConcurrentRuns: Schema.number().min(1).step(1).default(1),
+  dataDir: Schema.string().description('Data directory; defaults to <DSH_HOME>/whaledot'),
+  debugLogSignals: Schema.boolean().default(false),
+  language: Schema.union(['auto', 'zh-CN', 'en'])
+    .default('auto')
+    .volatile()
+    .description('WhaleDot language / 语言'),
+  companion: Schema.object({
+    memory: Schema.object({
+      enabled: Schema.boolean().default(true),
+      suggest: Schema.boolean().default(true),
+      maxChars: Schema.number().min(256).max(2000).step(1).default(2000),
+      draftProjectLessons: Schema.boolean().default(false).volatile(),
     }).default({}),
-  })
+    enabled: Schema.boolean().default(true).description('Companion session “大肥鱼”'),
+    personaPath: Schema.string().description('Custom persona file (optional)'),
+    shareSessionTitles: Schema.boolean().default(true).description('Let the companion see session titles'),
+    readSessionContent: Schema.boolean().default(true).description('Let the companion read session content'),
+    excludedSessions: Schema.array(String).default([]).description('Session ids or title keywords to hide'),
+  }).default({}),
+})
 
 /** All initialization paths, including optional-service callbacks and async IO, degrade locally. */
 export async function apply(ctx: Context, config: Config = {}): Promise<void> {
@@ -173,10 +182,11 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     const notificationRouter = new NotificationRouter(store, scopes, verification, notificationLocale, (id) =>
       autopilot.mark(id),
     )
+    const notificationInbox = dshInbox(ctx, store)
     const notifier = new NotificationDeliverer(
       store,
       scopes,
-      dshInbox(ctx, store),
+      notificationInbox,
       notificationRouter,
       notificationLocale,
       (message, error) => debug.host(message, error),
@@ -208,18 +218,47 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         enabled: config.companion?.memory?.enabled ?? true,
         suggest: config.companion?.memory?.suggest ?? true,
         maxChars: config.companion?.memory?.maxChars ?? 2000,
-        draftProjectLessons: config.companion?.memory?.draftProjectLessons ?? false,
+        draftProjectLessons: config.companion?.memory?.draftProjectLessons?.get() ?? false,
       }),
       owns: (id) => companionSessions.allSessionIds().includes(id),
       ask: memoryQuestionAdapter(ctx),
     })
     companion.memory = memory
+    const proposalInbox = notificationInbox
+    const memoryDrafts = new MemoryDrafts(
+      memory,
+      dshDraftModel(ctx),
+      {
+        async ask(proposal, question, signal) {
+          if (proposal.goalId) return proposalInbox.ask(proposal.goalId, question, signal)
+          await companionSessions.ensure()
+          signal.throwIfAborted()
+          const id = companionSessions.sessionId() as SessionId | undefined
+          const controller = ctx.get('sessionController') as Context['sessionController'] | undefined
+          if (!id || !controller) throw Error('companion-unavailable')
+          // A cold owned companion has no live root. Public rename resumes it without a model prompt.
+          await controller.rename({
+            sessionId: id,
+            title: notificationLocale() === 'zh-CN' ? '大肥鱼' : 'Da Fei Yu',
+          })
+          const agent = (ctx.get('agents') as Context['agents'] | undefined)?.get(id)
+          if (!agent) throw Error('companion-unavailable')
+          return memoryQuestionAdapter(ctx)(agent, question, signal)
+        },
+      },
+      (message, error) => debug.host(message, error),
+    )
     ctx.provide('whaledotCompanion', companion)
     execution.setAdmission((via, own) => autopilot.hasCapacity(own, via.kind === 'background'))
     managed = true
     ctx.effect(() => async () => {
       intake.dispose()
-      await Promise.all([execution.dispose(), autopilot.dispose(), notifier.dispose()])
+      await Promise.all([
+        execution.dispose(),
+        autopilot.dispose(),
+        notifier.dispose(),
+        memoryDrafts.dispose(),
+      ])
       store.close()
     })
     installToolGate(
@@ -268,6 +307,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         },
         rebuildCompanion: () => companionSessions.rebuild(),
         memory,
+        memoryDrafts,
       },
     )
     const clock = { now: () => Date.now() }
@@ -305,6 +345,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     }
     autopilot.start()
     notifier.start()
+    memoryDrafts.start()
     // Session creation needs the controller and the agent registry; wait for both without blocking load.
     const companionReady = ctx.inject(['sessionController', 'agents'], () => {
       if (store.status().state === 'ok') void companionSessions.ensure()

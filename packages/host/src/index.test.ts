@@ -29,6 +29,12 @@ test('loads through real Cordis and writes service availability', async () => {
   expect(name).toBe('whaledot')
   expect(Config({}).language?.get()).toBe('auto')
   expect(Config({}).debugLogSignals).toBe(false)
+  expect(Config({}).companion?.memory?.draftProjectLessons?.get()).toBe(false)
+  expect(
+    Config({
+      companion: { memory: { draftProjectLessons: true } },
+    }).companion?.memory?.draftProjectLessons?.get(),
+  ).toBe(true)
   await expect
     .poll(async () => JSON.parse(await readFile(join(dir, 'status.json'), 'utf8')))
     .toMatchObject({

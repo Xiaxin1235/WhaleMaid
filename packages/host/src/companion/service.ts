@@ -31,7 +31,7 @@ export interface CompanionSettings {
   excludedSessions: readonly string[]
 }
 
-/** Read-only facts the companion's tools expose; every result is data, never an instruction. */
+/** Companion facts and human-confirmed memory; every result is data, never authority. */
 export interface CompanionApi {
   memory?: CompanionMemory | undefined
   persona(): string

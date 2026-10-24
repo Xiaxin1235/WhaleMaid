@@ -5,6 +5,7 @@ import { productionClock, productionIdGen } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'
 import type { InboxPort } from './inbox-session.js'
 import type { NotificationRouter } from './router.js'
+import { notificationDeliveryHistory } from './history.js'
 /** Deliver one durable attempt per notification generation; unhandled/cancelled asks never nag. */
 export class NotificationDeliverer {
   private stopped = true
@@ -133,7 +134,7 @@ export class NotificationDeliverer {
         localMinutes: date.getHours() * 60 + date.getMinutes(),
         nextQuietEnd: quietEnd.getTime(),
         preferences: prefs,
-        recent: this.deliveryHistory(history),
+        recent: notificationDeliveryHistory(this.store),
         history,
       })
       if (decision.action === 'drop') continue
@@ -177,19 +178,6 @@ export class NotificationDeliverer {
         responding: false,
       })
     }
-  }
-  private deliveryHistory(history: Notification[]): Notification[] {
-    const attempts = this.store.notificationDeliveries.list()
-    const indexed = new Set(attempts.map((d) => d.notificationId))
-    return [
-      ...history.filter((n) => !indexed.has(n.id)),
-      ...attempts
-        .filter((d) => d.result !== 'failed')
-        .flatMap((d) => {
-          const n = this.store.notifications.get(d.notificationId)
-          return n ? [{ ...n, deliveredAt: d.at }] : []
-        }),
-    ]
   }
   private async send(n: Notification, controller: AbortController): Promise<void> {
     const scope = this.scopes.activeScopeFor(n.goalId)!

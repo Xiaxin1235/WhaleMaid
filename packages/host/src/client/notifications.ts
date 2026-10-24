@@ -1,4 +1,5 @@
 import { createElement as h, useEffect, useState } from 'react'
+import { MemoryProposals } from './memory-proposals.js'
 import { t, notificationMessages, NotificationPreferencesSchema } from '@whaledot/core'
 import type { Locale } from '@whaledot/core'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
@@ -137,6 +138,7 @@ export function NotificationCenter({
     'section',
     { className: 'whaledot-notifications' },
     h('h2', null, text('notificationCenter')),
+    h(MemoryProposals, { connection, locale, goalId }),
     error && h('p', { role: 'alert' }, error),
     h(
       'details',

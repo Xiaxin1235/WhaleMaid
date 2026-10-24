@@ -75,6 +75,7 @@ test('migrations are ordered/idempotent; PRAGMAs and all required tables exist',
         'suggestions',
         'kv_settings',
         'memories',
+        'memory_proposals',
       ].sort(),
     )
     expect(db.prepare('SELECT version FROM schema_migrations').all()).toEqual(

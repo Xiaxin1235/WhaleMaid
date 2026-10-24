@@ -64,6 +64,7 @@ export function projectKeyForGoal(
   const key = ProjectKeySchema.safeParse(scope.allowedPaths[0])
   return key.success ? key.data : undefined
 }
+/** Canonical storage and retrieval identity for a confirmed memory scope. */
 export function memoryScopeKey(scope: MemoryScope): string {
   return scope.kind === 'personal' ? 'personal' : `project:${ProjectKeySchema.parse(scope.projectKey)}`
 }
@@ -144,7 +145,8 @@ export function searchMemories(
       updatedAt: m.updatedAt,
       stale: now - Math.max(m.confirmedAt, references[m.id] ?? 0) > 90 * 86400000,
     }
-    if (JSON.stringify({ items: [...items, item], total: matches.length, truncated: true }).length > 4000)
+    // `false` is one character longer than `true`; budget for either final coverage state.
+    if (JSON.stringify({ items: [...items, item], total: matches.length, truncated: false }).length > 4000)
       break
     items.push(item)
   }

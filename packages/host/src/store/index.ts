@@ -22,6 +22,7 @@ import {
   InboxSessionSchema,
   DeliveryRecordSchema,
   MemorySchema,
+  MemoryProposalSchema,
   memoryScopeKey,
   canActivateMemory,
   hashScope,
@@ -113,6 +114,7 @@ export class WhaleStore {
   readonly inboxSessions
   readonly notificationDeliveries
   readonly memories
+  readonly memoryProposals
 
   constructor(
     private readonly dataDir: string,
@@ -141,6 +143,26 @@ export class WhaleStore {
     this.notificationChoices = ledger('notification_choices', NotificationChoiceSchema)
     this.inboxSessions = ledger('inbox_sessions', InboxSessionSchema)
     this.notificationDeliveries = ledger('notification_deliveries', DeliveryRecordSchema)
+    this.memoryProposals = {
+      get: (id: string) => this.one('memory_proposals', id, MemoryProposalSchema),
+      list: () => this.rows('memory_proposals', MemoryProposalSchema),
+      insert: (input: import('@whaledot/core').MemoryProposal) => {
+        const p = MemoryProposalSchema.parse(input)
+        this.writer()
+          .prepare('INSERT INTO memory_proposals(id,scope_key,status,version,data) VALUES(?,?,?,?,?)')
+          .run(p.id, memoryScopeKey(p.scope), p.status, p.version, JSON.stringify(p))
+        this.changed()
+      },
+      update: (input: import('@whaledot/core').MemoryProposal, version: number) => {
+        const p = MemoryProposalSchema.parse(input)
+        if (p.version !== version + 1) throw Error('stale-version')
+        const r = this.writer()
+          .prepare('UPDATE memory_proposals SET status=?,version=?,data=? WHERE id=? AND version=?')
+          .run(p.status, p.version, JSON.stringify(p), p.id, version)
+        if (r.changes !== 1) throw Error('stale-version')
+        this.changed()
+      },
+    }
     this.memories = {
       get: (id: string) => this.one('memories', id, MemorySchema),
       list: (scopeKey?: string, options: { includeArchived?: boolean } = {}) =>
@@ -665,7 +687,13 @@ export class WhaleStore {
           version: fields.version,
           state: fields.state,
           status: fields.status,
-          ...(table === 'memories' ? { scope_key: memoryScopeKey(MemorySchema.parse(parsed).scope) } : {}),
+          ...(['memories', 'memory_proposals'].includes(table)
+            ? {
+                scope_key: memoryScopeKey(
+                  (table === 'memories' ? MemorySchema : MemoryProposalSchema).parse(parsed).scope,
+                ),
+              }
+            : {}),
         }
         for (const [column, value] of Object.entries(checks)) {
           if (column in row && row[column] !== value) throw new Error('Record index mismatch')

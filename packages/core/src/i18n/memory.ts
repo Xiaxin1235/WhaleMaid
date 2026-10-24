@@ -42,6 +42,12 @@ const en = {
   approve: 'Confirm',
   reject: 'Reject',
   pendingLimit: 'Handle pending drafts first',
+  organizeUnavailable: 'Could not draft merge suggestions this time. Try again later.',
+  lessonDraft: 'Draft project lesson',
+  mergeProposal: 'Suggested merge',
+  scopeFull: 'This scope already has 100 active memories. Organize or archive some first.',
+  customHint: 'Custom text means edit this memory and save it. To save nothing, choose “Do not remember”.',
+  forgetHint: 'Choose Forget or Keep. Custom text will not archive a memory.',
 }
 const zh: typeof en = {
   title: '大肥鱼的记忆',
@@ -85,5 +91,12 @@ const zh: typeof en = {
   approve: '确认',
   reject: '拒绝',
   pendingLimit: '请先处理待确认草稿',
+  organizeUnavailable: '这次未能生成整理建议，请稍后手动重试。',
+  lessonDraft: '项目经验草稿',
+  mergeProposal: '整理建议',
+  scopeFull: '这个作用域已有 100 条有效记忆，请先整理或归档一些。',
+  customHint: '填写自定义文字表示“改成这样再记”；不保存请选择“不用记”。',
+  forgetHint: '请选择“忘掉”或“留着”；自定义文字不会归档记忆。',
 }
+/** Shared human-facing copy for prompt data, confirmation cards and memory management. */
 export const memoryCopy = (locale: Locale) => (locale === 'zh-CN' ? zh : en)

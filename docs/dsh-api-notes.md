@@ -626,3 +626,11 @@ C01 实际隔离宿主补证：本地链接版通过原生信封回答 WhaleDot 
 结论：每次 assemble 都解析注册变量，不缓存到会话 header。出处：同版本 `dsh-system-prompt/README.md` 的 “Contribute a prompt variable”（约 70–77 行）和 “Assembly and rendering”（约 108 行）：变量 resolve at each assembly；assemble 返回当次已求值 variables，renderPrompt 随后展开。`whaledot_memory` 回调每次同步读当前 store，下一次组装立刻读取更新/删除/开关状态；项目记忆不常驻，Autopilot 提示不改。稳定块按 kind/id 排序，内容无每轮时钟，模板标记 `{{` 转为 `{ {`。
 
 不确定点：已经在途的模型请求不会 retroactively 修改提示；生效边界是下一次请求组装（含同一回合的下一模型步骤）。
+
+### P12 第二部分补充：配置与事件
+
+`dsh-settings/README.md` 的 Use this package 明确：表单只暴露 `.volatile()` 字段，普通配置仍从 Cordis 文件编辑。因此 `companion.memory.draftProjectLessons` 声明为 volatile boolean，面板以既有 `settings.describe/update(ns,patch,revision)` 更新；Host 通过引用的 `.get()` 每次读取。真实面板开关已验证持久化与热更新。其余记忆配置保持普通 Config 字段，修改后重启。
+
+经验草稿复用 P07 的 `dshDraftModel`（默认模型、无工具、一次 stream、失败不重试），没有新增模型轮询或 DSH 事件。源为 WhaleStore 已有 goal.status=completed、notification.reason=stalled/verification-unknown，以及成功的结构化 notificationChoices；用户确认本次仅准备 abandon/change-direction 事件合同与测试，按钮在 P13 接入。自由文本、标签和备注不能冒充该结构化决策。
+
+`memory-proposal` 是独立的记忆提议通知投影，保存在 v7 memory_proposals 账本；它没有执行动作、taskVersion 或授权绑定。与 P04 共用 decideDelivery 策略、每小时投递历史和同一个 dshInbox 适配器。项目经验由该目标的只读 inbox root 发 ask；没有 goal 的整理建议经公开 rename 恢复当前伙伴 root 后 ask（不 prompt）。面板与信封结算同一提议事务，完成后中止尚在等待的另一个答题入口。

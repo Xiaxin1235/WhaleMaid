@@ -62,6 +62,7 @@ export interface MemoryDependencies {
 }
 /** Literal review content: Markdown must not swallow Windows path separators or reinterpret text. */
 export function memoryReview(text: string): string {
+  if (!/[\\`*_{}[\]<>#!|]/u.test(text)) return text
   const fence = '`'.repeat(Math.max(3, ...[...text.matchAll(/`+/g)].map((m) => m[0].length + 1)))
   return `${fence}\n${text}\n${fence}`
 }
@@ -132,15 +133,20 @@ export class CompanionMemory {
       (!old || old.status !== 'active' || memoryScopeKey(old.scope) !== memoryScopeKey(scope))
     )
       return { status: 'rejected:replacement-not-found' }
+    if (!old && this.store.memories.list(memoryScopeKey(scope)).length >= 100)
+      return { status: 'rejected:scope-full', message: memoryCopy(this.deps.locale()).scopeFull }
     const c = memoryCopy(this.deps.locale()),
       qid = randomUUID()
     const answer = await this.confirm(exec, {
       id: qid,
       question: c.ask,
       header: c.title,
-      detail: memoryReview(
-        `${scope.kind === 'personal' ? c.personal : `${c.project} ${scope.projectKey}`} · ${c[input.kind]}\n${input.text}${old ? `\n${old.id}: ${old.text}` : ''}`,
-      ),
+      detail:
+        memoryReview(
+          `${scope.kind === 'personal' ? c.personal : `${c.project} ${scope.projectKey.replaceAll('\\', '/')}`} · ${c[input.kind]}\n${input.text}${old ? `\n${old.id}: ${old.text}` : ''}`,
+        ) +
+        '\n\n' +
+        c.customHint,
       options: [{ label: c.save }, { label: c.decline }],
       multiSelect: false,
     })
@@ -178,7 +184,7 @@ export class CompanionMemory {
     const answer = await this.confirm(exec, {
       id: qid,
       question: c.forgetAsk,
-      detail: memoryReview(old.text),
+      detail: memoryReview(old.text) + '\n\n' + c.forgetHint,
       options: [{ label: c.forget }, { label: c.keep }],
       multiSelect: false,
     })
