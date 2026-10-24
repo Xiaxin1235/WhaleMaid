@@ -35,7 +35,8 @@
 | P13B | `P13B-决策卡放弃与改方向.md` | M3 | ✅ GPT 完成并审查（`188601f`），遗留 1 项见下方“待修” |
 | 可并行 | `C09-安静模式.md` | 鲸鱼插件 | 待执行（附 C00） |
 | P14 | `P14-高权限执行模式.md` | M3 | ✅ GPT 完成并审查（`91e9942`、`353851b`）；危险命令识别有漏判，P14F 修好前不要在真实项目开高权限 |
-| **下一个** | `P14F-P14审查修正.md` | M3 | 待执行（附 00）：补上 21 条审查命令中 18 条漏判、3 条类别错误 |
+| P14F | `P14F-P14审查修正.md` | M3 | ✅ GPT 完成并审查（`5c18e29`） |
+| 待修 | 高权限模式仍放行的少量命令（审查时另测 54 条，9 条 allow，其中 6 条应拦） | M3 | `forfiles /c "cmd /c del @file"`（未知包装器）、`rundll32`、`regsvr32`、`shutdown`、`Stop-Process -Force` 应归系统类；`git checkout .`、`git switch -f` 会丢弃未提交改动，应归 repository-delete；`schtasks`、`taskkill` 现在只是碰巧以 ambiguous-command-path 被问，类别应改为系统类；`npm uninstall` 可归 package-install。`npm run clean` 等看不到脚本内容属已知限制 |
 | 待开 | 危险审批在桌宠信封只显示 `whaledot-danger` 标识，看不到命令 | 鲸鱼插件 | 待写 C 任务 |
 | 待修 | 放弃 / 改方向会被历史运行卡死：`execution/execute-task.ts` 的 `stopGoal` 对目标下**所有**未成功任务的历史运行都要求 `observeSession` 返回 `endReason`；宿主崩溃留下的 UNKNOWN 运行或已不存在的会话没有 `turn/end`，于是永远报 `goal-stop-unconfirmed`，目标只能停在 paused | M3 | 并入 P14 第零部分（单独提交） |
 | 待修 | Web 上空白大肥鱼会话首次提问时预设被切成 standard | M3 | 已知限制，目前从桌宠发起首次提问 |
