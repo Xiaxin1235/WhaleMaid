@@ -34,8 +34,8 @@
 | P13 | `P13-大肥鱼提议项目管理动作.md` | M3 | ✅ GPT 完成并审查（`5e7dd18`、`958ceba`） |
 | P13B | `P13B-决策卡放弃与改方向.md` | M3 | ✅ GPT 完成并审查（`188601f`），遗留 1 项见下方“待修” |
 | 可并行 | `C09-安静模式.md` | 鲸鱼插件 | 待执行（附 C00） |
-| **下一个** | `P14-高权限执行模式.md` | M3 | 待执行（附 00）；建议先修下方 P13B 遗留项，或在交给 GPT 时一并附上 |
-| 待修 | 放弃 / 改方向会被历史运行卡死：`execution/execute-task.ts` 的 `stopGoal` 对目标下**所有**未成功任务的历史运行都要求 `observeSession` 返回 `endReason`；宿主崩溃留下的 UNKNOWN 运行或已不存在的会话没有 `turn/end`，于是永远报 `goal-stop-unconfirmed`，目标只能停在 paused | M3 | 只核实本次刚中止的运行；历史运行已不是 running 的直接放行，并补测试 |
+| **下一个** | `P14-高权限执行模式.md` | M3 | 待执行（附 00）；第零部分先修 P13B 遗留的 stopGoal 问题，单独提交 |
+| 待修 | 放弃 / 改方向会被历史运行卡死：`execution/execute-task.ts` 的 `stopGoal` 对目标下**所有**未成功任务的历史运行都要求 `observeSession` 返回 `endReason`；宿主崩溃留下的 UNKNOWN 运行或已不存在的会话没有 `turn/end`，于是永远报 `goal-stop-unconfirmed`，目标只能停在 paused | M3 | 并入 P14 第零部分（单独提交） |
 | 待修 | Web 上空白大肥鱼会话首次提问时预设被切成 standard | M3 | 已知限制，目前从桌宠发起首次提问 |
 | 待修 | 项目经验的“卡住”触发不生效：`lessonTrigger`（`core/src/memory/proposals.ts:47`）只认裸 reason，而 `verify-task.ts:472` 发出的通知 reason 形如 `verification-unknown: …`，真实环境永远匹配不上 | M3 | 并入 P13 第零部分（单独提交） |
 | 待用户 | 日常环境安装 WhaleDot 与修改版鲸鱼，目视确认 C08F 与空白草稿 | — | 待安排 |
