@@ -3,7 +3,7 @@ import { normalizeWindowsPath, isWithinPath } from './windows-path.js'
 import { parseCommandText } from './trusted-command-parser.js'
 import type { CommandWord } from './trusted-command-parser.js'
 
-/** Intersection of simple globs, so visible shell globs cannot bypass protected names. */
+/** Intersection of simple globs, without consulting the filesystem. */
 function overlap(a: string, b: string): boolean {
   // A single star cannot cross a directory separator; globstar can.
   const left = a.match(/\*\*|./gu) ?? [],
@@ -29,6 +29,40 @@ function overlap(a: string, b: string): boolean {
       queue.push([repeat(left[i]) ? i : i + 1, repeat(right[j]) ? j : j + 1])
   }
   return false
+}
+
+function literallyTargets(pattern: string, protection: string): boolean {
+  const left = pattern.toLowerCase(),
+    right = protection.toLowerCase()
+  const leading = (value: string) => value.match(/^[^*?]*/u)![0]
+  const trailing = (value: string) => value.match(/[^*?]*$/u)![0]
+  const a = leading(left),
+    b = leading(right),
+    x = trailing(left),
+    y = trailing(right)
+  return (
+    ((a !== '' && b !== '' && (a.startsWith(b) || b.startsWith(a))) ||
+      (x !== '' && y !== '' && (x.endsWith(y) || y.endsWith(x)))) &&
+    overlap(left, right)
+  )
+}
+
+function targetsProtectedPath(pattern: string, protection: string): boolean {
+  const parts = pattern.split('\\'),
+    firstWildcard = parts.findIndex((part) => /[*?]/u.test(part)),
+    prefix = normalizeWindowsPath(parts.slice(0, firstWildcard).join('\\') + '\\')!,
+    root = protection.replaceAll('/', '\\').toLowerCase(),
+    protectedParts = root.split('\\')
+  // A literal directory already inside protection, or recursion into a protected descendant.
+  if (overlap(prefix, root) || overlap(prefix, `${root}\\**`)) return true
+  if (pattern.includes('**') && isWithinPath(root, prefix)) return true
+  return (
+    (overlap(pattern, root) || overlap(pattern, `${root}\\**`)) &&
+    parts.some(
+      (part, i) =>
+        /[*?]/u.test(part) && protectedParts[i] !== undefined && literallyTargets(part, protectedParts[i]),
+    )
+  )
 }
 
 const MAX_WRAPPER_DEPTH = 8
@@ -85,14 +119,8 @@ function inspectPaths(words: CommandWord[], cwd: string, scope: AuthorizationSco
           .replaceAll('whalestarplaceholder', '*')
           .replaceAll('whalequestionplaceholder', '?')
         result.protectedPattern ||=
-          pattern
-            .split('\\')
-            .slice(1)
-            .some((part) => scope.protectedNames.some((name) => overlap(part, name.toLowerCase()))) ||
-          scope.protectedPaths.some((root) => {
-            const value = root.replaceAll('/', '\\').toLowerCase()
-            return overlap(pattern, value) || overlap(pattern, `${value}\\**`)
-          })
+          scope.protectedNames.some((name) => literallyTargets(pattern.split('\\').at(-1)!, name)) ||
+          scope.protectedPaths.some((root) => targetsProtectedPath(pattern, root))
       }
     }
     const absolute = /^[a-z]:[\\/]/i.test(candidate) || /^\\\\|^\/\//.test(candidate)

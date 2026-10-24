@@ -73,6 +73,7 @@ test.each([
   'git stash list',
   'git branch -d merged',
   'Get-ChildItem -Recurse',
+  'Get-Content *',
   'Move-Item a.txt sub/b.txt',
   'mv a.txt sub/b.txt',
   'type C:/proj/README.md',
@@ -98,7 +99,6 @@ test('cwd and protected paths remain denied in trusted mode', () => {
     'type D:/other/.env',
     'type .env*',
     'Remove-Item *.key',
-    'Get-Content *',
     'type secrets/*.txt',
   ])
     expect(decide(cmd).decision).toBe('deny')

@@ -101,7 +101,7 @@ test.each(['npm', 'pnpm', 'yarn'])(
   },
 )
 
-test('wildcard protection respects directory boundaries and real pattern intersections', () => {
+test('wildcard protection respects directory boundaries and literal targeting', () => {
   const decide = (command: string, scope = gapScope()) =>
     checkAction(scope, { type: 'run-command', cmdline: command, cwd: 'C:/proj' })
   expect(decide('del /q /s *.tmp')).toMatchObject({
@@ -114,9 +114,9 @@ test('wildcard protection respects directory boundaries and real pattern interse
   })
   for (const command of ['del *.key', 'del .env*', 'del secrets/*.tmp', 'del **/*.tmp'])
     expect(decide(command).decision).toBe('deny')
-  // A key prefix can match any extension. Keep the real default protection intact.
+  // A theoretical intersection with a key prefix alone no longer denies ordinary extensions.
   for (const command of ['del *.tmp', 'Get-ChildItem *.log | % { Remove-Item $_ }'])
-    expect(decide(command, makeScope({ commandMode: 'trusted' })).decision).toBe('deny')
+    expect(decide(command, makeScope({ commandMode: 'trusted' })).decision).toBe('ask')
   expect(decide('del *.tmp', { ...gapScope(), protectedPaths: ['C:/proj/out.tmp'] }).decision).toBe('deny')
   expect(decide('del **/*.tmp', { ...gapScope(), protectedPaths: ['C:/proj/out.tmp'] }).decision).toBe('deny')
   expect(decide('del out/*.tmp', { ...gapScope(), protectedPaths: ['C:/proj/secrets'] }).decision).toBe('ask')
