@@ -32,6 +32,7 @@ import { CompanionSessionManager, dshCompanionHost } from './companion/session.j
 import { CompanionMemory, memoryQuestionAdapter } from './companion/memory.js'
 import { MemoryDrafts } from './companion/drafts.js'
 import { CompanionActions } from './companion/actions.js'
+import { GoalDecisions } from './notify/goal-decisions.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -159,6 +160,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       dataDir,
       () => resolveLocale(config.language?.get() ?? 'auto', hostLocale()),
       (message, error) => debug.host(message, error),
+      observeSession(ctx),
     )
 
     const verification = new TaskVerifier(store, scopes, dataDir, observeSession(ctx), () =>
@@ -182,8 +184,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       },
     )
     const notificationLocale = () => resolveLocale(config.language?.get() ?? 'auto', hostLocale())
-    const notificationRouter = new NotificationRouter(store, scopes, verification, notificationLocale, (id) =>
-      autopilot.mark(id),
+    const notificationRouter = new NotificationRouter(
+      store,
+      scopes,
+      verification,
+      notificationLocale,
+      (id) => autopilot.mark(id),
+      new GoalDecisions(store, scopes, (id) => execution.stopGoal(id)),
     )
     const notificationInbox = dshInbox(ctx, store)
     const notifier = new NotificationDeliverer(

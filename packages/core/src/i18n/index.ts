@@ -237,6 +237,8 @@ export const en = {
   goalState: 'Goal state',
   pauseGoal: 'Pause this goal',
   resumeGoal: 'Resume this goal',
+  decisionAbandon: 'Abandon this goal',
+  decisionChangeDirection: 'Change direction',
   authorization: 'Current authorization',
   scopeActive: 'Active',
   scopeRevoked: 'Revoked or no active authorization',
@@ -504,6 +506,8 @@ export const zhCN: Record<MessageKey, string> = {
   goalState: '目标状态',
   pauseGoal: '暂停此目标',
   resumeGoal: '恢复此目标',
+  decisionAbandon: '放弃这个目标',
+  decisionChangeDirection: '改方向',
   authorization: '当前授权',
   scopeActive: '有效',
   scopeRevoked: '已撤销或无有效授权',
@@ -552,6 +556,8 @@ export function t(locale: Locale, key: MessageKey, params: Record<string, string
 /** Localize known execution rule codes while preserving unknown diagnostics for inspection. */
 export function executionReason(locale: Locale, reason: string): string {
   const keys: Record<string, MessageKey> = {
+    abandon: 'decisionAbandon',
+    'change-direction': 'decisionChangeDirection',
     'worktree-external-modification': 'reasonWorktree',
     'git-project-root-required': 'reasonGitRoot',
     'worktree-must-be-external': 'reasonExternalStorage',

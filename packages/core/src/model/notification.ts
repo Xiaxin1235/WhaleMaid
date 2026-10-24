@@ -60,6 +60,7 @@ export const SuggestionSchema = z.strictObject({
       notificationId: NotificationIdSchema,
       taskId: TaskIdSchema.optional(),
       taskVersion: VersionSchema.optional(),
+      goalVersion: VersionSchema.optional(),
       scopeHash: z.string(),
       scopeId: z.string(),
     }),

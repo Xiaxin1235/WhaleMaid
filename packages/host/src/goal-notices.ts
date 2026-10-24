@@ -1,4 +1,4 @@
-import { NotificationIdSchema, SuggestionIdSchema, t } from '@whaledot/core'
+import { NotificationIdSchema, SuggestionIdSchema, t, goalDecisionChoices } from '@whaledot/core'
 import type { ProjectGoal, DecisionChoice, Locale, Notification } from '@whaledot/core'
 import { productionIdGen } from './store/index.js'
 import type { WhaleStore } from './store/index.js'
@@ -12,6 +12,7 @@ export function goalNotice(
   choices: DecisionChoice[] = ['resume-goal', 'pause-goal'],
   kind: Notification['kind'] = 'decision',
 ): void {
+  choices = goalDecisionChoices(choices, reason, kind)
   const dedupeKey = `${goal.id}:goal:${reason}`
   if (
     store.notifications

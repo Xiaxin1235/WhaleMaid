@@ -178,7 +178,7 @@ test('tampering never executes acceptance code or automatically retries; choices
   expect(command).not.toHaveBeenCalled()
   const notification = f.store.notifications.list()[0]!
   expect(notification.deliveredAt).toBeUndefined()
-  expect(f.store.suggestions.list()).toHaveLength(5)
+  expect(f.store.suggestions.list()).toHaveLength(7)
   expect(f.store.tasks.get(f.task.id)?.attempts).toBe(0)
   expect((await f.verifier.resolveDecision(notification.id, 'view-diff')).files).toContain('a.test.ts')
   const results = await Promise.allSettled([
@@ -431,7 +431,7 @@ test('two consecutive unknown verifications stop the reconcile loop until explic
   await f.verifier.reconcileTask(f.task.id)
   expect(f.store.tasks.get(f.task.id)).toMatchObject({ state: 'WAITING_APPROVAL', unknownVerifications: 2 })
   const n = f.store.notifications.list()[0]!
-  expect(n.choices).toEqual(['verify', 'accept', 'pause-goal'])
+  expect(n.choices).toEqual(['verify', 'accept', 'pause-goal', 'abandon', 'change-direction'])
   await expect(f.verifier.reconcileTask(f.task.id)).rejects.toThrow('task-not-unknown')
   await f.verifier.resolveDecision(n.id, 'verify')
   expect(f.store.tasks.get(f.task.id)).toMatchObject({ state: 'VERIFYING', unknownVerifications: 0 })

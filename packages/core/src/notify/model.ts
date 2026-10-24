@@ -12,7 +12,7 @@ export const UserNoteSchema = z
     id: z.string(),
     goalId: GoalIdSchema,
     notificationId: NotificationIdSchema.optional(),
-    source: z.literal('companion').optional(),
+    source: z.enum(['companion', 'decision']).optional(),
     at: z.number(),
     text: z.string().refine((value) => Array.from(value).length <= 500, 'User note exceeds 500 characters'),
   })

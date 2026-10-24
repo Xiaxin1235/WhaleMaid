@@ -1,5 +1,10 @@
 export const notificationMessages = {
   'zh-CN': {
+    abandon: ['放弃这个目标', '不再自动推进，记录保留；须在面板二次确认。'],
+    'change-direction': ['改方向', '填写自定义文字作为新方向；交给下一轮规划，之后每轮任务提示都会包含它。'],
+    'direction-required': ['请填写新方向', '只选“改方向”没有文字不会执行；请在面板填写新方向。'],
+    'direction-too-long': ['新方向太长', '我没有保存或执行，请将新方向缩短到 500 字以内。'],
+    'contains-secret': ['说明含敏感信息', '我没有保存或执行，请去掉密钥或敏感信息后重新填写。'],
     decision: ['需要你决定', '我卡住啦，需要你选一下接下来怎么办。'],
     'not-scorable': ['无法自动验收', '我还没有可用的验收依据，不能把这步算成功。你来选下一步吧。'],
     'insufficient-evidence': ['证据还不够', '我还没拿到足够的完成证据，先停在这里。要重试还是看看差异？'],
@@ -40,6 +45,23 @@ export const notificationMessages = {
     'open-panel': ['打开面板看看', '只打开 WhaleDot 面板，查看完整证据和操作。'],
   },
   en: {
+    abandon: [
+      'Abandon this goal',
+      'Stops automatic progress and retains records; requires a second panel confirmation.',
+    ],
+    'change-direction': [
+      'Change direction',
+      'Use custom text for the new direction; the next planner and every subsequent task prompt will receive it.',
+    ],
+    'direction-required': [
+      'Direction required',
+      'Selecting Change direction without text does nothing. Enter a direction in the panel.',
+    ],
+    'direction-too-long': [
+      'Direction too long',
+      'Nothing was saved or executed. Keep the new direction within 500 characters.',
+    ],
+    'contains-secret': ['Sensitive text', 'Nothing was saved or executed. Remove secrets and submit again.'],
     decision: ['Decision', 'I am stuck and need your choice before continuing.'],
     'not-scorable': [
       'No verifier',

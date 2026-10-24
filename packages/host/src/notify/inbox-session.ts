@@ -11,6 +11,7 @@ import type {} from '@deepseek-ai/dsh-permission-presets'
 import type { AskUserQuestionItem, AskUserQuestionAnswer } from '@deepseek-ai/dsh-user-questions'
 import type { WhaleStore } from '../store/index.js'
 export interface InboxPort {
+  prepare?(goalId: GoalId): Promise<void>
   ask(goalId: GoalId, question: AskUserQuestionItem, signal: AbortSignal): Promise<AskUserQuestionAnswer>
 }
 /** A read-only runtime root carries questions only; this adapter has no prompt/model call. */
@@ -62,19 +63,20 @@ export function dshInbox(ctx: Context, store: WhaleStore): InboxPort {
     if (presets.current(agent.session) !== 'read-only') throw Error('inbox-preset-mismatch')
     return id
   }
+  const ready = (goalId: GoalId): Promise<SessionId> => {
+    let pending = preparing.get(goalId)
+    if (!pending) {
+      pending = prepare(goalId).finally(() => preparing.delete(goalId))
+      preparing.set(goalId, pending)
+    }
+    return pending
+  }
   return {
+    async prepare(goalId) {
+      await ready(goalId)
+    },
     async ask(goalId, question, signal) {
-      let pending = preparing.get(goalId)
-      if (!pending) {
-        pending = prepare(goalId)
-        preparing.set(goalId, pending)
-      }
-      let id: SessionId
-      try {
-        id = await pending
-      } finally {
-        preparing.delete(goalId)
-      }
+      const id = await ready(goalId)
       signal.throwIfAborted()
       const agents = ctx.get('agents') as Context['agents'] | undefined
       const questions = ctx.get('userQuestions') as Context['userQuestions'] | undefined

@@ -3,17 +3,20 @@ import { normalizeWindowsPath } from '../windows-path.js'
 import { redactSecrets } from '../companion/redact.js'
 import type { Locale } from '../i18n/index.js'
 import { memoryCopy } from '../i18n/memory.js'
+/** Shared refusal check; a redacted substitute must never be saved as the original. */
+export function containsMemorySecret(value: string): boolean {
+  return (
+    redactSecrets(value) !== value ||
+    /(?:密码|口令|证件号|银行卡号)\s*[:：是=]\s*\S+|\b\d{15,19}[Xx]?\b/u.test(value)
+  )
+}
 
 /** Validate content before confirmation and again before persistence; never save a redacted substitute. */
 export function validateMemoryText(text: string): { ok: true; text: string } | { ok: false; reason: string } {
   const value = text.trim()
   if (!value || Array.from(value).length > 300) return { ok: false, reason: 'invalid-length' }
   if (/[\r\n\u2028\u2029]/u.test(value)) return { ok: false, reason: 'multiple-paragraphs' }
-  if (
-    redactSecrets(value) !== value ||
-    /(?:密码|口令|证件号|银行卡号)\s*[:：是=]\s*\S+|\b\d{15,19}[Xx]?\b/u.test(value)
-  )
-    return { ok: false, reason: 'contains-secret' }
+  if (containsMemorySecret(value)) return { ok: false, reason: 'contains-secret' }
   return { ok: true, text: value }
 }
 export const MemoryTextSchema = z

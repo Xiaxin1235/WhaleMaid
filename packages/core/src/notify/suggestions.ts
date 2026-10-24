@@ -19,13 +19,15 @@ const safety: Record<NotificationAction, number> = {
   retry: 6,
   accept: 7,
   rollback: 8,
+  'change-direction': 7,
+  abandon: 9,
 }
 /** Create an immutable stored option; labels are presentation, while intent and bindings own execution. */
 export function suggestionForAction(
   n: Notification,
   task: Task | undefined,
   action: NotificationAction,
-  deps: { clock: Clock; idGen: IdGen; locale: Locale; scope: AuthorizationScope },
+  deps: { clock: Clock; idGen: IdGen; locale: Locale; scope: AuthorizationScope; goalVersion?: number },
 ): Suggestion {
   const [label, description] = notificationMessages[deps.locale][action]
   return {
@@ -38,9 +40,9 @@ export function suggestionForAction(
         ? { type: 'notification-action', action }
         : { type: 'panel-decision', choice: action },
     riskLevel:
-      action === 'accept' || action === 'rollback'
+      action === 'accept' || action === 'rollback' || action === 'abandon'
         ? 'high'
-        : action === 'retry' || action === 'resume-goal'
+        : action === 'retry' || action === 'resume-goal' || action === 'change-direction'
           ? 'medium'
           : 'low',
     expiresAt: n.expiresAt ?? deps.clock.now() + 86400000,
@@ -50,6 +52,7 @@ export function suggestionForAction(
       ...(task ? { taskId: task.id, taskVersion: task.version } : {}),
       scopeId: deps.scope.id,
       scopeHash: deps.scope.hash,
+      ...(deps.goalVersion === undefined ? {} : { goalVersion: deps.goalVersion }),
     },
   }
 }
@@ -61,6 +64,7 @@ export function buildSuggestions(
   deps: Parameters<typeof suggestionForAction>[3],
 ): Suggestion[] {
   const priority: DecisionChoice[] = [
+    'change-direction',
     'verify',
     'retry',
     'resume-goal',

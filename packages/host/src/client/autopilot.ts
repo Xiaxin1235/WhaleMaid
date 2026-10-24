@@ -1,5 +1,5 @@
 import { createElement as h, useState } from 'react'
-import { t, autopilotText, actionCopy } from '@whaledot/core'
+import { t, autopilotText, actionCopy, goalDecisionCopy } from '@whaledot/core'
 import type { Locale } from '@whaledot/core'
 import type { z } from 'zod'
 import { TraceResponseSchema } from '../panel-api/contract.js'
@@ -37,21 +37,23 @@ export function AutopilotView({
           ? autopilotText(locale, goal.autopilot.disabledReason)
           : text('autopilotOff')
   const status =
-    goal.status === 'completed' || goal.status === 'succeeded'
-      ? text('autopilotCompleted')
-      : pending
-        ? text('autopilotWaiting')
-        : detail.globalPaused || !scope || goal.status === 'paused' || !goal.autopilot.enabled
-          ? text('autopilotPaused', { reason: pausedReason })
-          : run
-            ? text('autopilotRunning', {
-                task: detail.tasks.find((task) => task.id === run.taskId)?.title ?? run.taskId,
-              })
-            : last?.reason === 'budget-exhausted'
-              ? text('autopilotBudget')
-              : last?.action === 'plan' && last.reason === 'begin'
-                ? text('autopilotPlanning')
-                : text('autopilotEnabled')
+    goal.status === 'cancelled'
+      ? goalDecisionCopy(locale).cancelled
+      : goal.status === 'completed' || goal.status === 'succeeded'
+        ? text('autopilotCompleted')
+        : pending
+          ? text('autopilotWaiting')
+          : detail.globalPaused || !scope || goal.status === 'paused' || !goal.autopilot.enabled
+            ? text('autopilotPaused', { reason: pausedReason })
+            : run
+              ? text('autopilotRunning', {
+                  task: detail.tasks.find((task) => task.id === run.taskId)?.title ?? run.taskId,
+                })
+              : last?.reason === 'budget-exhausted'
+                ? text('autopilotBudget')
+                : last?.action === 'plan' && last.reason === 'begin'
+                  ? text('autopilotPlanning')
+                  : text('autopilotEnabled')
   const toggle = () => {
     const enabled = !goal.autopilot.enabled
     if (

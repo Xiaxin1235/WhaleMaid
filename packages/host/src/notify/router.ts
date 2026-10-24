@@ -4,6 +4,7 @@ import {
   suggestionForAction,
   notificationReason,
   NotificationIdSchema,
+  DirectionSchema,
 } from '@whaledot/core'
 import type {
   Suggestion,
@@ -18,6 +19,8 @@ import type { WhaleStore } from '../store/index.js'
 import { productionClock, productionIdGen } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'
 import type { TaskVerifier } from '../verify/verify-task.js'
+import type { GoalDecisions } from './goal-decisions.js'
+import { z } from 'zod'
 export interface RouteResult {
   ok: boolean
   reason?: string
@@ -35,9 +38,11 @@ export class NotificationRouter {
     private readonly verifier: Pick<TaskVerifier, 'resolveDecision'>,
     private readonly locale: () => Locale,
     private readonly wake: (id: GoalId) => void,
+    private readonly goalDecisions?: GoalDecisions,
   ) {}
   /** Build the fixed recommendation set even when reminders are muted or held. */
   options(n: Notification): Suggestion[] {
+    const goalVersion = this.store.goals.get(n.goalId)?.version
     const scope = this.scopes.activeScopeFor(n.goalId),
       task = n.taskId ? this.store.tasks.get(n.taskId) : undefined
     if (
@@ -54,7 +59,11 @@ export class NotificationRouter {
     if (
       old.length &&
       old.every(
-        (s) => 'scopeHash' in s.bindTo && s.bindTo.scopeHash === scope.hash && s.expiresAt > Date.now(),
+        (s) =>
+          'scopeHash' in s.bindTo &&
+          s.bindTo.scopeHash === scope.hash &&
+          s.expiresAt > Date.now() &&
+          (!n.choices?.includes('change-direction') || s.bindTo.goalVersion === goalVersion),
       )
     )
       return old
@@ -63,6 +72,7 @@ export class NotificationRouter {
       idGen: productionIdGen,
       locale: this.locale(),
       scope,
+      ...(goalVersion === undefined ? {} : { goalVersion }),
     })
     this.store.transaction(() => {
       for (const s of options) this.store.suggestions.insert(s)
@@ -108,7 +118,7 @@ export class NotificationRouter {
         action = { type: 'rollback-to-checkpoint', checkpointId: checkpoint.id }
       } else
         action =
-          s.intent.choice === 'pause-goal'
+          s.intent.choice === 'pause-goal' || s.intent.choice === 'abandon'
             ? { type: 'pause-goal', goalId: n.goalId }
             : s.intent.choice === 'resume-goal'
               ? { type: 'resume-goal', goalId: n.goalId }
@@ -126,18 +136,39 @@ export class NotificationRouter {
     suggestionId: string
     source: 'inbox' | 'panel'
     peer?: PeerScope
+    confirm?: boolean | undefined
+    goalVersion?: number | undefined
+    direction?: string | undefined
   }): Promise<RouteResult> {
     if (
       input.source === 'panel' &&
       (!input.peer || input.peer.principal.kind !== 'owner' || input.peer.signal.aborted)
     )
       return { ok: false, reason: 'owner-required' }
-    let s: Suggestion | undefined, n: Notification | undefined, choiceId: string | undefined
+    let s: Suggestion | undefined,
+      n: Notification | undefined,
+      choiceId: string | undefined,
+      reviewedVersion: number | undefined,
+      direction: string | undefined
     try {
       this.store.transaction(() => {
         s = this.store.suggestions.get(input.suggestionId)
         if (!s) throw Error('option-not-found')
         n = this.validate(s)
+        if (s.intent.type === 'panel-decision' && ['abandon', 'change-direction'].includes(s.intent.choice)) {
+          if (!this.goalDecisions) throw Error('goal-decisions-unavailable')
+          if (s.intent.choice === 'abandon' && (input.source !== 'panel' || input.confirm !== true))
+            throw Error('panel-confirmation-required')
+          const bound = 'goalVersion' in s.bindTo ? s.bindTo.goalVersion : undefined
+          reviewedVersion = input.goalVersion ?? bound
+          if (
+            reviewedVersion === undefined ||
+            bound !== reviewedVersion ||
+            this.store.goals.get(n.goalId)?.version !== reviewedVersion
+          )
+            throw Error('decision-state-changed')
+          if (s.intent.choice === 'change-direction') direction = DirectionSchema.parse(input.direction ?? '')
+        }
         this.store.suggestions.update({ ...s, consumedAt: Date.now() })
         this.store.notifications.update({ ...n, routingSuggestionId: s.id, lastSelectionId: s.id })
         choiceId = productionIdGen.next('choice')
@@ -160,7 +191,20 @@ export class NotificationRouter {
         })
       })
       let result: RouteResult = { ok: true, goalId: n!.goalId }
-      if (s!.intent.type === 'panel-decision')
+      if (
+        s!.intent.type === 'panel-decision' &&
+        (s!.intent.choice === 'abandon' || s!.intent.choice === 'change-direction')
+      )
+        result = {
+          ...result,
+          ...(await this.goalDecisions!.apply(n!.id, s!.intent.choice, {
+            source: input.source,
+            confirm: input.confirm,
+            goalVersion: reviewedVersion!,
+            direction,
+          })),
+        }
+      else if (s!.intent.type === 'panel-decision')
         result = {
           ...result,
           ...(await this.verifier.resolveDecision(n!.id, s!.intent.choice)),
@@ -190,7 +234,7 @@ export class NotificationRouter {
         this.store.notificationChoices.update({
           ...this.store.notificationChoices.get(choiceId!)!,
           result: 'succeeded',
-          ...(result.stat ? { detail: result.stat } : {}),
+          ...(direction ? { detail: direction } : result.stat ? { detail: result.stat } : {}),
         })
         this.event(
           n!.goalId,
@@ -201,7 +245,12 @@ export class NotificationRouter {
       this.wake(n!.goalId)
       return result
     } catch (error) {
-      const reason = error instanceof Error ? error.message : 'notification-route-error'
+      const reason =
+        error instanceof z.ZodError
+          ? (error.issues[0]?.message ?? 'invalid-direction')
+          : error instanceof Error
+            ? error.message
+            : 'notification-route-error'
       if (n && s && this.store.status().state === 'ok') {
         const fresh = this.store.notifications.get(n.id)
         if (fresh?.routingSuggestionId === s.id)
@@ -211,8 +260,14 @@ export class NotificationRouter {
         const row = this.store.notificationChoices.get(choiceId)
         if (row) this.store.notificationChoices.update({ ...row, result: 'failed', detail: reason })
       }
-      if (input.source === 'inbox' && n) this.expired(n)
-      else if (input.source === 'inbox' && s) {
+      const invalidText = [
+        'direction-required',
+        'direction-too-long',
+        'contains-secret',
+        'panel-confirmation-required',
+      ].includes(reason)
+      if (input.source === 'inbox' && n && !invalidText) this.expired(n)
+      else if (input.source === 'inbox' && s && !invalidText) {
         const notice = this.store.notifications.get(s.notificationId)
         if (notice) this.expired(notice)
       }
@@ -224,6 +279,11 @@ export class NotificationRouter {
     notificationId: string,
     action: NotificationAction,
     peer: PeerScope,
+    extra: {
+      confirm?: boolean | undefined
+      goalVersion?: number | undefined
+      direction?: string | undefined
+    } = {},
   ): Promise<RouteResult> {
     if (peer.principal.kind !== 'owner' || peer.signal.aborted) return { ok: false, reason: 'owner-required' }
     const n = this.store.notifications.get(notificationId),
@@ -239,9 +299,10 @@ export class NotificationRouter {
       idGen: productionIdGen,
       locale: this.locale(),
       scope,
+      goalVersion: this.store.goals.get(n.goalId)!.version,
     })
     this.store.suggestions.insert(s)
-    return this.route({ suggestionId: s.id, source: 'panel', peer })
+    return this.route({ suggestionId: s.id, source: 'panel', peer, ...extra })
   }
   /** Explicit owner reminder is the only manual exception to no-repeat delivery. */
   remind(notificationId: string): void {

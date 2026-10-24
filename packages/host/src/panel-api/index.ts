@@ -208,8 +208,8 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
           result = await runtime.verification!.reconcileTask(VerifyTaskSchema.parse(input).taskId)
           break
         case 'resolve-decision': {
-          const { notificationId, choice } = ResolveDecisionSchema.parse(input)
-          const r = await runtime.notificationRouter!.routeChoice(notificationId, choice, peer)
+          const { notificationId, choice, ...extra } = ResolveDecisionSchema.parse(input)
+          const r = await runtime.notificationRouter!.routeChoice(notificationId, choice, peer, extra)
           if (!r.ok)
             return {
               ok: false,

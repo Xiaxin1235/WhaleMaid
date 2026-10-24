@@ -10,6 +10,7 @@ import {
   transcriptTitle,
   projectKeyForGoal,
   renderMemoryBlock,
+  goalDecisionCopy,
 } from '@whaledot/core'
 import type { CompanionMemory } from './memory.js'
 import type { CompanionActions } from './actions.js'
@@ -188,7 +189,13 @@ export class CompanionService implements CompanionApi {
           goal: clip(this.store.goals.get(n.goalId)?.title ?? n.goalId, 80),
           header: copy.header,
           question: copy.question,
-          options,
+          options: [
+            ...new Set([
+              ...options,
+              ...(n.choices?.includes('abandon') ? [goalDecisionCopy(locale).abandon] : []),
+              ...(n.choices?.includes('change-direction') ? [goalDecisionCopy(locale).change] : []),
+            ]),
+          ],
           where:
             locale === 'zh-CN'
               ? '请在小信封或 WhaleDot 面板里处理'

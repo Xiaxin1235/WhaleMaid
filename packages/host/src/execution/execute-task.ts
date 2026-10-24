@@ -24,6 +24,7 @@ import type { RunSignal } from '../bridge/session-events.js'
 import { RunRegistry } from './registry.js'
 import { WorktreeManager } from './worktree.js'
 import type { DshRunner, ExecutionVia } from './dsh-runner.js'
+import type { ObserveSession } from '../verify/reconcile.js'
 
 /** Manually dispatch one task. Durable delivery, tool policy, and finalization share one registry. */
 export class TaskExecutor {
@@ -48,6 +49,7 @@ export class TaskExecutor {
     dataDir: string,
     private readonly locale: () => Locale,
     private readonly log: (message: string, error?: unknown) => void,
+    private readonly observe?: ObserveSession,
   ) {
     this.registry = new RunRegistry(store)
     this.worktrees = new WorktreeManager(dataDir)
@@ -203,6 +205,31 @@ export class TaskExecutor {
     for (const run of this.store.status().state === 'ok' ? this.store.runs.all() : [])
       if (run.status === 'running' && run.runScope?.originScopeId === scopeId)
         this.abort(run, 'scope-revoked')
+  }
+  /** Reuse abort/gate closure, then require runtime termination before owner cancellation is final. */
+  async stopGoal(goalId: GoalId): Promise<void> {
+    const tasks = this.store.tasks.list(goalId)
+    const runs = this.store.runs
+      .all()
+      .filter((r) =>
+        tasks.some(
+          (t) =>
+            t.id === r.taskId && (r.status === 'running' || !['SUCCEEDED', 'CANCELLED'].includes(t.state)),
+        ),
+      )
+    for (const run of runs) if (run.status === 'running') this.abort(run, 'owner-goal-decision')
+    const deadline = Date.now() + 6000
+    while (
+      runs.some((r) => this.store.runs.get(r.run_id)?.status === 'running' || this.finishing.has(r.run_id))
+    ) {
+      if (Date.now() >= deadline) throw Error('goal-stop-unconfirmed')
+      await new Promise((resolve) => setTimeout(resolve, 25))
+    }
+    for (const run of runs) {
+      const observation = await this.observe?.(run.sessionId)
+      if (!observation?.exists || observation.running || !observation.endReason)
+        throw Error('goal-stop-unconfirmed')
+    }
   }
   private abort(run: Run, reason: string): void {
     const current = this.store.runs.get(run.run_id)

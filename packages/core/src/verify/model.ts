@@ -15,6 +15,8 @@ export const VerificationSchema = z.strictObject({
 })
 export type Verification = z.infer<typeof VerificationSchema>
 export const DecisionChoiceSchema = z.enum([
+  'abandon',
+  'change-direction',
   'retry',
   'accept',
   'rollback',

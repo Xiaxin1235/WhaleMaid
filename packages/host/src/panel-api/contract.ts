@@ -20,6 +20,7 @@ import {
   TaskSchema,
   AuthorizationScopeSchema,
   StateTransitionSchema,
+  DirectionSchema,
 } from '@whaledot/core'
 
 export const LanguageSchema = z.enum(['auto', 'zh-CN', 'en'])
@@ -38,6 +39,9 @@ export const VerifyTaskSchema = z.strictObject({ taskId: TaskIdSchema })
 export const ResolveDecisionSchema = z.strictObject({
   notificationId: z.string().min(1),
   choice: DecisionChoiceSchema,
+  confirm: z.literal(true).optional(),
+  goalVersion: z.int().nonnegative().optional(),
+  direction: DirectionSchema.optional(),
 })
 export const VerificationLogSchema = z.strictObject({
   runId: z.string().min(1),
@@ -62,10 +66,16 @@ export const NotificationCenterSchema = z.strictObject({
       suggestions: z.array(SuggestionSchema),
       notes: z.array(UserNoteSchema),
       choices: z.array(NotificationChoiceSchema),
+      goal: ProjectGoalSchema.pick({ id: true, title: true, version: true, status: true }).optional(),
     }),
   ),
 })
-export const RouteSuggestionSchema = z.strictObject({ suggestionId: z.string().min(1) })
+export const RouteSuggestionSchema = z.strictObject({
+  suggestionId: z.string().min(1),
+  confirm: z.literal(true).optional(),
+  goalVersion: z.int().nonnegative().optional(),
+  direction: DirectionSchema.optional(),
+})
 export const RouteResultSchema = z.strictObject({
   ok: z.boolean(),
   reason: z.string().optional(),

@@ -12,6 +12,7 @@ import {
   CheckpointIdSchema,
   EvidenceIdSchema,
   t,
+  goalDecisionChoices,
 } from '@whaledot/core'
 import type {
   Task,
@@ -415,7 +416,7 @@ export class TaskVerifier {
         expiresAt: Date.now() + 86400000,
         dedupeKey,
         reason: 'execution-preflight-blocked',
-        choices: ['retry', 'pause-goal'],
+        choices: goalDecisionChoices(['retry', 'pause-goal'], 'execution-preflight-blocked', 'blocked'),
       })
     }
   }
@@ -470,9 +471,9 @@ export class TaskVerifier {
       taskVersion: task.version,
       runId: run.run_id,
       reason: `${type}: ${reason}`,
-      choices: legalChoices,
+      choices: goalDecisionChoices(legalChoices, type, 'decision'),
     })
-    for (const choice of legalChoices)
+    for (const choice of goalDecisionChoices(legalChoices, type, 'decision'))
       this.store.suggestions.insert({
         id: SuggestionIdSchema.parse(productionIdGen.next('suggestion')),
         notificationId: id,
@@ -535,6 +536,8 @@ export class TaskVerifier {
     notificationId: string,
     choice: DecisionChoice,
   ): Promise<{ state: string; files?: string[]; stat?: string }> {
+    if (choice === 'abandon' || choice === 'change-direction')
+      return Promise.reject(Error('goal-decision-service-required'))
     return verificationBatch(async () => {
       this.stop.signal.throwIfAborted()
       const notification = this.store.notifications.get(notificationId)
@@ -648,6 +651,8 @@ export class TaskVerifier {
   }
 }
 const choiceLabels = {
+  abandon: 'decisionAbandon',
+  'change-direction': 'decisionChangeDirection',
   verify: 'retryVerification',
   'resume-goal': 'resumeDecision',
   retry: 'decisionRetry',

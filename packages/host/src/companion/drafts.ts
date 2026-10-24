@@ -133,6 +133,13 @@ export class MemoryDrafts {
         .filter((t) => t.failureSummary)
         .map((t) => ({ title: t.title, state: t.state, reason: t.failureSummary })),
       notes: this.store.userNotes.list(goalId).map((n) => n.text),
+      decisions: this.store.notificationChoices
+        .list(goalId)
+        .filter((c) => c.result === 'succeeded' && ['abandon', 'change-direction'].includes(c.action))
+        .map((c) => ({
+          type: c.action,
+          ...(c.action === 'change-direction' ? { direction: c.detail ?? '' } : {}),
+        })),
     }
     const hasDecision = this.store.notificationChoices
       .list()

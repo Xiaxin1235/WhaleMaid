@@ -12,7 +12,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { createElement as h, useEffect, useState, useSyncExternalStore } from 'react'
-import { resolveLocale, t, type LanguageSetting } from '@whaledot/core'
+import { resolveLocale, t, goalDecisionCopy, type LanguageSetting } from '@whaledot/core'
 import {
   GoalsSchema,
   LanguageResponseSchema,
@@ -386,7 +386,7 @@ function Panel({ ctx, connection }: Face) {
                 { key: goal.id },
                 h('button', { onClick: () => setSelectedGoal(goal.id) }, goal.title),
                 ' · ',
-                goal.status,
+                goal.status === 'cancelled' ? goalDecisionCopy(locale).cancelled : goal.status,
               ),
             ),
           )

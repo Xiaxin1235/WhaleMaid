@@ -1,4 +1,10 @@
-import { buildSuggestions, decideDelivery, notificationCopy, NotificationIdSchema } from '@whaledot/core'
+import {
+  buildSuggestions,
+  decideDelivery,
+  notificationCopy,
+  NotificationIdSchema,
+  goalDecisionCopy,
+} from '@whaledot/core'
 import type { Notification, NotificationFacts, Locale, GoalId } from '@whaledot/core'
 import type { WhaleStore } from '../store/index.js'
 import { productionClock, productionIdGen } from '../store/index.js'
@@ -87,6 +93,12 @@ export class NotificationDeliverer {
             ? this.router.options(n)
             : this.store.suggestions.list().filter((s) => s.notificationId === n.id)
         return {
+          goal: (() => {
+            const goal = this.store.goals.get(n.goalId)
+            return goal
+              ? { id: goal.id, title: goal.title, version: goal.version, status: goal.status }
+              : undefined
+          })(),
           notification: this.store.notifications.get(n.id)!,
           copy: notificationCopy(n, this.facts(n), this.locale()),
           suggestions,
@@ -155,6 +167,8 @@ export class NotificationDeliverer {
         continue
       }
       if ([...this.pending.values()].some((entry) => entry.goalId === n.goalId)) continue
+      await this.inbox.prepare?.(n.goalId)
+      if (this.pending.has(n.id) || !this.valid(this.store.notifications.get(n.id)!)) continue
       const controller = new AbortController()
       const work = this.send(n, controller)
         .catch((error) => this.log('notification delivery failed', error))
@@ -187,6 +201,7 @@ export class NotificationDeliverer {
       idGen: productionIdGen,
       locale: this.locale(),
       scope,
+      goalVersion: this.store.goals.get(n.goalId)!.version,
     })
     const at = Date.now(),
       deliveryId = productionIdGen.next('delivery')
@@ -222,6 +237,9 @@ export class NotificationDeliverer {
         {
           id: n.id,
           ...copy,
+          ...(n.choices?.includes('change-direction')
+            ? { detail: copy.detail + '\n\n' + goalDecisionCopy(this.locale()).inboxHint }
+            : {}),
           options: choices.map((s) => ({ label: s.label, description: s.description! })),
           multiSelect: false,
         },
@@ -231,20 +249,39 @@ export class NotificationDeliverer {
       const pending = this.pending.get(n.id)
       if (pending) pending.responding = true
       const item = answer.answers.find((a) => a.id === n.id)
-      if (item?.custom?.trim())
-        this.store.userNotes.insert({
-          id: productionIdGen.next('user-note'),
-          goalId: n.goalId,
-          notificationId: n.id,
-          at: Date.now(),
-          text: Array.from(item.custom.trim()).slice(0, 500).join(''),
+      const direction = choices.find(
+        (s) => s.intent.type === 'panel-decision' && s.intent.choice === 'change-direction',
+      )
+      if (
+        item?.custom?.trim() &&
+        direction &&
+        (item.selected.length === 0 || (item.selected.length === 1 && item.selected[0] === direction.label))
+      ) {
+        const result = await this.router.route({
+          suggestionId: direction.id,
+          source: 'inbox',
+          direction: item.custom,
         })
-      const selected = item?.selected ?? []
-      if (selected.length === 1) {
-        const s = choices.find((s) => s.label === selected[0])
-        if (s) await this.router.route({ suggestionId: s.id, source: 'inbox' })
-        else this.info(n, 'option-expired')
-      } else if (selected.length > 1) this.info(n, 'option-expired')
+        if (!result.ok) this.info(n, result.reason ?? 'option-expired')
+      } else if (item?.custom?.trim() && direction) this.info(n, 'option-expired')
+      else {
+        if (item?.custom?.trim())
+          this.store.userNotes.insert({
+            id: productionIdGen.next('user-note'),
+            goalId: n.goalId,
+            notificationId: n.id,
+            at: Date.now(),
+            text: Array.from(item.custom.trim()).slice(0, 500).join(''),
+          })
+        const selected = item?.selected ?? []
+        if (selected.length === 1) {
+          const s = choices.find((s) => s.label === selected[0])
+          if (s) {
+            const result = await this.router.route({ suggestionId: s.id, source: 'inbox' })
+            if (!result.ok) this.info(n, result.reason ?? 'option-expired')
+          } else this.info(n, 'option-expired')
+        } else if (selected.length > 1) this.info(n, 'option-expired')
+      }
       this.store.notificationDeliveries.update({
         ...this.store.notificationDeliveries.get(deliveryId)!,
         result: 'answered',

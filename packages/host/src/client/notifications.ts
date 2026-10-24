@@ -10,6 +10,7 @@ import {
   PANEL_PREFIX,
 } from '../panel-api/contract.js'
 import type { z } from 'zod'
+import { GoalDecisionButtons } from './goal-decisions.js'
 /** Native inbox and panel use the same stored choices; free-text notes are displayed as text nodes. */
 export function NotificationCenter({
   connection,
@@ -237,7 +238,14 @@ export function NotificationCenter({
                     ),
                   ),
                   ...item.suggestions
-                    .filter((s) => (item.notification.suggestionIds ?? []).includes(s.id))
+                    .filter(
+                      (s) =>
+                        (item.notification.suggestionIds ?? []).includes(s.id) &&
+                        !(
+                          s.intent.type === 'panel-decision' &&
+                          ['abandon', 'change-direction'].includes(s.intent.choice)
+                        ),
+                    )
                     .map((s) =>
                       h(
                         'button',
@@ -258,6 +266,15 @@ export function NotificationCenter({
                         h('small', null, ' — ', s.description),
                       ),
                     ),
+                  group === 'pending' &&
+                    item.goal &&
+                    h(GoalDecisionButtons, {
+                      notification: item.notification,
+                      goal: item.goal,
+                      locale,
+                      disabled: busy || !!item.notification.routingSuggestionId,
+                      submit: (input) => write('resolve-decision', input),
+                    }),
                   group === 'pending' &&
                     h(
                       'button',

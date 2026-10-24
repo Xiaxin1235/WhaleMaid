@@ -146,7 +146,15 @@ test('model receives only structured facts, with notes redacted, and no session 
   const prompt = f.generate.mock.calls[0]![0]
   expect(prompt).not.toContain('verysecret123')
   const facts = JSON.parse(prompt.slice(prompt.indexOf('{"goal":')))
-  expect(Object.keys(facts)).toEqual(['goal', 'trigger', 'checkpoint', 'verification', 'failures', 'notes'])
+  expect(Object.keys(facts)).toEqual([
+    'goal',
+    'trigger',
+    'checkpoint',
+    'verification',
+    'failures',
+    'notes',
+    'decisions',
+  ])
   expect(facts).not.toHaveProperty('messages')
   expect(facts.failures[0]).toMatchObject({ state: 'SUCCEEDED', reason: expect.any(String) })
   expect(prompt).toContain('historical failures')

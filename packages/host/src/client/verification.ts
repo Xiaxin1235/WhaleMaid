@@ -3,8 +3,11 @@ import { t, verificationText } from '@whaledot/core'
 import type { Locale, DecisionChoice } from '@whaledot/core'
 import type { z } from 'zod'
 import type { GoalDetailSchema } from '../panel-api/contract.js'
+import { GoalDecisionButtons } from './goal-decisions.js'
 
 const labels = {
+  abandon: 'decisionAbandon',
+  'change-direction': 'decisionChangeDirection',
   verify: 'retryVerification',
   'resume-goal': 'resumeDecision',
   retry: 'decisionRetry',
@@ -135,24 +138,33 @@ export function VerificationView({
             ].join('; '),
           ),
           h('small', null, `${item.taskId ?? ''} · ${item.runId ?? ''}`),
-          ...(item.choices ?? []).map((choice: DecisionChoice) =>
-            h(
-              'button',
-              {
-                key: choice,
-                disabled:
-                  saving ||
-                  (item.expiresAt ?? 0) <= Date.now() ||
-                  detail.tasks.find((task) => task.id === item.taskId)?.version !== item.taskVersion,
-                onClick: () => {
-                  const input = { notificationId: item.id, choice }
-                  if (choice === 'view-diff') void show('resolve-decision', input)
-                  else void write('resolve-decision', input)
+          h(GoalDecisionButtons, {
+            notification: item,
+            goal: detail.goal,
+            locale,
+            disabled: saving || (item.expiresAt ?? 0) <= Date.now() || !!item.routingSuggestionId,
+            submit: (input) => write('resolve-decision', input),
+          }),
+          ...(item.choices ?? [])
+            .filter((choice) => choice !== 'abandon' && choice !== 'change-direction')
+            .map((choice: DecisionChoice) =>
+              h(
+                'button',
+                {
+                  key: choice,
+                  disabled:
+                    saving ||
+                    (item.expiresAt ?? 0) <= Date.now() ||
+                    detail.tasks.find((task) => task.id === item.taskId)?.version !== item.taskVersion,
+                  onClick: () => {
+                    const input = { notificationId: item.id, choice }
+                    if (choice === 'view-diff') void show('resolve-decision', input)
+                    else void write('resolve-decision', input)
+                  },
                 },
-              },
-              text(labels[choice]),
+                text(labels[choice]),
+              ),
             ),
-          ),
         ),
       ),
     preview && h('details', { open: true }, h('summary', null, text('evidence')), h('pre', null, preview)),

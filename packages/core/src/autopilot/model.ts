@@ -3,7 +3,8 @@ import { GoalIdSchema, TaskIdSchema, RunIdSchema } from '../model/ids.js'
 export const AutopilotEventSchema = z.strictObject({
   id: z.string(),
   goalId: GoalIdSchema.optional(),
-  actor: z.literal('companion-proposal').optional(),
+  actor: z.enum(['companion-proposal', 'user']).optional(),
+  decisionId: z.string().optional(),
   proposalId: z.string().optional(),
   sessionId: z.string().optional(),
   confirmedAt: z.number().int().nonnegative().optional(),
