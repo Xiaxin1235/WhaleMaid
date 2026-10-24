@@ -1,5 +1,5 @@
 import { createElement as h, useState } from 'react'
-import { t, autopilotText } from '@whaledot/core'
+import { t, autopilotText, actionCopy } from '@whaledot/core'
 import type { Locale } from '@whaledot/core'
 import type { z } from 'zod'
 import { TraceResponseSchema } from '../panel-api/contract.js'
@@ -94,6 +94,20 @@ export function AutopilotView({
     { className: 'whaledot-autopilot' },
     h('h3', null, text('autopilot')),
     h('p', { role: 'status' }, status),
+    ...detail.autopilotEvents
+      .filter(
+        (e) => e.actor === 'companion-proposal' && (e.goalId === goal.id || e.action === 'global-pause'),
+      )
+      .slice(-3)
+      .map((e) =>
+        h(
+          'p',
+          { key: e.id, 'data-companion-attribution': true },
+          actionCopy(locale).attribution(
+            new Date(e.confirmedAt!).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' }),
+          ),
+        ),
+      ),
     h(
       'button',
       {

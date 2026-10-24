@@ -7,13 +7,16 @@ export const NotificationPreferencesSchema = z.strictObject({
   muted: z.boolean().default(false),
 })
 export type NotificationPreferences = z.infer<typeof NotificationPreferencesSchema>
-export const UserNoteSchema = z.strictObject({
-  id: z.string(),
-  goalId: GoalIdSchema,
-  notificationId: NotificationIdSchema,
-  at: z.number(),
-  text: z.string().refine((value) => Array.from(value).length <= 500, 'User note exceeds 500 characters'),
-})
+export const UserNoteSchema = z
+  .strictObject({
+    id: z.string(),
+    goalId: GoalIdSchema,
+    notificationId: NotificationIdSchema.optional(),
+    source: z.literal('companion').optional(),
+    at: z.number(),
+    text: z.string().refine((value) => Array.from(value).length <= 500, 'User note exceeds 500 characters'),
+  })
+  .refine((n) => n.notificationId !== undefined || n.source === 'companion', 'note-source-required')
 export const NotificationChoiceSchema = z.strictObject({
   id: z.string(),
   goalId: GoalIdSchema,

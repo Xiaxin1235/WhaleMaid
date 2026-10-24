@@ -31,12 +31,14 @@ import type { CompanionSettings } from './companion/service.js'
 import { CompanionSessionManager, dshCompanionHost } from './companion/session.js'
 import { CompanionMemory, memoryQuestionAdapter } from './companion/memory.js'
 import { MemoryDrafts } from './companion/drafts.js'
+import { CompanionActions } from './companion/actions.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
 export const inject: string[] = []
 
 export interface CompanionConfig {
+  actions?: { enabled?: boolean }
   memory?: {
     enabled?: boolean
     suggest?: boolean
@@ -71,6 +73,7 @@ export const Config: Schema<ConfigInput, Config> = Schema.object({
     .volatile()
     .description('WhaleDot language / 语言'),
   companion: Schema.object({
+    actions: Schema.object({ enabled: Schema.boolean().default(true) }).default({}),
     memory: Schema.object({
       enabled: Schema.boolean().default(true),
       suggest: Schema.boolean().default(true),
@@ -224,6 +227,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ask: memoryQuestionAdapter(ctx),
     })
     companion.memory = memory
+    const companionActions = new CompanionActions(store, {
+      enabled: () => config.companion?.actions?.enabled ?? true,
+      locale: notificationLocale,
+      owns: (id) => companionSessions.allSessionIds().includes(id),
+      confirm: (exec, question) => memory.confirm(exec, question),
+      intake,
+      autopilot,
+      setPaused: (paused) => store.setPaused(paused),
+    })
+    companion.actions = companionActions
     const proposalInbox = notificationInbox
     const memoryDrafts = new MemoryDrafts(
       memory,
@@ -252,6 +265,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     execution.setAdmission((via, own) => autopilot.hasCapacity(own, via.kind === 'background'))
     managed = true
     ctx.effect(() => async () => {
+      companionActions.dispose()
       intake.dispose()
       await Promise.all([
         execution.dispose(),

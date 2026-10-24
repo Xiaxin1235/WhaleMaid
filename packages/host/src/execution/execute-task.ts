@@ -143,7 +143,13 @@ export class TaskExecutor {
         cwd: workspace.path,
         preset: runScope.permissionPreset,
         title: `[WhaleDot] ${goal.title} · ${task.title}`,
-        prompt: buildTaskPrompt(goal, task, runScope, this.locale()),
+        prompt: buildTaskPrompt(
+          goal,
+          task,
+          runScope,
+          this.locale(),
+          this.store.userNotes.list(goal.id).map((n) => n.text),
+        ),
         via,
         check: () => {
           if (

@@ -27,6 +27,7 @@ import { serviceRows, formatStartedAt } from './format.js'
 import styles from './panel.css'
 import { IntakeView, GoalDetailView } from './intake.js'
 import { Memories } from './memories.js'
+import { CompanionActionsView } from './companion-actions.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
@@ -48,6 +49,7 @@ function Panel({ ctx, connection }: Face) {
   const [pausing, setPausing] = useState(false)
   const [revision, refresh] = useState(0)
   const [creating, setCreating] = useState(false)
+  const [initialDraftId, setInitialDraftId] = useState<string>()
   const [selectedGoal, setSelectedGoal] = useState<string | undefined>(() => pendingNavigationGoal)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   useEffect(() => {
@@ -187,7 +189,11 @@ function Panel({ ctx, connection }: Face) {
       h(IntakeView, {
         connection,
         locale,
-        onCancel: () => setCreating(false),
+        initialDraftId,
+        onCancel: () => {
+          setCreating(false)
+          setInitialDraftId(undefined)
+        },
         onCreated: (id: string) => {
           setCreating(false)
           setSelectedGoal(id)
@@ -320,6 +326,14 @@ function Panel({ ctx, connection }: Face) {
                     text('companionRebuild'),
                   ),
               ),
+            h(CompanionActionsView, {
+              connection,
+              locale,
+              onDraft: (id: string) => {
+                setInitialDraftId(id)
+                setCreating(true)
+              },
+            }),
             h(Memories, { connection, locale }),
             h(
               'label',
@@ -352,7 +366,13 @@ function Panel({ ctx, connection }: Face) {
         h('h2', null, text('goals')),
         h(
           'button',
-          { disabled: status?.store.state !== 'ok', onClick: () => setCreating(true) },
+          {
+            disabled: status?.store.state !== 'ok',
+            onClick: () => {
+              setInitialDraftId(undefined)
+              setCreating(true)
+            },
+          },
           text('createGoal'),
         ),
       ),

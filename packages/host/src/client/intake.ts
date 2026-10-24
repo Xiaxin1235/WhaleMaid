@@ -77,11 +77,13 @@ export function IntakeView({
   locale,
   onCancel,
   onCreated,
+  initialDraftId,
 }: {
   connection: ConnectionHandle
   locale: Locale
   onCancel(): void
   onCreated(id: string): void
+  initialDraftId?: string | undefined
 }) {
   const text = (key: MessageKey) => t(locale, key)
   const [description, setDescription] = useState(''),
@@ -89,7 +91,7 @@ export function IntakeView({
   const [form, setForm] = useState<ConfirmedGoalForm>(),
     [facts, setFacts] = useState<Facts>()
   const [commands, setCommands] = useState<Command[]>([]),
-    [draftId, setDraftId] = useState<string>()
+    [draftId, setDraftId] = useState<string | undefined>(initialDraftId)
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [approving, setApproving] = useState(false)

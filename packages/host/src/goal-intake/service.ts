@@ -15,6 +15,8 @@ import type { ScopeService } from '../scope-service.js'
 import type { DraftModel } from './model.js'
 import { inspectProject, projectPath } from './project.js'
 import type { ProjectFacts } from './project.js'
+import { admitManagement } from '../companion/consent.js'
+import type { ManagementActor } from '../companion/consent.js'
 export const DraftRequestSchema = z.strictObject({
   text: z.string().trim().min(1).max(4000),
   projectRoot: z.string().min(1).max(2000),
@@ -30,13 +32,20 @@ export interface DraftStatus {
   error?: string
 }
 interface DraftJob {
+  companion?: {
+    proposalId: string
+    sessionId: string
+    confirmedAt: number
+    text: string
+    projectRoot: string
+  }
   at: number
   status: DraftStatus
   controller: AbortController
   expiry?: ReturnType<typeof setTimeout>
 }
 function owner(peer: PeerScope) {
-  if (!peer || peer.principal.kind !== 'owner' || peer.signal.aborted)
+  if (!peer || peer.principal?.kind !== 'owner' || peer.signal.aborted)
     throw new Error('Authenticated owner required')
 }
 
@@ -54,8 +63,8 @@ export class GoalIntake {
   ) {}
 
   /** Start one in-memory proposal and return its handle without waiting for the model. */
-  start(input: unknown, peer: PeerScope, locale: Locale = 'en') {
-    owner(peer)
+  start(input: unknown, peer: ManagementActor, locale: Locale = 'en', companion?: DraftJob['companion']) {
+    admitManagement(peer)
     this.expire()
     const request = DraftRequestSchema.parse(input)
     if (this.running) throw new Error('draft-busy')
@@ -64,6 +73,7 @@ export class GoalIntake {
       at: this.clock.now(),
       status: { state: 'running' },
       controller: new AbortController(),
+      ...(companion ? { companion } : {}),
     }
     this.jobs.set(draftId, job)
     job.expiry = setTimeout(() => {
@@ -99,6 +109,14 @@ export class GoalIntake {
       }
     })()
     return { draftId }
+  }
+  /** Owner reviews companion drafts in the existing P07 authorization editor. */
+  companionDrafts(peer: PeerScope) {
+    owner(peer)
+    this.expire()
+    return [...this.jobs].flatMap(([draftId, job]) =>
+      job.companion ? [{ draftId, ...job.companion, state: job.status.state }] : [],
+    )
   }
   /** Read a detached proposal snapshot after owner authentication and expiry checks. */
   status(input: unknown, peer: PeerScope): DraftStatus {
@@ -153,17 +171,22 @@ export class GoalIntake {
       throw new Error('forbidden-verify-command')
     owner(peer)
     const records = draftToRecords(undefined, form, { clock: this.clock, idGen: this.idGen })
-    return this.store.transaction(() => {
+    const result = this.store.transaction(() => {
       this.store.goals.insert(records.goal)
       const scope = this.scopes.grant(records.scopeDraft, peer)
       records.tasks.forEach((task) => this.store.tasks.insert(task))
       const goal = this.store.goals.get(records.goal.id)!
       return { goal, scope, rejected: records.rejected }
     })
+    if (form.draftId) {
+      clearTimeout(this.jobs.get(form.draftId)?.expiry)
+      this.jobs.delete(form.draftId)
+    }
+    return result
   }
   /** Read persisted goal details and the current grant, including its revoked status. */
-  detail(input: unknown, peer: PeerScope) {
-    owner(peer)
+  detail(input: unknown, peer: ManagementActor) {
+    admitManagement(peer)
     const { goalId } = GoalRequestSchema.parse(input)
     const goal = this.store.goals.get(goalId)
     if (!goal) throw new Error('goal-not-found')
@@ -176,7 +199,10 @@ export class GoalIntake {
       runs: tasks.flatMap((task) => this.store.runs.list(task.id)),
       checkpoints: this.store.checkpoints.list(goalId),
       globalPaused: this.store.paused(),
-      autopilotEvents: this.store.autopilotEvents.list(goal.id).slice(-10),
+      autopilotEvents: this.store.autopilotEvents
+        .list()
+        .filter((e) => !e.goalId || e.goalId === goal.id)
+        .slice(-10),
       plannerState: this.store.plannerState.get(goal.id) ?? null,
       verifications: this.store.verifications
         .list()
@@ -192,8 +218,8 @@ export class GoalIntake {
     }
   }
   /** Pause or resume only the selected goal, preserving its task states. */
-  setPaused(input: unknown, peer: PeerScope) {
-    owner(peer)
+  setPaused(input: unknown, peer: ManagementActor) {
+    admitManagement(peer)
     const { goalId, paused } = GoalPausedSchema.parse(input)
     const goal = this.store.goals.get(goalId)
     if (!goal || !['active', 'paused'].includes(goal.status)) throw new Error('goal-not-pausable')

@@ -634,3 +634,11 @@ C01 实际隔离宿主补证：本地链接版通过原生信封回答 WhaleDot 
 经验草稿复用 P07 的 `dshDraftModel`（默认模型、无工具、一次 stream、失败不重试），没有新增模型轮询或 DSH 事件。源为 WhaleStore 已有 goal.status=completed、notification.reason=stalled/verification-unknown，以及成功的结构化 notificationChoices；用户确认本次仅准备 abandon/change-direction 事件合同与测试，按钮在 P13 接入。自由文本、标签和备注不能冒充该结构化决策。
 
 `memory-proposal` 是独立的记忆提议通知投影，保存在 v7 memory_proposals 账本；它没有执行动作、taskVersion 或授权绑定。与 P04 共用 decideDelivery 策略、每小时投递历史和同一个 dshInbox 适配器。项目经验由该目标的只读 inbox root 发 ask；没有 goal 的整理建议经公开 rename 恢复当前伙伴 root 后 ask（不 prompt）。面板与信封结算同一提议事务，完成后中止尚在等待的另一个答题入口。
+
+## 27. P13：同回合连续工具内确认
+
+沿用第 25 节方案 A，直接调用 `CompanionMemory.confirm`，不使用第二部分草稿收件箱。官方只读实现 `.dsh-dev/c04-user-questions-ref.js:668–696`：每次 ask 都校验 exact live root，然后向该 agent scoped waterfall 发一次 request；没有每回合一次的限制或已回答缓存。每次问题使用新的随机 id，调用 resolve 后可在相同 live agent 上再 ask。工具输入来自同版本 `dsh-tools/lib/types/index.d.ts:216–241` 的 agent/signal；不接受模型 supplied sessionId / confirmed。
+
+P13 自动测试用同一 agent 顺序完成暂停与继续两次确认，核对问题 id 不同、每次均经 ask；取消、超时、custom、错误 id、会话中止不执行。多次工具调用仍各自确认，不能把两项动作合在一次确认里；本结论不声称客户端的关闭卡片等同取消（第 25 节的限制仍适用）。
+
+其余 P13 接口为 WhaleDot 自身服务，参数、校验、来源和副作用列在 `docs/p13-report.md`，没有引入新的 DSH 服务。P07 的 grant/confirm 仍只接受真实 owner PeerScope；确认过的伙伴管理调用使用宿主进程内 WeakSet 身份能力，仅允许草案 start、暂停管理与只读 detail，不铸造 owner principal，也不能作为授权确认身份。

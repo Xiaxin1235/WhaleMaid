@@ -81,6 +81,17 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'companion-drafts':
+          z.strictObject({}).parse(input)
+          result = runtime.intake!.companionDrafts(peer)
+          break
+        case 'companion-action-events':
+          z.strictObject({}).parse(input)
+          result = runtime
+            .autopilot!.store.autopilotEvents.list()
+            .filter((e) => e.actor === 'companion-proposal')
+            .slice(-20)
+          break
         case 'memory-proposals': {
           const query = z.strictObject({ goalId: z.string().optional() }).parse(input)
           result = runtime.memoryDrafts!.list().filter((p) => !query.goalId || p.goalId === query.goalId)

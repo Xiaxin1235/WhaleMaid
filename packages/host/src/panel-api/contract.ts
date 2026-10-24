@@ -77,6 +77,8 @@ export const RouteResultSchema = z.strictObject({
 })
 export const ReminderSchema = z.strictObject({ notificationId: z.string().min(1) })
 export const PANEL_METHODS = [
+  'companion-drafts',
+  'companion-action-events',
   'memory-proposals',
   'memory-proposal-resolve',
   'memories-consolidate',
@@ -117,6 +119,17 @@ export const PANEL_METHODS = [
   'companion-rebuild',
 ] as const
 export type PanelMethod = (typeof PANEL_METHODS)[number]
+export const CompanionDraftsSchema = z.array(
+  z.strictObject({
+    draftId: z.string(),
+    proposalId: z.string(),
+    sessionId: z.string(),
+    confirmedAt: z.number(),
+    text: z.string(),
+    projectRoot: z.string(),
+    state: z.enum(['running', 'ready', 'failed']),
+  }),
+)
 export const ProjectFactsSchema = z.strictObject({
   projectRoot: z.string(),
   isGit: z.boolean(),

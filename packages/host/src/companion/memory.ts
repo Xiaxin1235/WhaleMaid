@@ -288,7 +288,7 @@ export class CompanionMemory {
     exec.signal.throwIfAborted()
     if (!exec.agent || !this.deps.owns(exec.agent.session.id)) throw Error('companion-only')
   }
-  private async confirm(exec: MemoryExecution, question: AskUserQuestionItem) {
+  async confirm(exec: MemoryExecution, question: AskUserQuestionItem) {
     const timeout = AbortSignal.timeout(this.deps.timeoutMs ?? 600000),
       signal = AbortSignal.any([exec.signal, timeout])
     let onAbort: () => void = () => {}

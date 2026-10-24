@@ -12,6 +12,7 @@ import {
   renderMemoryBlock,
 } from '@whaledot/core'
 import type { CompanionMemory } from './memory.js'
+import type { CompanionActions } from './actions.js'
 import type { Locale, Notification, NotificationFacts, TranscriptEvent, TranscriptPage } from '@whaledot/core'
 import type { WhaleStore } from '../store/index.js'
 
@@ -33,6 +34,7 @@ export interface CompanionSettings {
 
 /** Companion facts and human-confirmed memory; every result is data, never authority. */
 export interface CompanionApi {
+  actions?: CompanionActions | undefined
   memory?: CompanionMemory | undefined
   persona(): string
   goalsOverview(): GoalOverview[]
@@ -100,6 +102,7 @@ const defaultPersona = (locale: Locale) =>
 
 /** Builds the companion's read model from WhaleDot's store and DSH's public session controller. */
 export class CompanionService implements CompanionApi {
+  actions: CompanionActions | undefined
   memory: CompanionMemory | undefined
   private personaText = ''
   private readonly titles = new Map<string, { updatedAt: number; title?: string }>()

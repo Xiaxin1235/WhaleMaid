@@ -83,7 +83,10 @@ export class ToolGate {
   /** Narrow owned calls before DSH policy; unrelated arguments remain untouched. */
   async check(exec: GateExecution, next: () => Promise<PreToolDecision>): Promise<PreToolDecision> {
     const owner = this.owner(exec)
-    if (exec.name.startsWith('whaledot_memory_') && (!owner || !this.registry.isCompanion(owner)))
+    if (
+      (exec.name.startsWith('whaledot_memory_') || exec.name.startsWith('whaledot_propose_')) &&
+      (!owner || !this.registry.isCompanion(owner))
+    )
       return { kind: 'deny', reason: 'companion-only' }
     if (!owner) return next()
     if (this.registry.store.inboxSessions.get(owner))

@@ -110,4 +110,13 @@ export const MIGRATIONS: readonly Migration[] = [
       CREATE INDEX memory_proposals_pending ON memory_proposals(scope_key,status);`)
     },
   },
+  {
+    version: 8,
+    up(db) {
+      db.exec(`CREATE TABLE autopilot_events_next (id TEXT PRIMARY KEY, goal_id TEXT REFERENCES goals(id), data TEXT NOT NULL);
+        INSERT INTO autopilot_events_next SELECT id,goal_id,data FROM autopilot_events;
+        DROP TABLE autopilot_events;
+        ALTER TABLE autopilot_events_next RENAME TO autopilot_events;`)
+    },
+  },
 ]

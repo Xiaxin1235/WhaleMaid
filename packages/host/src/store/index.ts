@@ -228,12 +228,15 @@ export class WhaleStore {
       list: (id) => this.rows('scopes', AuthorizationScopeSchema, 'goal_id', id),
     }
     this.autopilotEvents = {
-      list: (id: string) => this.rows('autopilot_events', AutopilotEventSchema, 'goal_id', id),
+      list: (id?: string) =>
+        id
+          ? this.rows('autopilot_events', AutopilotEventSchema, 'goal_id', id)
+          : this.rows('autopilot_events', AutopilotEventSchema),
       insert: (input: import('@whaledot/core').AutopilotEvent) => {
         const row = AutopilotEventSchema.parse(input)
         this.writer()
           .prepare('INSERT INTO autopilot_events(id,goal_id,data) VALUES(?,?,?)')
-          .run(row.id, row.goalId, JSON.stringify(row))
+          .run(row.id, row.goalId ?? null, JSON.stringify(row))
       },
     }
     this.plannerState = {
@@ -552,14 +555,24 @@ export class WhaleStore {
   }
 
   /** Writes are durable before callers observe the new pause value. */
+  pauseVersion(): number {
+    return this.one('kv_settings', 'autopilot.pause-version', z.int().nonnegative()) ?? 0
+  }
   setPaused(paused: boolean): void {
     const value = z.boolean().parse(paused)
-    this.writer()
-      .prepare(
-        "INSERT INTO kv_settings(id,data) VALUES('autopilot.paused',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
-      )
-      .run(JSON.stringify(value))
-    this.changed()
+    this.transaction(() => {
+      this.writer()
+        .prepare(
+          "INSERT INTO kv_settings(id,data) VALUES('autopilot.pause-version',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+        )
+        .run(JSON.stringify(this.pauseVersion() + 1))
+      this.writer()
+        .prepare(
+          "INSERT INTO kv_settings(id,data) VALUES('autopilot.paused',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+        )
+        .run(JSON.stringify(value))
+      this.changed()
+    })
   }
 
   close(): void {
@@ -681,7 +694,7 @@ export class WhaleStore {
         const fields = parsed as Record<string, unknown>
         const checks = {
           id: fields.id ?? fields.run_id ?? (table === 'kv_settings' ? row.id : undefined),
-          goal_id: fields.goalId,
+          goal_id: table === 'autopilot_events' ? (fields.goalId ?? null) : fields.goalId,
           task_id: fields.taskId ?? fields.entityId,
           task_key: fields.key,
           version: fields.version,
