@@ -4,7 +4,23 @@ import {
   ConsolidationDraftSchema,
   MAX_CONSOLIDATION_SOURCES,
   MemoryProposalSchema,
+  lessonTrigger,
 } from '../index.js'
+
+test.each([
+  'stalled',
+  'verification-unknown',
+  'stalled: no progress',
+  ' verification-unknown : execution-needs-owner',
+])('lesson trigger accepts the reason prefix: %s', (reason) => {
+  expect(lessonTrigger({ kind: 'notification', reason })).toBe('blocked')
+})
+test.each(['unknown-outcome: command-error', 'other: stalled', 'verification-unknown-extra: stalled'])(
+  'unrelated reasons do not trigger lessons: %s',
+  (reason) => {
+    expect(lessonTrigger({ kind: 'notification', reason })).toBeUndefined()
+  },
+)
 
 test('lesson output accepts skip or a lesson, rejecting mixed branches and extra fields', () => {
   for (const value of [

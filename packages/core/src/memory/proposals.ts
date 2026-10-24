@@ -44,7 +44,10 @@ export function lessonTrigger(event: {
   action?: string | undefined
 }): LessonTrigger | undefined {
   if (event.kind === 'goal' && event.status === 'completed') return 'completed'
-  if (event.kind === 'notification' && ['stalled', 'verification-unknown'].includes(event.reason ?? ''))
+  if (
+    event.kind === 'notification' &&
+    ['stalled', 'verification-unknown'].includes(event.reason?.split(':', 1)[0]?.trim() ?? '')
+  )
     return 'blocked'
   if (
     event.kind === 'choice' &&

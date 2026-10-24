@@ -124,6 +124,17 @@ test('off/disabled never calls model; failure consumes allowance and never retri
 })
 test('model receives only structured facts, with notes redacted, and no session reader', async () => {
   const f = fixture()
+  failedTask(f)
+  for (const state of ['READY', 'RUNNING', 'VERIFYING', 'SUCCEEDED'] as const) {
+    const task = f.store.tasks.list(f.goal.id)[0]!
+    expect(
+      f.store.tasks.transition(task.id, state, {
+        expectedVersion: task.version,
+        source: 'test',
+        reason: 'fixture',
+      }).ok,
+    ).toBe(true)
+  }
   f.store.userNotes.insert({
     id: 'note',
     goalId: f.goal.id,
@@ -137,6 +148,8 @@ test('model receives only structured facts, with notes redacted, and no session 
   const facts = JSON.parse(prompt.slice(prompt.indexOf('{"goal":')))
   expect(Object.keys(facts)).toEqual(['goal', 'trigger', 'checkpoint', 'verification', 'failures', 'notes'])
   expect(facts).not.toHaveProperty('messages')
+  expect(facts.failures[0]).toMatchObject({ state: 'SUCCEEDED', reason: expect.any(String) })
+  expect(prompt).toContain('historical failures')
 })
 test('existing goal and notification events and future structured decision outcomes trigger drafts', async () => {
   const f = fixture()
@@ -153,7 +166,7 @@ test('existing goal and notification events and future structured decision outco
     channel: 'panel',
     createdAt: 1,
     dedupeKey: 'unknown',
-    reason: 'verification-unknown',
+    reason: 'verification-unknown: execution-needs-owner',
   })
   await vi.waitFor(() => expect(f.generate).toHaveBeenCalledTimes(2))
   f.store.notificationChoices.insert({
