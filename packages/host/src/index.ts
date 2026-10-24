@@ -29,12 +29,14 @@ import { dshDraftModel } from './goal-intake/model.js'
 import { CompanionService } from './companion/service.js'
 import type { CompanionSettings } from './companion/service.js'
 import { CompanionSessionManager, dshCompanionHost } from './companion/session.js'
+import { CompanionMemory, memoryQuestionAdapter } from './companion/memory.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
 export const inject: string[] = []
 
 export interface CompanionConfig {
+  memory?: { enabled?: boolean; suggest?: boolean; maxChars?: number; draftProjectLessons?: boolean }
   enabled?: boolean
   personaPath?: string
   shareSessionTitles?: boolean
@@ -58,6 +60,12 @@ export const Config: Schema<Omit<Config, 'language'> & { language?: LanguageSett
       .volatile()
       .description('WhaleDot language / 语言'),
     companion: Schema.object({
+      memory: Schema.object({
+        enabled: Schema.boolean().default(true),
+        suggest: Schema.boolean().default(true),
+        maxChars: Schema.number().min(256).max(2000).step(1).default(2000),
+        draftProjectLessons: Schema.boolean().default(false),
+      }).default({}),
       enabled: Schema.boolean().default(true).description('Companion session “大肥鱼”'),
       personaPath: Schema.string().description('Custom persona file (optional)'),
       shareSessionTitles: Schema.boolean().default(true).description('Let the companion see session titles'),
@@ -194,6 +202,18 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       log: (message, error) => debug.host(message, error),
     })
     await companion.loadPersona()
+    const memory = new CompanionMemory(store, {
+      locale: notificationLocale,
+      settings: () => ({
+        enabled: config.companion?.memory?.enabled ?? true,
+        suggest: config.companion?.memory?.suggest ?? true,
+        maxChars: config.companion?.memory?.maxChars ?? 2000,
+        draftProjectLessons: config.companion?.memory?.draftProjectLessons ?? false,
+      }),
+      owns: (id) => companionSessions.allSessionIds().includes(id),
+      ask: memoryQuestionAdapter(ctx),
+    })
+    companion.memory = memory
     ctx.provide('whaledotCompanion', companion)
     execution.setAdmission((via, own) => autopilot.hasCapacity(own, via.kind === 'background'))
     managed = true
@@ -247,6 +267,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           scopes.revoke(scopeId, peer)
         },
         rebuildCompanion: () => companionSessions.rebuild(),
+        memory,
       },
     )
     const clock = { now: () => Date.now() }

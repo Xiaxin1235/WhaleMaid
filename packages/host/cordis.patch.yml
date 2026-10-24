@@ -13,7 +13,7 @@
           - id: persona
             name: '@deepseek-ai/dsh-persona'
             config:
-              prefix: '{{whaledot_persona}}'
+              prefix: "{{whaledot_persona}}\n\n{{whaledot_memory}}\n\n{{whaledot_memory_guidance}}"
               complete: true
           - id: whaledot-companion
             name: 'dsh-whaledot/companion'

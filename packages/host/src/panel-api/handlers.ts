@@ -25,6 +25,8 @@ export function panelError(code: string, message: string) {
   return ErrorSchema.parse({ error: { code, message } })
 }
 export function failure(error: unknown) {
+  if (error instanceof Error && ['stale-version', 'scope-full', 'contains-secret'].includes(error.message))
+    return panelError(`whaledot/${error.message}`, error.message)
   if (error instanceof z.ZodError) return panelError('whaledot/invalid-input', 'Invalid panel data')
   if (error instanceof Error && 'code' in error && error.code === 'SETTINGS_CONFLICT') {
     return panelError('whaledot/settings-conflict', 'Settings changed; refresh and try again')

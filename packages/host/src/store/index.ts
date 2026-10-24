@@ -21,6 +21,9 @@ import {
   NotificationChoiceSchema,
   InboxSessionSchema,
   DeliveryRecordSchema,
+  MemorySchema,
+  memoryScopeKey,
+  canActivateMemory,
   hashScope,
   transition,
 } from '@whaledot/core'
@@ -109,6 +112,7 @@ export class WhaleStore {
   readonly notificationChoices
   readonly inboxSessions
   readonly notificationDeliveries
+  readonly memories
 
   constructor(
     private readonly dataDir: string,
@@ -137,6 +141,46 @@ export class WhaleStore {
     this.notificationChoices = ledger('notification_choices', NotificationChoiceSchema)
     this.inboxSessions = ledger('inbox_sessions', InboxSessionSchema)
     this.notificationDeliveries = ledger('notification_deliveries', DeliveryRecordSchema)
+    this.memories = {
+      get: (id: string) => this.one('memories', id, MemorySchema),
+      list: (scopeKey?: string, options: { includeArchived?: boolean } = {}) =>
+        this.rows('memories', MemorySchema).filter(
+          (m) =>
+            (!scopeKey || memoryScopeKey(m.scope) === scopeKey) &&
+            (options.includeArchived || m.status === 'active'),
+        ),
+      insert: (input: import('@whaledot/core').Memory) => {
+        const row = MemorySchema.parse(input)
+        if (row.status === 'active' && !canActivateMemory(this.rows('memories', MemorySchema), row))
+          throw Error('scope-full')
+        this.writer()
+          .prepare('INSERT INTO memories(id,scope_key,status,version,data) VALUES(?,?,?,?,?)')
+          .run(row.id, memoryScopeKey(row.scope), row.status, row.version, JSON.stringify(row))
+        this.changed()
+      },
+      update: (input: import('@whaledot/core').Memory, expectedVersion: number) => {
+        const row = MemorySchema.parse(input)
+        if (row.version !== expectedVersion + 1) throw Error('stale-version')
+        if (row.status === 'active' && !canActivateMemory(this.rows('memories', MemorySchema), row))
+          throw Error('scope-full')
+        const result = this.writer()
+          .prepare('UPDATE memories SET scope_key=?,status=?,version=?,data=? WHERE id=? AND version=?')
+          .run(
+            memoryScopeKey(row.scope),
+            row.status,
+            row.version,
+            JSON.stringify(row),
+            row.id,
+            expectedVersion,
+          )
+        if (result.changes !== 1) throw Error('stale-version')
+        this.changed()
+      },
+      delete: (id: string) => {
+        this.writer().prepare('DELETE FROM memories WHERE id=?').run(id)
+        this.changed()
+      },
+    }
     this.goals = {
       get: (id) => this.one('goals', id, ProjectGoalSchema),
       list: () => this.rows('goals', ProjectGoalSchema),
@@ -463,6 +507,28 @@ export class WhaleStore {
     return parsed ?? true
   }
 
+  /** Auxiliary memory usage, references and draft deduplication; never interpreted as confirmed content. */
+  memoryMeta(): { calls: number[]; references: Record<string, number>; drafts: Record<string, number> } {
+    return (
+      this.one(
+        'kv_settings',
+        'memory.meta',
+        z.object({
+          calls: z.array(z.number()),
+          references: z.record(z.string(), z.number()),
+          drafts: z.record(z.string(), z.number()),
+        }),
+      ) ?? { calls: [], references: {}, drafts: {} }
+    )
+  }
+  setMemoryMeta(input: ReturnType<WhaleStore['memoryMeta']>): void {
+    this.writer()
+      .prepare(
+        "INSERT INTO kv_settings(id,data) VALUES('memory.meta',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+      )
+      .run(JSON.stringify(input))
+  }
+
   /** Writes are durable before callers observe the new pause value. */
   setPaused(paused: boolean): void {
     const value = z.boolean().parse(paused)
@@ -599,6 +665,7 @@ export class WhaleStore {
           version: fields.version,
           state: fields.state,
           status: fields.status,
+          ...(table === 'memories' ? { scope_key: memoryScopeKey(MemorySchema.parse(parsed).scope) } : {}),
         }
         for (const [column, value] of Object.entries(checks)) {
           if (column in row && row[column] !== value) throw new Error('Record index mismatch')

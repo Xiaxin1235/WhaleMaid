@@ -3,7 +3,15 @@ import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-api-session-controller'
-import { notificationCopy, readTranscript, shortTitle, transcriptTitle } from '@whaledot/core'
+import {
+  notificationCopy,
+  readTranscript,
+  shortTitle,
+  transcriptTitle,
+  projectKeyForGoal,
+  renderMemoryBlock,
+} from '@whaledot/core'
+import type { CompanionMemory } from './memory.js'
 import type { Locale, Notification, NotificationFacts, TranscriptEvent, TranscriptPage } from '@whaledot/core'
 import type { WhaleStore } from '../store/index.js'
 
@@ -25,6 +33,7 @@ export interface CompanionSettings {
 
 /** Read-only facts the companion's tools expose; every result is data, never an instruction. */
 export interface CompanionApi {
+  memory?: CompanionMemory | undefined
   persona(): string
   goalsOverview(): GoalOverview[]
   pendingDecisions(): PendingDecision[]
@@ -51,6 +60,7 @@ export interface PendingDecision {
   where: string
 }
 export interface GoalDetail {
+  projectMemories?: string
   id: string
   title: string
   objective: string
@@ -90,6 +100,7 @@ const defaultPersona = (locale: Locale) =>
 
 /** Builds the companion's read model from WhaleDot's store and DSH's public session controller. */
 export class CompanionService implements CompanionApi {
+  memory: CompanionMemory | undefined
   private personaText = ''
   private readonly titles = new Map<string, { updatedAt: number; title?: string }>()
 
@@ -196,6 +207,14 @@ export class CompanionService implements CompanionApi {
       .slice(-5)
     return {
       id: goal.id,
+      ...(this.memory?.settings().enabled && projectKeyForGoal(goal, scope)
+        ? {
+            projectMemories: renderMemoryBlock(
+              this.store.memories.list(`project:${projectKeyForGoal(goal, scope)}`),
+              this.deps.locale(),
+            ),
+          }
+        : {}),
       title: clip(goal.title, 120),
       objective: clip(goal.objective, 600),
       expectedOutcome: clip(goal.expectedOutcome, 300),

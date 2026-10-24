@@ -1,4 +1,6 @@
 import type { NotificationDeliverer } from '../notify/deliverer.js'
+import type { CompanionMemory } from '../companion/memory.js'
+import { MemoryTextSchema } from '@whaledot/core'
 import type { NotificationRouter } from '../notify/router.js'
 import { NotificationPreferencesSchema } from '@whaledot/core'
 import {
@@ -47,6 +49,7 @@ import type { PanelStatus } from './contract.js'
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
+  memory?: CompanionMemory
   snapshot(): PanelStatus
   setLanguage(patch: ReturnType<typeof languagePatch>): Promise<void>
   goals(): ProjectGoal[]
@@ -75,6 +78,41 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'memories-list': {
+          const query = z.strictObject({ includeArchived: z.boolean().optional() }).parse(input)
+          result = runtime.memory!.panelList(query.includeArchived)
+          break
+        }
+        case 'memory-update': {
+          const q = z
+            .strictObject({ id: z.string().min(1), version: z.int().positive(), text: MemoryTextSchema })
+            .parse(input)
+          result = runtime.memory!.update(q.id, q.version, { text: q.text })
+          break
+        }
+        case 'memory-archive':
+        case 'memory-restore': {
+          const q = z.strictObject({ id: z.string().min(1), version: z.int().positive() }).parse(input)
+          result = runtime.memory!.update(q.id, q.version, {
+            status: method === 'memory-archive' ? 'archived' : 'active',
+          })
+          break
+        }
+        case 'memory-delete': {
+          const q = z
+            .strictObject({ id: z.string().min(1), version: z.int().positive(), confirm: z.literal(true) })
+            .parse(input)
+          const row = runtime.memory!.store.memories.get(q.id)
+          if (!row || row.version !== q.version) throw Error('stale-version')
+          runtime.memory!.store.memories.delete(q.id)
+          result = { deleted: true }
+          break
+        }
+        case 'memories-export': {
+          const q = z.strictObject({ format: z.enum(['markdown', 'json']) }).parse(input)
+          result = runtime.memory!.export(q.format)
+          break
+        }
         case 'notification-center': {
           const query = NotificationCenterRequestSchema.parse(input)
           result = NotificationCenterSchema.parse(runtime.notifier!.center(query.goalId))
@@ -242,6 +280,7 @@ export function installPanelApi(
     | 'notifier'
     | 'notificationRouter'
     | 'rebuildCompanion'
+    | 'memory'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {

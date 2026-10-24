@@ -96,4 +96,11 @@ export const MIGRATIONS: readonly Migration[] = [
         )
     },
   },
+  {
+    version: 6,
+    up(db) {
+      db.exec(`CREATE TABLE memories (id TEXT PRIMARY KEY, scope_key TEXT NOT NULL, status TEXT NOT NULL, version INTEGER NOT NULL, data TEXT NOT NULL);
+        CREATE INDEX memories_scope_status ON memories(scope_key,status);`)
+    },
+  },
 ]

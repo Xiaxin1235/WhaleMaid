@@ -612,3 +612,17 @@ C01 实际隔离宿主补证：本地链接版通过原生信封回答 WhaleDot 
 ## 24. P11：DSH 界面语言
 
 `settings.describe({redactSecrets: true})`（`dsh-settings/lib/types/index.d.ts:96`）中 `ns === 'locale'` 的 `value.preference` 是用户在 Harness 设置里选的语言。Desktop 宿主进程的 `Intl` 常报 en-US，所以 WhaleDot 的 `language: auto` 先读该值，读不到再回退到 `Intl`。伙伴标题、人格文件和通知文案都随它切换。时间统一按宿主时区输出 `YYYY-MM-DD HH:mm (UTC±hh:mm)`，避免模型把 UTC 当本地时间。
+
+## 25. P12：工具内确认（方案 A）
+
+结论：采用 A。同版本 `dsh-tools/lib/types/index.d.ts:216–241` 的 `ToolExecutionInput.agent` 是工具所属 Agent，`signal` 是调用取消信号；不从模型参数取 agent/sessionId。`dsh-user-questions/lib/types/index.d.ts:71–98` 与 Desktop 官方只读实现 `.dsh-dev/c04-user-questions-ref.js:668–688`：`ask({agent,questions,signal})` 校验 registry 的 exact live root，随后调 scoped waterfall，没有 openTurn 检查。因此可在伙伴正在执行的工具里向同一 root 提问，不新增 prompt 或模型回合。既有第 19 补充、20 节的多界面单次结算仍适用。
+
+答案来自 userQuestions 的人类答题通道，模型工具参数不存在 confirmed/answer。`AskUserQuestionAnswerItem`（同版本 types.d.ts）使用 id/selected/custom；自定义文字重新验证后保存。缺失服务、取消、无 provider、非法答案、工具/会话 signal 中止均不写入。供应 signal 中止抛 ASK_ABORTED；本插件以 10 分钟 AbortSignal.timeout 与工具 signal 合成，逾时 declined。关闭客户端问题卡不一定中止宿主等待（第 20 节：关闭不构成答复），因此仍等待回答/取消/超时，期间不保存。没有使用 askTimed 的 continued 回合或让模型报告同意。
+
+不确定点：不同客户端关闭问题卡的即时取消 UX 不统一；保存语义不依赖关闭事件，只依赖一次精确问题身份的人类回答和未中止的调用。
+
+## 26. P12：系统提示变量刷新
+
+结论：每次 assemble 都解析注册变量，不缓存到会话 header。出处：同版本 `dsh-system-prompt/README.md` 的 “Contribute a prompt variable”（约 70–77 行）和 “Assembly and rendering”（约 108 行）：变量 resolve at each assembly；assemble 返回当次已求值 variables，renderPrompt 随后展开。`whaledot_memory` 回调每次同步读当前 store，下一次组装立刻读取更新/删除/开关状态；项目记忆不常驻，Autopilot 提示不改。稳定块按 kind/id 排序，内容无每轮时钟，模板标记 `{{` 转为 `{ {`。
+
+不确定点：已经在途的模型请求不会 retroactively 修改提示；生效边界是下一次请求组装（含同一回合的下一模型步骤）。

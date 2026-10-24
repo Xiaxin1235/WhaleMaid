@@ -26,6 +26,7 @@ import {
 import { serviceRows, formatStartedAt } from './format.js'
 import styles from './panel.css'
 import { IntakeView, GoalDetailView } from './intake.js'
+import { Memories } from './memories.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
@@ -319,6 +320,7 @@ function Panel({ ctx, connection }: Face) {
                     text('companionRebuild'),
                   ),
               ),
+            h(Memories, { connection, locale }),
             h(
               'label',
               { className: 'whaledot-language' },
