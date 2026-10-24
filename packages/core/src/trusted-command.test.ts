@@ -40,7 +40,6 @@ test.each([
   ['pwsh -EncodedCommand AAA', 'dynamic-execution'],
   ['powershell -enc AAA', 'dynamic-execution'],
   ['pwsh -Command "Write-Host ok"', 'dynamic-execution'],
-  ['cmd /c echo ok', 'dynamic-execution'],
   ['node -e "console.log(1)"', 'dynamic-execution'],
   ['python -c "print(1)"', 'dynamic-execution'],
   ['type C:/Windows/win.ini', 'outside-command-path'],
@@ -81,6 +80,7 @@ test.each([
   'node gen.mjs && pnpm test',
   'node gen.mjs > result.txt',
   'echo "hello; a & b | c"',
+  'cmd /c echo ok',
   'Get-ChildItem -Force | Select-Object Mode,Length,Name; "---"; if (Test-Path scripts) { Get-ChildItem -Force scripts | Select-Object Length,Name }',
 ])('trusted allows ordinary command %s', (command) => expect(decide(command).decision).toBe('allow'))
 test.each([

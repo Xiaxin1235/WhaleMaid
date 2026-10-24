@@ -119,9 +119,12 @@ const LOCAL_TEST_COMMAND = /^(?:pnpm|npm)\s+(?:test|run\s+(?:test|build|lint|typ
 export function classifyCommand(cmdline: string, cwd = 'C:/', scope?: AuthorizationScope): CommandClass {
   if (scope?.commandMode === 'trusted') {
     const legacy = classifyCommand(cmdline, cwd)
-    if (legacy.reasons.includes('system-configuration') || legacy.reasons.includes('invalid-command'))
-      return { class: 'forbidden', reasons: legacy.reasons }
-    const inspection = inspectTrustedCommand(cmdline, cwd, scope)
+    const inspection = inspectTrustedCommand(
+      cmdline,
+      cwd,
+      scope,
+      (line) => classifyCommand(line, cwd).reasons,
+    )
     const reasons = [
       ...new Set([
         ...legacy.reasons.filter(
@@ -130,7 +133,14 @@ export function classifyCommand(cmdline: string, cwd = 'C:/', scope?: Authorizat
         ...inspection.reasons,
       ]),
     ]
-    return { class: reasons.length ? 'needs-approval' : 'safe', reasons }
+    return {
+      class: reasons.some((reason) => ['system-configuration', 'invalid-command'].includes(reason))
+        ? 'forbidden'
+        : reasons.length
+          ? 'needs-approval'
+          : 'safe',
+      reasons,
+    }
   }
   const line = cmdline.trim()
   if (line.length === 0 || [...line].some((char) => char.charCodeAt(0) < 32 && !'\t\r\n'.includes(char))) {

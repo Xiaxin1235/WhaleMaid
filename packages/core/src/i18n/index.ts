@@ -14,7 +14,7 @@ export const en = {
   dangerApproval:
     'One-time dangerous command approval\nCommand: {command}\nCategory: {category}\nWorking directory: {cwd}\nGoal: {goal}\nNo answer means no execution. Allow once only.',
   trustedRisk:
-    'Arbitrary commands in trusted mode can read or write files outside the authorized directories. WhaleDot cannot see what a script such as node build.js does. Path boundaries apply only to file tools and recognizable command text.\nDanger detection uses command text and is best effort. Deletion inside scripts, encoded commands or indirect calls may evade detection.\nThe three main fallbacks are execution in an independent worktree, WhaleDot checkpoints and rollback, and asking every time for dangerous commands outside the authorized directories. These do not provide filesystem isolation for arbitrary scripts.',
+    'Arbitrary commands in trusted mode can read or write files outside the authorized directories. WhaleDot cannot see what a script such as node build.js does. Path boundaries apply only to file tools and recognizable command text.\nDanger detection uses command text and is best effort. Unresolved wrappers, invocation targets and paths require approval. Script bodies, runtime downloads, generated code and encoded payloads remain opaque; deletion may only be recognized as dynamic execution.\nThe three main fallbacks are execution in an independent worktree, WhaleDot checkpoints and rollback, and asking every time for dangerous commands outside the authorized directories. These do not provide filesystem isolation for arbitrary scripts.',
   reasonReport: 'Report only',
   reasonTampering: 'Acceptance machinery changed',
   reasonRegression: 'Verification regressed',
@@ -297,7 +297,7 @@ export const zhCN: Record<MessageKey, string> = {
   dangerApproval:
     '危险命令单次审批\n命令：{command}\n危险类别：{category}\n工作目录：{cwd}\n所属目标：{goal}\n不回答就不执行；只允许一次。',
   trustedRisk:
-    '高权限模式下，任意命令可以读写授权目录以外的文件。例如 node build.js 里的脚本做什么，WhaleDot 看不到。路径限制只对文件工具和能识别的命令文字有效。\n危险操作按命令文字识别，只能尽力而为。脚本内部、编码命令、间接调用里的删除可能识别不出来。\n主要兜底手段有三个：任务在独立 worktree 里执行；WhaleDot 的检查点和回滚；授权目录以外的危险命令一律询问。这些手段不能为任意脚本提供文件系统隔离。',
+    '高权限模式下，任意命令可以读写授权目录以外的文件。例如 node build.js 里的脚本做什么，WhaleDot 看不到。路径限制只对文件工具和能识别的命令文字有效。\n危险操作按命令文字识别，只能尽力而为。无法拆解的包装器、调用目标和路径需要审批。脚本内部、运行时下载或生成的代码、编码内容仍不可见，删除可能只能识别为动态执行。\n主要兜底手段有三个：任务在独立 worktree 里执行；WhaleDot 的检查点和回滚；授权目录以外的危险命令一律询问。这些手段不能为任意脚本提供文件系统隔离。',
   reasonReport: '仅报告验收',
   reasonTampering: '验收机制被修改',
   reasonRegression: '验收发生回归',
