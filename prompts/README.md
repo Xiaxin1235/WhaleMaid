@@ -33,7 +33,7 @@
 | 可并行 | `C02-Decisions表情最小版.md` | 鲸鱼插件（可选功能） | 待执行（附 C00；需要 OpenAI API Key，不能用订阅账户） |
 | **下一个** | `P13-大肥鱼提议项目管理动作.md` | M3 | 已交给 GPT（附 00） |
 | 待修 | Web 上空白大肥鱼会话首次提问时预设被切成 standard | M3 | 已知限制，目前从桌宠发起首次提问 |
-| 待修 | 项目经验的“卡住”触发不生效：`lessonTrigger`（`core/src/memory/proposals.ts:47`）只认裸 reason，而 `verify-task.ts:472` 发出的通知 reason 形如 `verification-unknown: …`，真实环境永远匹配不上 | M3 | 只比较冒号前的部分并补带后缀的测试；顺带在起草事实里附任务最终状态，避免草稿把已修好的失败说成“仍未通过” |
+| 待修 | 项目经验的“卡住”触发不生效：`lessonTrigger`（`core/src/memory/proposals.ts:47`）只认裸 reason，而 `verify-task.ts:472` 发出的通知 reason 形如 `verification-unknown: …`，真实环境永远匹配不上 | M3 | 并入 P13 第零部分（单独提交） |
 | 待用户 | 日常环境安装 WhaleDot 与修改版鲸鱼，目视确认 C08F 与空白草稿 | — | 待安排 |
 | 之后 | M3 断点恢复、M4 长期自治、M5 开源发布 | | 待规划 |
 
