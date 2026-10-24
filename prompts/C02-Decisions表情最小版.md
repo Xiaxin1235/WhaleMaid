@@ -1,6 +1,15 @@
 # C02 鲸鱼插件：用 OpenAI Decisions API 选表情（最小版，可选功能）
 
-**前置**：C01 已在 `whaledot-local` 分支提交且工作区干净（C01 与本任务修改同一批文件）。若 C01 尚未提交，先停下说明。
+**前置**：`whaledot-local` 分支工作区干净，最新提交至少包含 `3e9ec2d fix: hide blank Harness drafts from the conversation lists`。若工作区不干净，先停下说明。
+
+### 本提示词写于 C01 之后，此后代码有这些变化（2026-10-23 更新）
+
+- C06/C07 界面改版：新版 / 经典两种界面风格（`options.interfaceStyle`、`web/panel-style.js`、`web/redesign.css`）。设置项与状态文字两种风格都要显示正常。
+- C08/C08F：大肥鱼专属会话（`snapshot.companionSessionId`、`companionRole`、`web/companion-session.js`）。大肥鱼会话的回复**同样适用**本功能；会话标题判断改为：WhaleDot 自动任务会话（标题以 `[WhaleDot]` 开头）不发送，大肥鱼会话照常。
+- 空白草稿：快照中的会话有 `blank` 字段；空白会话不会产生回复，无需特殊处理。
+- `web/pet.js` 里**已经存在** `react(mood)`、`reactionMood`、`reactionUntil`（第 240 行附近，用于点击互动与完成庆祝，第 375 行在计算 mood 时优先使用 `reactionMood`）。本任务的情绪反应必须复用这套机制或明确与之合并，不能再定义一套同名变量；若两者同时触发，以较晚的为准，任务状态（working / waiting / error）仍然优先。
+- 第 2 节里的“`act(body, activeView, expression)`”以现行签名 `act(actor, pack, word, manualPreview)` 为准；“减少动态效果”以现有 `motionPreference`（`prefers-reduced-motion`）为准。
+- 先跑一遍 `npm test` 与 `npm run test:inbox-ui` 确认基线通过，再开始改。
 
 ## 目标
 
