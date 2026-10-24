@@ -37,7 +37,8 @@
 | P14 | `P14-高权限执行模式.md` | M3 | ✅ GPT 完成并审查（`91e9942`、`353851b`）；危险命令识别有漏判，P14F 修好前不要在真实项目开高权限 |
 | P14F | `P14F-P14审查修正.md` | M3 | ✅ GPT 完成并审查（`5c18e29`） |
 | P14G | `P14G-高权限剩余漏判.md` | M3 | ✅ GPT 完成并审查（`67263a5`） |
-| 待修 | 高权限模式下带通配符的普通命令被直接拒绝：默认保护名称 `id_rsa*`、`id_ed25519*` 与任何 `*.xx` 理论上有交集，所以 `npx prettier --write "src/*.ts"`、`npx eslint src/*.js`、`git add *.md`、`Get-ChildItem *.log`、`copy *.txt out` 全部 deny（P14 起就有；P14G 提示词“可能命中就 deny”的写法加固了它） | M3 | 建议：通配符的字面部分明确指向保护项（如 `*.key`、`.env*`、`id_rsa*`、保护目录下的通配）才 deny；仅理论交集不 deny，普通命令放行，危险类命令仍按类别 ask |
+| **下一个** | `P14H-通配符保护判定.md` | M3 | 待执行（附 00）：修下一行的问题，用户已选“字面指向才拒绝” |
+| 已写成 P14H | 高权限模式下带通配符的普通命令被直接拒绝：默认保护名称 `id_rsa*`、`id_ed25519*` 与任何 `*.xx` 理论上有交集，所以 `npx prettier --write "src/*.ts"`、`npx eslint src/*.js`、`git add *.md`、`Get-ChildItem *.log`、`copy *.txt out` 全部 deny（P14 起就有；P14G 提示词“可能命中就 deny”的写法加固了它） | M3 | 建议：通配符的字面部分明确指向保护项（如 `*.key`、`.env*`、`id_rsa*`、保护目录下的通配）才 deny；仅理论交集不 deny，普通命令放行，危险类命令仍按类别 ask |
 | 已由 P14G 修复 | 高权限模式仍放行的少量命令（审查时另测 54 条，9 条 allow，其中 6 条应拦） | M3 | `forfiles /c "cmd /c del @file"`（未知包装器）、`rundll32`、`regsvr32`、`shutdown`、`Stop-Process -Force` 应归系统类；`git checkout .`、`git switch -f` 会丢弃未提交改动，应归 repository-delete；`schtasks`、`taskkill` 现在只是碰巧以 ambiguous-command-path 被问，类别应改为系统类；`npm uninstall` 可归 package-install。`npm run clean` 等看不到脚本内容属已知限制 |
 | 待开 | 危险审批在桌宠信封只显示 `whaledot-danger` 标识，看不到命令 | 鲸鱼插件 | 待写 C 任务 |
 | 待修 | 放弃 / 改方向会被历史运行卡死：`execution/execute-task.ts` 的 `stopGoal` 对目标下**所有**未成功任务的历史运行都要求 `observeSession` 返回 `endReason`；宿主崩溃留下的 UNKNOWN 运行或已不存在的会话没有 `turn/end`，于是永远报 `goal-stop-unconfirmed`，目标只能停在 paused | M3 | 并入 P14 第零部分（单独提交） |
