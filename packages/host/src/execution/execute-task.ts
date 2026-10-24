@@ -211,13 +211,8 @@ export class TaskExecutor {
     const tasks = this.store.tasks.list(goalId)
     const runs = this.store.runs
       .all()
-      .filter((r) =>
-        tasks.some(
-          (t) =>
-            t.id === r.taskId && (r.status === 'running' || !['SUCCEEDED', 'CANCELLED'].includes(t.state)),
-        ),
-      )
-    for (const run of runs) if (run.status === 'running') this.abort(run, 'owner-goal-decision')
+      .filter((r) => r.status === 'running' && tasks.some((t) => t.id === r.taskId))
+    for (const run of runs) this.abort(run, 'owner-goal-decision')
     const deadline = Date.now() + 6000
     while (
       runs.some((r) => this.store.runs.get(r.run_id)?.status === 'running' || this.finishing.has(r.run_id))

@@ -282,6 +282,101 @@ test('abandonment closes the real executor gate and reuses cancellation for a ru
   expect(f.store.tasks.get(f.task.id)?.state).toBe('CANCELLED')
   expect(f.store.runs.all()).toHaveLength(1)
 })
+test.each(['missing', 'no-end'] as const)(
+  'historical %s sessions do not block abandonment or direction changes',
+  async (kind) => {
+    for (const action of ['abandon', 'change-direction'] as const) {
+      const f = fixture(),
+        observe = vi.fn(async () => ({
+          exists: kind !== 'missing',
+          running: false,
+          finalReplyNonempty: false,
+        }))
+      const executor = new TaskExecutor(
+        f.store,
+        f.scopes,
+        { launch: vi.fn(), cancel: vi.fn() },
+        f.dir,
+        () => 'en',
+        vi.fn(),
+        observe,
+      )
+      cleanup.push(() => executor.dispose())
+      f.store.runs.insert(
+        RunSchema.parse({
+          run_id: 'run_history',
+          taskId: f.task.id,
+          sessionId: 'old',
+          worktreePath: f.dir,
+          baseCommit: 'test',
+          startedAt: 1,
+          status: 'ended',
+          outcome: 'UNKNOWN',
+        }),
+      )
+      const router = new NotificationRouter(
+        f.store,
+        f.scopes,
+        f.legacy,
+        () => 'en',
+        f.wake,
+        new GoalDecisions(f.store, f.scopes, (id) => executor.stopGoal(id)),
+      )
+      expect(
+        await router.routeChoice(f.n.id, action, owner, {
+          goalVersion: f.version(),
+          confirm: true,
+          direction: '只读检查 README',
+        }),
+      ).toMatchObject({ ok: true })
+      expect(observe).not.toHaveBeenCalled()
+      expect(f.store.goals.get(f.goal.id)?.status).toBe(action === 'abandon' ? 'cancelled' : 'active')
+    }
+  },
+)
+test('a run stopped by this decision still requires confirmed runtime termination', async () => {
+  const f = fixture(),
+    cancel = vi.fn((sessionId: string) => {
+      const run = f.store.runs.all().find((r) => r.sessionId === sessionId)!
+      f.store.runs.update({ ...run, status: 'ended', endedAt: Date.now() })
+    }),
+    observe = vi.fn(async () => ({ exists: true, running: true, finalReplyNonempty: false }))
+  const executor = new TaskExecutor(
+    f.store,
+    f.scopes,
+    { launch: vi.fn(), cancel },
+    f.dir,
+    () => 'en',
+    vi.fn(),
+    observe,
+  )
+  cleanup.push(() => executor.dispose())
+  executor.registry.register(
+    RunSchema.parse({
+      run_id: 'run_current',
+      taskId: f.task.id,
+      sessionId: 'current',
+      worktreePath: f.dir,
+      baseCommit: 'test',
+      startedAt: Date.now(),
+      status: 'running',
+    }),
+  )
+  const router = new NotificationRouter(
+    f.store,
+    f.scopes,
+    f.legacy,
+    () => 'en',
+    f.wake,
+    new GoalDecisions(f.store, f.scopes, (id) => executor.stopGoal(id)),
+  )
+  expect(
+    await router.routeChoice(f.n.id, 'abandon', owner, { goalVersion: f.version(), confirm: true }),
+  ).toMatchObject({ ok: false, reason: 'goal-stop-unconfirmed' })
+  expect(cancel).toHaveBeenCalledWith('current')
+  expect(observe).toHaveBeenCalledWith('current')
+  expect(f.store.goals.get(f.goal.id)).toMatchObject({ status: 'paused', autopilot: { enabled: false } })
+})
 test('native custom text is a direction for new cards, while selecting change without text does nothing', async () => {
   const f = fixture()
   let count = 0
