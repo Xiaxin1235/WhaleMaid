@@ -33,6 +33,7 @@ import { CompanionMemory, memoryQuestionAdapter } from './companion/memory.js'
 import { MemoryDrafts } from './companion/drafts.js'
 import { CompanionActions } from './companion/actions.js'
 import { CompanionRecall } from './companion/recall.js'
+import { CompanionArchives, dshCompanionArchiveHost } from './companion/archive.js'
 import { GoalDecisions } from './notify/goal-decisions.js'
 
 export const name = 'whaledot'
@@ -40,6 +41,7 @@ export const name = 'whaledot'
 export const inject: string[] = []
 
 export interface CompanionConfig {
+  archiveEarlier?: Volatile<boolean>
   recall?: { enabled?: Volatile<boolean>; summarize?: Volatile<boolean> }
   actions?: { enabled?: boolean }
   memory?: {
@@ -63,7 +65,8 @@ export interface Config {
 }
 type ConfigInput = Omit<Config, 'language' | 'companion'> & {
   language?: LanguageSetting
-  companion?: Omit<CompanionConfig, 'memory' | 'recall'> & {
+  companion?: Omit<CompanionConfig, 'memory' | 'recall' | 'archiveEarlier'> & {
+    archiveEarlier?: boolean
     recall?: { enabled?: boolean; summarize?: boolean }
     memory?: { enabled?: boolean; suggest?: boolean; maxChars?: number; draftProjectLessons?: boolean }
   }
@@ -77,6 +80,7 @@ export const Config: Schema<ConfigInput, Config> = Schema.object({
     .volatile()
     .description('WhaleDot language / 语言'),
   companion: Schema.object({
+    archiveEarlier: Schema.boolean().default(true).volatile(),
     recall: Schema.object({
       enabled: Schema.boolean().default(true).volatile(),
       summarize: Schema.boolean().default(true).volatile(),
@@ -219,6 +223,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       enabled: () => config.companion?.enabled ?? true,
       title: () => (notificationLocale() === 'zh-CN' ? '大肥鱼' : 'Da Fei Yu'),
       log: (message, error) => debug.host(message, error),
+      afterReady: async (previous, fresh) => {
+        if (fresh) await archives.rotated(previous)
+        else await archives.startup()
+      },
     })
     const companion = new CompanionService(ctx, store, {
       locale: notificationLocale,
@@ -261,6 +269,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       log: (message) => debug.host(message),
     })
     companion.recall = recall
+    const archives = new CompanionArchives(store, dshCompanionArchiveHost(ctx, dataDir), {
+      enabled: () => (config.companion?.enabled ?? true) && (config.companion?.archiveEarlier?.get() ?? true),
+      current: () => companionSessions.sessionId(),
+      owned: () => companionSessions.allSessionIds(),
+      dataDir,
+      summarize: (id) => recall.summarize(id),
+      log: (message) => debug.host(message),
+    })
     const companionActions = new CompanionActions(store, {
       enabled: () => config.companion?.actions?.enabled ?? true,
       locale: notificationLocale,
@@ -307,6 +323,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         notifier.dispose(),
         memoryDrafts.dispose(),
         recall.dispose(),
+        archives.dispose(),
       ])
       store.close()
     })
@@ -358,6 +375,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         memory,
         memoryDrafts,
         recall,
+        archives,
       },
     )
     const clock = { now: () => Date.now() }

@@ -2,6 +2,7 @@ import type { NotificationDeliverer } from '../notify/deliverer.js'
 import type { CompanionMemory } from '../companion/memory.js'
 import type { MemoryDrafts } from '../companion/drafts.js'
 import type { CompanionRecall } from '../companion/recall.js'
+import type { CompanionArchives } from '../companion/archive.js'
 import { MemoryTextSchema, MemoryScopeSchema } from '@whaledot/core'
 import type { NotificationRouter } from '../notify/router.js'
 import { NotificationPreferencesSchema } from '@whaledot/core'
@@ -51,6 +52,8 @@ import type { PanelStatus } from './contract.js'
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
+  archives?: CompanionArchives
+  setArchiveEarlier?: (enabled: boolean) => Promise<void>
   recall?: CompanionRecall
   setRecallSettings?: (patch: {
     enabled?: boolean | undefined
@@ -87,6 +90,23 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'companion-archives':
+          z.strictObject({}).parse(input)
+          result = runtime.archives!.view()
+          break
+        case 'companion-restore': {
+          const q = z
+            .strictObject({ confirm: z.literal(true), id: z.string().min(1).max(200).optional() })
+            .parse(input)
+          result = await runtime.archives!.restore(q.id)
+          break
+        }
+        case 'companion-archive-settings': {
+          const q = z.strictObject({ enabled: z.boolean() }).parse(input)
+          await runtime.setArchiveEarlier!(q.enabled)
+          result = q
+          break
+        }
         case 'recall-list':
           z.strictObject({}).parse(input)
           result = runtime.recall!.panelList()
@@ -356,12 +376,29 @@ export function installPanelApi(
     | 'memory'
     | 'memoryDrafts'
     | 'recall'
+    | 'archives'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {
     const runtime: PanelRuntime = {
       snapshot,
       ...storage,
+      async setArchiveEarlier(enabled) {
+        const settings = child.get('settings') as Context['settings'] | undefined
+        const editor = child.get('configEditor') as Context['configEditor'] | undefined
+        const entry = editor?.entries().find((entry) => entry.fiber === ctx.fiber)
+        const form = settings?.describe().find((form) => form.ns === entry?.options.id)
+        if (!form || !settings) throw Error('settings-unavailable')
+        const value = z
+          .object({ companion: z.object({}).passthrough().optional() })
+          .passthrough()
+          .parse(form.value)
+        await settings.update(
+          form.ns,
+          { companion: { ...value.companion, archiveEarlier: enabled } },
+          form.revision,
+        )
+      },
       async setRecallSettings(patch) {
         const settings = child.get('settings') as Context['settings'] | undefined
         const editor = child.get('configEditor') as Context['configEditor'] | undefined

@@ -1,4 +1,5 @@
 import type { Run, RunId, Task, TaskState } from '@whaledot/core'
+import { companionSessionIds } from '@whaledot/core'
 import type { WhaleStore } from '../store/index.js'
 /** Durable before-send registration and a retained session ownership index, including ended runs. */
 export class RunRegistry {
@@ -32,7 +33,7 @@ export class RunRegistry {
   /** Current or earlier companion sessions; ownership survives a rebuild. */
   isCompanion(sessionId: string): boolean {
     const record = this.store.companionSession()
-    return !!record && (record.sessionId === sessionId || record.previous.includes(sessionId))
+    return companionSessionIds(record, this.store.autopilotEvents.list()).includes(sessionId)
   }
   /** Every session WhaleDot owns (runs, inboxes, companions), for hiding them from the companion's tools. */
   ownedSessionIds(): Set<string> {
@@ -40,7 +41,7 @@ export class RunRegistry {
     return new Set([
       ...this.sessions.keys(),
       ...this.store.inboxSessions.list().map((s) => s.id),
-      ...(record ? [record.sessionId, ...record.previous] : []),
+      ...companionSessionIds(record, this.store.autopilotEvents.list()),
     ])
   }
   /** Re-read current durable state for a registered session. */

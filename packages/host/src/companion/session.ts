@@ -8,6 +8,7 @@ import type {} from '@deepseek-ai/dsh-api-session-controller'
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import type { WhaleStore } from '../store/index.js'
 import { COMPANION_PRESET } from './service.js'
+import { companionSessionIds } from '@whaledot/core'
 
 export type CompanionState =
   | { state: 'disabled' }
@@ -35,6 +36,7 @@ export class CompanionSessionManager {
       enabled: () => boolean
       title: () => string
       log: (message: string, error?: unknown) => void
+      afterReady?: (previousId: string | undefined, fresh: boolean) => Promise<void>
     },
   ) {}
 
@@ -47,7 +49,7 @@ export class CompanionSessionManager {
   /** Every session WhaleDot ever used as the companion, so the gate keeps owning old ones after a rebuild. */
   allSessionIds(): string[] {
     const record = this.store.companionSession()
-    return record ? [record.sessionId, ...record.previous] : []
+    return companionSessionIds(record, this.store.autopilotEvents.list())
   }
 
   ensure(): Promise<CompanionState> {
@@ -69,7 +71,7 @@ export class CompanionSessionManager {
       const record = this.store.companionSession()
       if (record && !fresh && (await this.host.exists(record.sessionId))) {
         this.host.pinReadOnly(record.sessionId)
-        return (this.current = { state: 'ready', sessionId: record.sessionId })
+        return await this.ready(record.sessionId, record.sessionId, fresh)
       }
       const cwd = join(this.options.dataDir, 'companion')
       await mkdir(cwd, { recursive: true })
@@ -83,7 +85,7 @@ export class CompanionSessionManager {
       const created = await this.host.create(id, cwd, this.options.title())
       if (created !== id) throw new Error('companion-identity-mismatch')
       this.host.pinReadOnly(id)
-      return (this.current = { state: 'ready', sessionId: id })
+      return await this.ready(id, record?.sessionId, fresh)
     } catch (error) {
       this.options.log('companion session unavailable', error)
       return (this.current = {
@@ -91,6 +93,15 @@ export class CompanionSessionManager {
         message: error instanceof Error ? error.message.slice(0, 200) : 'companion-unavailable',
       })
     }
+  }
+  private async ready(id: string, previousId: string | undefined, fresh: boolean): Promise<CompanionState> {
+    this.current = { state: 'ready', sessionId: id }
+    try {
+      await this.options.afterReady?.(previousId, fresh)
+    } catch (error) {
+      this.options.log('companion list cleanup unavailable', error)
+    }
+    return this.current
   }
 }
 

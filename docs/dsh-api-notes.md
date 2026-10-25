@@ -680,3 +680,24 @@ P13 自动测试用同一 agent 顺序完成暂停与继续两次确认，核对
 - 结束判断不依赖关闭窗口：P11 `companion.session` 的身份变化表示切换；空闲触发检查 inspect 中最后一个 turn/start/end，必须最后一轮结束满 30 分钟。启动可回顾中断回合已有的文字，但不推断其完成。关闭宿主只中止在途工作，启动补做尚未消费的范围。
 - 现有管理审计只有 action 类别，旧记录无法判断开/关方向。新追加事件可选保存 `companionOperation`（暂停/恢复、开关自动推进、全局暂停/恢复），来自已校验的结构化动作，不增加工具或权限；旧事件用中性类别句子。放弃目标由 P13B 的成功 abandon choice 与实际 cancelled 状态识别。
 - `companion.recall.enabled/summarize` 是 volatile 字段，面板按第 26 节已核实的 settings.describe/update 与真实插件 fiber 保存，热更新、重启均生效。没有修改会话创建方式或鲸鱼插件。
+
+### P16 补充：轮换归档与恢复
+
+第 30 节原为 P15，本次在同节追加 P16 查证。验收开始时为 Desktop 0.2.1-rc.2，四个相关包版本核对见 `.dsh-dev/p16-evidence/versions.json`；workspace 声明从官方同版本 npm 包 `@deepseek-ai/dsh-workspace@0.2.1-rc.2` 提取，tarball 与 integrity 收据在同目录，未安装或更改依赖。
+
+| 接口 / 结论                                                                                                                  | 本轮准确出处                                                                                                                                                                                                  |
+| ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| registry.archivedSessionIds 是全局归档集合；隐藏各分组列表，但保留 workspace.sessionIds 的成员位置                           | `.dsh-dev/p16-evidence/types/index.d.ts:190–196`；`types/types.d.ts:63–89`                                                                                                                                    |
+| archiveSession(id) 可逆、会清除置顶；默认拒绝仍有活动的会话。stopActivity=true 会停止工作，本任务不使用                      | 同 `types/index.d.ts:198–214`；Desktop workspace README.md:101–103；原包只读副本 dsh-workspace-index.js                                                                                                       |
+| unarchiveSession(id) 恢复原成员位置，不恢复原置顶；已恢复 id 无写入；不会删日志                                              | 同 `types/index.d.ts:216–225`；workspace README.md:117                                                                                                                                                        |
+| 没有 workspace 级隐藏/归档字段或方法；delete(workspaceId) 只删除登记、保留目录和日志，会话可能进未分组，不适合此需求；不调用 | 同 `types/index.d.ts:166–181`；types/types.d.ts 的 Workspace 接口                                                                                                                                             |
+| sessionController.list 不过滤归档，参数只有可选 cursor，没有 includeArchived；可见性这里指访问准入，不是侧栏归档筛选         | `.dsh-ref/0.2.1-rc.2/@deepseek-ai/dsh-api-session-controller/lib/types/types.d.ts:266–273`；Desktop 副本 dsh-api-session-controller-index.js:1959–1986,3061–3066；dsh-session-query-index.js:95–123,1072–1074 |
+| observeSession 精确读取 live 或 prepared 记录，不查询归档集合；inspect 同样可读取归档内容                                    | 原包 session-query 副本:1064–1065；同版本声明见 `.dsh-dev/c10-evidence/reference/dsh-session-query/index.d.ts:47`、observation.d.ts:7–19；controller 声明 index.d.ts:79                                       |
+| 归档可打开查看，但 prompt 后的模型步骤会被 archived-session-gate 拒绝；先 unarchive 才能继续正常对话                         | Desktop controller 副本:2492–2517（agent/pre-step reject）、2528–2538（归档/子代理祖先检查）；controller 静态依赖含 workspaceRegistry:2917–2929                                                               |
+| Harness 默认侧栏排除归档；视图筛选支持 default/show/only，show 显示全部、only 只看归档                                       | Desktop client-ui-workspace 副本:964–972，及 View options/archivedFilter 相关实现                                                                                                                             |
+
+因此选择轮换归档，当前伙伴保持未归档。未发现公开 session 删除接口，不使用 workspace 删除接口。桌宠冷恢复仍会拿到已归档会话，旧大肥鱼**不会因归档自动消失**；真实冷启动 DOM 已核对本轮两个归档 id 仍存在。其 role 仍由 header.agentPreset 与原有当前身份投影确定，不修改鲸鱼插件；旧会话先从 WhaleDot 面板恢复后再聊。
+
+候选需同时满足 WhaleDot 当前/历史记录或成功归档审计的拥有权、精确 companion preset、非派生、匹配 companion 目录及 workspace 成员。旧于既有 previous 二十条且无拥有记录的会话不会靠名字猜认。新归档审计保留身份，今后超过二十条仍可恢复并继续受伙伴门禁约束。
+
+验收暂停期间安装的 Desktop 升级为 **0.2.1-rc.3**，原 engine 声明使 WhaleDot 被拒绝加载。用户明确回复“可以直接改版本”后，将 `packages/host/package.json` 的 engines.dsh 扩为 `0.2.1-rc.2 || 0.2.1-rc.3`；未授予版本豁免。rc.3 的 workspace、api-session-controller、session-query 三个后端实现与本轮 rc.2 副本逐字节一致；client-ui-workspace 有改动，不能称四个包全相同。新旧版本、比较收据在 `p16-evidence/rc3/versions.json`、`rc3-comparison.json`。rc.3 真实验证：归档发送被 blocked、无助手回复；单条/全部恢复后侧栏回归，原会话能继续回复。更多流程与限制见 `docs/p16-report.md`。

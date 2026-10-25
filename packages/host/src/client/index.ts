@@ -28,6 +28,7 @@ import styles from './panel.css'
 import { IntakeView, GoalDetailView } from './intake.js'
 import { Memories } from './memories.js'
 import { CompanionActionsView } from './companion-actions.js'
+import { CompanionArchivesView } from './companion-archives.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
@@ -326,6 +327,7 @@ function Panel({ ctx, connection }: Face) {
                     text('companionRebuild'),
                   ),
               ),
+            h(CompanionArchivesView, { connection, locale }),
             h(CompanionActionsView, {
               connection,
               locale,
