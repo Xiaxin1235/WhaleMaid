@@ -123,6 +123,18 @@ The panel's **Today’s brief** shows a fixed snapshot and generation time, reta
 
 Briefs and daily execution allowances use the host's local calendar day (America/Los_Angeles on the reference machine), unlike the UTC-day allowance for recollection calls. “Planner results” for the period count audited outcomes; today's remaining planning allowance counts actual calls. Interrupted planning can consume allowance without producing a result. The injection marker is persisted during prompt assembly; later cancellation or request failure does not automatically replay it on the second turn, nor does the marker prove that you read it.
 
+## Everyday auto-approval
+
+Enable **Settings → WhaleMaid → Everyday auto-approval** and confirm the risk notice. It is off by default and needs no goal. For an approval in an ordinary session, WhaleMaid reuses trusted command classification against the session working directory. Parseable shell commands without a recognized dangerous category receive “allow once”.
+
+Deletion, publishing, installation/removal, uploads, dynamic execution, paths outside the working directory, process control, system configuration, unparseable commands, missing command text and non-shell tools continue to Harness. WhaleMaid never rejects on your behalf or changes permission presets or approval policy. It only answers existing approval requests; it does not add approval requests to commands the host would execute without asking.
+
+Automatic task sessions (including legacy titles, execution prefixes and registered runs), companion sessions, subagents and archived sessions are excluded. Goal-mode trusted approvals are unchanged. Textual detection is best effort: script bodies, runtime downloads and generated code remain opaque. Everyday sessions do not have goal-mode worktrees, checkpoints or rollback.
+
+The panel’s **Auto-approval history** retains the latest 1000 entries: time, session name and ID, working directory, a redacted command limited to 500 characters, and classification. It also provides a turn-off shortcut. Settings and the panel share one persistent switch. Delegated approvals are not recorded here.
+
+The pet envelope still offers approval reminders and navigation to the source session. The current rc.3 public API does not provide safe withdrawal of the other answer surface after a competing answer, so this change adds no approval buttons in the pet. Answer in Harness.
+
 ## Trusted command execution
 
 For a writable goal, select **Trusted command execution**, read and confirm its risks, then confirm the entire authorization. The default remains **Confirmed individually**. Analysis/research always stays read-only; independent verification always runs only the exact commands you confirmed.

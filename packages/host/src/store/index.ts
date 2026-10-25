@@ -51,6 +51,8 @@ export const CompanionSessionRecordSchema = z.strictObject({
 export type CompanionSessionRecord = z.infer<typeof CompanionSessionRecordSchema>
 import { MIGRATIONS } from './migrations.js'
 import type { Migration } from './migrations.js'
+import { EverydayApprovalPanelSchema, EverydayApprovalRecordSchema } from '../everyday-approval/contract.js'
+import type { EverydayApprovalRecord } from '../everyday-approval/contract.js'
 
 export const productionClock: Clock = { now: () => Date.now() }
 export const productionIdGen: IdGen = { next: (prefix) => `${prefix}_${randomUUID()}` }
@@ -547,6 +549,31 @@ export class WhaleStore {
       .prepare("UPDATE scopes SET status=?,data=? WHERE id=? AND status='active'")
       .run(row.status, JSON.stringify(row), row.id)
     if (result.changes !== 1) throw new Error('scope-inactive')
+  }
+
+  everydayApprovalState(): ReturnType<typeof EverydayApprovalPanelSchema.parse> {
+    const value = this.one('kv_settings', 'everyday-approval', EverydayApprovalPanelSchema)
+    return { enabled: this.state === 'ok' && (value?.enabled ?? false), records: value?.records ?? [] }
+  }
+  setEverydayApprovalEnabled(enabled: boolean): void {
+    this.writeEverydayApproval({ ...this.everydayApprovalState(), enabled: z.boolean().parse(enabled) })
+  }
+  recordEverydayApproval(input: EverydayApprovalRecord): void {
+    const value = this.everydayApprovalState()
+    if (!value.enabled) throw new Error('everyday-approval-disabled')
+    this.writeEverydayApproval({
+      ...value,
+      records: [...value.records, EverydayApprovalRecordSchema.parse(input)].slice(-1000),
+    })
+  }
+  private writeEverydayApproval(input: unknown): void {
+    const value = EverydayApprovalPanelSchema.parse(input)
+    this.writer()
+      .prepare(
+        "INSERT INTO kv_settings(id,data) VALUES('everyday-approval',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+      )
+      .run(JSON.stringify(value))
+    this.changed()
   }
 
   /** Persist notification preferences in the existing settings ledger; malformed settings mute delivery. */

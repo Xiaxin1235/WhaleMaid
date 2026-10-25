@@ -93,6 +93,8 @@ export const RouteResultSchema = z.strictObject({
 })
 export const ReminderSchema = z.strictObject({ notificationId: z.string().min(1) })
 export const PANEL_METHODS = [
+  'everyday-approvals',
+  'everyday-approval-settings',
   'daily-brief',
   'daily-brief-settings',
   'companion-archives',

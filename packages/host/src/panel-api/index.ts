@@ -50,9 +50,12 @@ import {
 } from './contract.js'
 import type { PanelMethod } from './contract.js'
 import type { PanelStatus } from './contract.js'
+import type { EverydayApprovals } from '../everyday-approval/service.js'
+import { EverydayApprovalPanelSchema, EverydayApprovalSettingsSchema } from '../everyday-approval/contract.js'
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
+  everydayApprovals?: EverydayApprovals
   brief?: CompanionDailyBrief
   setDailyBrief?: (enabled: boolean) => Promise<void>
   archives?: CompanionArchives
@@ -93,6 +96,15 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'everyday-approvals':
+          z.strictObject({}).parse(input)
+          result = EverydayApprovalPanelSchema.parse(runtime.everydayApprovals!.panel())
+          break
+        case 'everyday-approval-settings':
+          result = EverydayApprovalPanelSchema.parse(
+            runtime.everydayApprovals!.settings(EverydayApprovalSettingsSchema.parse(input)),
+          )
+          break
         case 'daily-brief':
           z.strictObject({}).parse(input)
           result = runtime.brief!.panel()
@@ -391,6 +403,7 @@ export function installPanelApi(
     | 'recall'
     | 'archives'
     | 'brief'
+    | 'everydayApprovals'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {
