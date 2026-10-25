@@ -23,7 +23,6 @@
 
 | 问题 | 仓库 | 处理 |
 | --- | --- | --- |
-| 本机 DSH Desktop 已升级到 0.2.1-rc.3。WhaleDot 的 `engines.dsh` 已在 P16 中经用户同意放宽到 rc.2 或 rc.3；鲸鱼插件 `package.json` 里也有一处**未提交**的同类放宽（`engines` 与全部 `peerDependencies` 加上 rc.3，且删掉了文件末尾换行），来源不明 | 鲸鱼插件 | 确认是谁改的后，跑一遍测试再单独提交（补回末尾换行） |
 | `npm test` 默认并发下，`tests/figures.test.ts` 和 `tests/inbox-receipts.test.js` 各有 1 项稳定超过 5 秒超时（单独跑或单 worker 能过），C09、C10 审查都复现 | 鲸鱼插件 | 给这两个用例单独加长时限，不改断言；并入下一个 C 任务 |
 | Web 上空白大肥鱼会话首次提问时，预设被切成 standard | WhaleDot / DSH | 已知限制：门禁会拒绝，不会越权；目前从桌宠发起首次提问。P16 处理会话时可一并查 |
 
@@ -52,6 +51,7 @@
 | — | 桌宠列表隐藏空白草稿 | `3e9ec2d`（Claude） |
 | C09 | 安静模式（新消息只亮信封） | `e1bb4c3`（Claude 接手验收） |
 | C10 | 会话名使用 Harness 标题 | `f6d36a8` |
+| — | 鲸鱼插件支持 DSH 0.2.1-rc.3（用户修改 `package.json`，Claude 同步 shrinkwrap 并提交） | 鲸鱼插件 |
 | P15 | 大肥鱼的对话回顾（自动）与她的经历，与确认记忆分开 | `4e8aebf` |
 | P16 | 以往的大肥鱼对话轮换归档，Harness 侧栏只留当前一条；可单条 / 全部恢复 | `1489654` |
 
