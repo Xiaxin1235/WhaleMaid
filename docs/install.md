@@ -8,7 +8,7 @@
 
 - 已安装并能正常使用 DeepSeek Harness Desktop **0.2.1-rc.2 或 0.2.1-rc.3**；不支持其他版本。
 - Node.js **≥22.19**、Git，以及 `package.json` 指定版本的 pnpm。先运行 `corepack enable` 启用 pnpm；首次使用时 Corepack 可能需要下载该版本。
-- P19 创建仓库后，对私有仓库有访问权限；当前远端仓库尚未创建，下面的地址是计划地址。
+- 对 GitHub 仓库 `Xiaxin1235/WhaleMaid` 有访问权限（仓库目前为私有）。
 
 下面的示例使用 PowerShell。在日常安装或更新前，完全退出 Harness，并备份目标 profile 的配置。不要把密钥、凭据文件或带登录 token 的网址发给别人。
 
@@ -21,7 +21,7 @@ pnpm install --frozen-lockfile
 pnpm build
 ```
 
-仓库将在 P19 以 WhaleMaid 名称创建，届时克隆需要有访问权限。也可下载届时你有权访问的 Release 源码包，解压后在其根目录执行安装依赖和构建命令；源码包入口是否可用以实际 Release 为准。
+也可从仓库的 Release 页面下载源码包，解压后在其根目录执行安装依赖和构建命令；源码包入口是否可用以实际 Release 为准。
 
 ## 3. 生成仓库外的固定副本
 
@@ -44,12 +44,12 @@ $env:DSH_HOME
 
 应无输出；如果它指向测试目录，换一个未设置该变量的新终端，或确认不再需要该变量后执行 `Remove-Item Env:DSH_HOME`。**不要从设有测试 `DSH_HOME` 的终端启动 Harness 桌面应用。**
 
-Windows 下 Harness 自带 CLI 的默认位置是 `%LOCALAPPDATA%\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd`，桌面版默认 profile 名为 `desktop`。以下示例使用该名称；若你使用不同 profile，请替换 `$profile`，并核对其目录和 `package.json` 中的 `dsh.profile.bundles`，不要只凭目录名推断安装结果。
+Windows 下 Harness 自带 CLI 的默认位置是 `%LOCALAPPDATA%\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd`，桌面版默认 profile 名为 `desktop`。以下示例使用该名称；若你使用不同 profile，请替换 `$dshProfile`，并核对其目录和 `package.json` 中的 `dsh.profile.bundles`，不要只凭目录名推断安装结果。
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-$profile = 'desktop'
-$profileDir = Join-Path $env:USERPROFILE ".dsh\profiles\$profile"
+$dshProfile = 'desktop'
+$profileDir = Join-Path $env:USERPROFILE ".dsh\profiles\$dshProfile"
 $backupDir = "$profileDir-backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 New-Item -ItemType Directory -Path $backupDir | Out-Null
 foreach ($name in @('package.json', 'pnpm-lock.yaml', 'cordis.patch.yml', 'cordis.yml', 'pnpm-workspace.yaml')) {
@@ -63,14 +63,14 @@ foreach ($name in @('package.json', 'pnpm-lock.yaml', 'cordis.patch.yml', 'cordi
 ## 5. 安装到 Harness
 
 ```powershell
-& $dsh plugin --profile $profile add "link:$fixedCopy"
+& $dsh plugin --profile $dshProfile add "link:$fixedCopy"
 if ($LASTEXITCODE -ne 0) { throw 'WhaleMaid 安装失败，请检查 CLI 输出。' }
 (Get-Content -LiteralPath (Join-Path $profileDir 'package.json') -Raw | ConvertFrom-Json).dsh.profile.bundles
 ```
 
 bundles 列表应含 `dsh-whalemaid`，并保留原有 Harness bundles。命令以这份 CLI 的 `plugin --help` 为准；不要用另行安装的旧版全局 `dsh` 代替桌面版自带 CLI。
 
-如果已安装旧包 `dsh-whaledot`，先在同一 profile 备份后执行 `& $dsh plugin --profile $profile remove dsh-whaledot`，再添加新包，避免同时加载两份插件。已有数据保留。
+如果已安装旧包 `dsh-whaledot`，先在同一 profile 备份后执行 `& $dsh plugin --profile $dshProfile remove dsh-whaledot`，再添加新包，避免同时加载两份插件。已有数据保留。
 
 ## 6. 启动和首次使用
 
@@ -97,7 +97,7 @@ pnpm build
 完全退出 Harness，在确认 profile 和环境变量后执行：
 
 ```powershell
-& $dsh plugin --profile $profile remove dsh-whalemaid
+& $dsh plugin --profile $dshProfile remove dsh-whalemaid
 if ($LASTEXITCODE -ne 0) { throw 'WhaleMaid 卸载失败，请检查 CLI 输出。' }
 (Get-Content -LiteralPath (Join-Path $profileDir 'package.json') -Raw | ConvertFrom-Json).dsh.profile.bundles
 ```

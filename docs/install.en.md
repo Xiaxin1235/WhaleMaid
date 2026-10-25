@@ -8,7 +8,7 @@ For WhaleMaid 1.0.0. This guide is for someone obtaining the repository for the 
 
 - An installed, working DeepSeek Harness Desktop **0.2.1-rc.2 or 0.2.1-rc.3**. Other versions are unsupported.
 - Node.js **≥22.19**, Git, and the pnpm version specified in `package.json`. Run `corepack enable` to enable pnpm; Corepack may need to download that version on first use.
-- Access to the private repository after it is created in P19. The remote repository does not exist yet; the URL below is the planned address.
+- Access to the GitHub repository `Xiaxin1235/WhaleMaid` (currently private).
 
 The examples use PowerShell. Completely exit Harness and back up the target profile's configuration before installing or updating your everyday environment. Do not share keys, credential files or URLs containing login tokens.
 
@@ -21,7 +21,7 @@ pnpm install --frozen-lockfile
 pnpm build
 ```
 
-The repository will be created as WhaleMaid in P19; cloning will then require access. Alternatively, download a Release source archive when available to you, extract it, and run the dependency-installation and build commands at its root. Whether an archive is available depends on the actual Release.
+Alternatively, download a source archive from the repository's Releases page, extract it, and run the dependency-installation and build commands at its root. Whether an archive is available depends on the actual Release.
 
 ## 3. Create a fixed copy outside the repository
 
@@ -44,12 +44,12 @@ $env:DSH_HOME
 
 There should be no output. If it points to a test directory, use a fresh terminal without that variable, or run `Remove-Item Env:DSH_HOME` after confirming you no longer need it. **Do not launch the Harness desktop application from a terminal with a test `DSH_HOME`.**
 
-On Windows, the bundled CLI is normally at `%LOCALAPPDATA%\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd`. The default desktop profile is `desktop`. The examples use that name; change `$profile` if necessary, then inspect its directory and `dsh.profile.bundles` in `package.json`. A directory name alone does not prove installation succeeded.
+On Windows, the bundled CLI is normally at `%LOCALAPPDATA%\Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd`. The default desktop profile is `desktop`. The examples use that name; change `$dshProfile` if necessary, then inspect its directory and `dsh.profile.bundles` in `package.json`. A directory name alone does not prove installation succeeded.
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-$profile = 'desktop'
-$profileDir = Join-Path $env:USERPROFILE ".dsh\profiles\$profile"
+$dshProfile = 'desktop'
+$profileDir = Join-Path $env:USERPROFILE ".dsh\profiles\$dshProfile"
 $backupDir = "$profileDir-backup-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 New-Item -ItemType Directory -Path $backupDir | Out-Null
 foreach ($name in @('package.json', 'pnpm-lock.yaml', 'cordis.patch.yml', 'cordis.yml', 'pnpm-workspace.yaml')) {
@@ -63,14 +63,14 @@ If you opened a new terminal, set `$fixedCopy` again to the absolute path create
 ## 5. Install into Harness
 
 ```powershell
-& $dsh plugin --profile $profile add "link:$fixedCopy"
+& $dsh plugin --profile $dshProfile add "link:$fixedCopy"
 if ($LASTEXITCODE -ne 0) { throw 'WhaleMaid installation failed; inspect the CLI output.' }
 (Get-Content -LiteralPath (Join-Path $profileDir 'package.json') -Raw | ConvertFrom-Json).dsh.profile.bundles
 ```
 
 The list should include `dsh-whalemaid` and retain the existing Harness bundles. Check this CLI's `plugin --help` for command syntax; do not substitute an older, separately installed global `dsh`.
 
-If the legacy `dsh-whaledot` package is installed, back up the same profile, run `& $dsh plugin --profile $profile remove dsh-whaledot`, then add the new package. This avoids loading two copies; existing data remains.
+If the legacy `dsh-whaledot` package is installed, back up the same profile, run `& $dsh plugin --profile $dshProfile remove dsh-whaledot`, then add the new package. This avoids loading two copies; existing data remains.
 
 ## 6. Start and use WhaleMaid
 
@@ -97,7 +97,7 @@ Keep the old fixed copy as a rollback backup by moving it to another explicit lo
 Completely exit Harness, confirm the profile and environment, then run:
 
 ```powershell
-& $dsh plugin --profile $profile remove dsh-whalemaid
+& $dsh plugin --profile $dshProfile remove dsh-whalemaid
 if ($LASTEXITCODE -ne 0) { throw 'WhaleMaid removal failed; inspect the CLI output.' }
 (Get-Content -LiteralPath (Join-Path $profileDir 'package.json') -Raw | ConvertFrom-Json).dsh.profile.bundles
 ```
