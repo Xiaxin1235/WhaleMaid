@@ -10,6 +10,9 @@ export const AutopilotEventSchema = z.strictObject({
   confirmedAt: z.number().int().nonnegative().optional(),
   at: z.number().int().nonnegative(),
   action: z.string(),
+  companionOperation: z
+    .enum(['pause', 'resume', 'enable-autopilot', 'disable-autopilot', 'pause-all', 'resume-all'])
+    .optional(),
   reason: z.string(),
   taskId: TaskIdSchema.optional(),
   runId: RunIdSchema.optional(),

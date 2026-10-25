@@ -22,6 +22,7 @@ export function apply(ctx: Context): void {
   const prompt = ctx.get('systemPrompt') as SystemPromptVariables
   prompt.variable(PERSONA_VARIABLE, () => api.persona())
   prompt.variable('whaledot_memory', () => api.memory?.block() ?? '')
+  prompt.variable('whaledot_recall', () => api.recall?.block() ?? '')
   prompt.variable('whaledot_memory_guidance', () => api.memory?.guidance() ?? '')
   for (const tool of companionTools(api)) ctx.tools.register(tool)
 }

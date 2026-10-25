@@ -250,13 +250,19 @@ describe('companion gate', () => {
     const next = vi.fn(async () => ({ kind: 'allow' as const }))
     const call = (name: string, id: string) =>
       gate.check({ name, arguments: {}, agent: { session: { id } } }, next)
-    for (const name of ['whaledot_goals_overview', 'read_session', 'ask_user_question'])
+    for (const name of [
+      'whaledot_goals_overview',
+      'read_session',
+      'ask_user_question',
+      'whaledot_recall_search',
+    ])
       expect(await call(name, 's_companion')).toEqual({ kind: 'allow' })
     for (const name of ['read', 'write', 'bash', 'pwsh', 'web_fetch', 'subagent'])
       expect(await call(name, 's_companion')).toMatchObject({ kind: 'deny' })
     expect(await call('write', 's_old')).toMatchObject({ kind: 'deny' })
     expect(await call('write', 's_unrelated')).toEqual({ kind: 'allow' })
-    expect(next).toHaveBeenCalledTimes(4)
+    expect(await call('whaledot_recall_search', 's_unrelated')).toMatchObject({ kind: 'deny' })
+    expect(next).toHaveBeenCalledTimes(5)
   })
 
   test('the preset id is stable for the pet plugin to recognise', () => {

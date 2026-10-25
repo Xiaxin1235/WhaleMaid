@@ -669,3 +669,14 @@ P13 自动测试用同一 agent 顺序完成暂停与继续两次确认，核对
 | 无 callId    | `dsh-user-approval/lib/types/types.d.ts:72–80`；同包 `lib/types/index.d.ts` 的 request                | approval.request 的请求类型允许省略 callId，因此独立调用此审批服务而非经标准 tools 管道的请求可无编号。未找到正常模型工具会自动丢弃 callId 的证据；WhaleDot 的无编号路径是兼容回退，不宣称标准工具会产生这种调用。 |
 
 关联键为序列化的 `[sessionId, callId]`，旧的 `whaledot-danger:<uuid>` 事件直接忽略，不为历史日志补配对。无编号时内部保留随机键和可读 reason，只有同会话内唯一匹配的 reason 才能绑定；并发同文案无法唯一定位时保持不放行。重复的未决调用记录 unavailable，并保留旧 execution 的 guard 拒绝状态，新的审批不能授权旧调用。追溯仍仅导出原有类别、命令哈希、结果和时间，不导出内部 reason。
+
+## 30. P15：对话回顾与结构化经历
+
+2026-10-24，沿用 Desktop 0.2.1-rc.2 / Cordis 4.0.5 的既有公开接口，没有新增 DSH 方法。
+
+- `sessionController.inspect(id, signal)`：`.dsh-ref/0.2.1-rc.2/@deepseek-ai/dsh-api-session-controller/lib/types/index.d.ts:79`。与第 23 节相同，不激活模型；P15 额外验证 `meta.agentPreset === 'whaledot-companion'`、非派生且 id 属于当前/历史伙伴。仅提取该次 inspect 的真人与助手消息文字，按事件 `seq` 增量，忽略工具事件、非真人 user 来源和非文字块。
+- `systemPrompt.variable`：同版本 `dsh-system-prompt/README.md:72–75` 明确每次 assembly 求值，沿用第 26 节回调。`whaledot_recall` 每次读取独立 journal，关闭返回空串；已在途的请求不追溯改写。
+- `ToolExecutionInput.callId/agent/signal`：同版本 `dsh-tools/lib/types/index.d.ts:216–241`。只读查询沿用 P12 的真实 runtime-agent 门禁；直接记忆提议结果与拒绝管理提议使用真实 callId 作经历引用，不接受模型提供的确认字段。成功管理经历仍引用已有 `actor: companion-proposal` 审计事件。
+- 结束判断不依赖关闭窗口：P11 `companion.session` 的身份变化表示切换；空闲触发检查 inspect 中最后一个 turn/start/end，必须最后一轮结束满 30 分钟。启动可回顾中断回合已有的文字，但不推断其完成。关闭宿主只中止在途工作，启动补做尚未消费的范围。
+- 现有管理审计只有 action 类别，旧记录无法判断开/关方向。新追加事件可选保存 `companionOperation`（暂停/恢复、开关自动推进、全局暂停/恢复），来自已校验的结构化动作，不增加工具或权限；旧事件用中性类别句子。放弃目标由 P13B 的成功 abandon choice 与实际 cancelled 状态识别。
+- `companion.recall.enabled/summarize` 是 volatile 字段，面板按第 26 节已核实的 settings.describe/update 与真实插件 fiber 保存，热更新、重启均生效。没有修改会话创建方式或鲸鱼插件。

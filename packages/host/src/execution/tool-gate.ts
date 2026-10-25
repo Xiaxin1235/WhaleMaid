@@ -103,7 +103,9 @@ export class ToolGate {
   async check(exec: GateExecution, next: () => Promise<PreToolDecision>): Promise<PreToolDecision> {
     const owner = this.owner(exec)
     if (
-      (exec.name.startsWith('whaledot_memory_') || exec.name.startsWith('whaledot_propose_')) &&
+      (exec.name.startsWith('whaledot_memory_') ||
+        exec.name.startsWith('whaledot_propose_') ||
+        exec.name === 'whaledot_recall_search') &&
       (!owner || !this.registry.isCompanion(owner))
     )
       return { kind: 'deny', reason: 'companion-only' }

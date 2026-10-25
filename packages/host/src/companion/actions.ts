@@ -184,6 +184,17 @@ export class CompanionActions {
       sessionId,
       confirmedAt,
       action: action.kind,
+      ...(action.kind === 'goal-pause'
+        ? { companionOperation: action.paused ? ('pause' as const) : ('resume' as const) }
+        : action.kind === 'autopilot'
+          ? {
+              companionOperation: action.enabled
+                ? ('enable-autopilot' as const)
+                : ('disable-autopilot' as const),
+            }
+          : action.kind === 'global-pause'
+            ? { companionOperation: action.paused ? ('pause-all' as const) : ('resume-all' as const) }
+            : {}),
       reason,
     })
   }

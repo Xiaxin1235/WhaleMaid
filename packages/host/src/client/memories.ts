@@ -5,6 +5,7 @@ import { MemorySchema, memoryCopy, memoryScopeKey } from '@whaledot/core'
 import type { Locale, Memory } from '@whaledot/core'
 import { PANEL_CHANNEL, PANEL_PREFIX } from '../panel-api/contract.js'
 import { MemoryProposals } from './memory-proposals.js'
+import { Recall } from './recall.js'
 
 const ListSchema = z.object({
   settings: z.object({ draftProjectLessons: z.boolean() }),
@@ -95,6 +96,7 @@ export function Memories({ connection, locale }: { connection: ConnectionHandle;
       c.drafts,
     ),
     h(MemoryProposals, { connection, locale }),
+    h(Recall, { connection, locale }),
     h(
       'p',
       null,

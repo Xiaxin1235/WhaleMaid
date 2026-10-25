@@ -32,6 +32,7 @@ import { CompanionSessionManager, dshCompanionHost } from './companion/session.j
 import { CompanionMemory, memoryQuestionAdapter } from './companion/memory.js'
 import { MemoryDrafts } from './companion/drafts.js'
 import { CompanionActions } from './companion/actions.js'
+import { CompanionRecall } from './companion/recall.js'
 import { GoalDecisions } from './notify/goal-decisions.js'
 
 export const name = 'whaledot'
@@ -39,6 +40,7 @@ export const name = 'whaledot'
 export const inject: string[] = []
 
 export interface CompanionConfig {
+  recall?: { enabled?: Volatile<boolean>; summarize?: Volatile<boolean> }
   actions?: { enabled?: boolean }
   memory?: {
     enabled?: boolean
@@ -61,7 +63,8 @@ export interface Config {
 }
 type ConfigInput = Omit<Config, 'language' | 'companion'> & {
   language?: LanguageSetting
-  companion?: Omit<CompanionConfig, 'memory'> & {
+  companion?: Omit<CompanionConfig, 'memory' | 'recall'> & {
+    recall?: { enabled?: boolean; summarize?: boolean }
     memory?: { enabled?: boolean; suggest?: boolean; maxChars?: number; draftProjectLessons?: boolean }
   }
 }
@@ -74,6 +77,10 @@ export const Config: Schema<ConfigInput, Config> = Schema.object({
     .volatile()
     .description('WhaleDot language / 语言'),
   companion: Schema.object({
+    recall: Schema.object({
+      enabled: Schema.boolean().default(true).volatile(),
+      summarize: Schema.boolean().default(true).volatile(),
+    }).default({}),
     actions: Schema.object({ enabled: Schema.boolean().default(true) }).default({}),
     memory: Schema.object({
       enabled: Schema.boolean().default(true),
@@ -234,6 +241,26 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       ask: memoryQuestionAdapter(ctx),
     })
     companion.memory = memory
+    const recall = new CompanionRecall(store, dshDraftModel(ctx), {
+      locale: notificationLocale,
+      settings: () => ({
+        enabled: (config.companion?.enabled ?? true) && (config.companion?.recall?.enabled?.get() ?? true),
+        summarize: config.companion?.recall?.summarize?.get() ?? true,
+      }),
+      sessionIds: () => companionSessions.allSessionIds(),
+      currentSession: () => companionSessions.sessionId(),
+      owns: (id) => companionSessions.allSessionIds().includes(id),
+      async read(id, signal) {
+        const controller = ctx.get('sessionController') as Context['sessionController'] | undefined
+        if (!controller) throw Error('session-controller-unavailable')
+        const inspected = await controller.inspect(id as SessionId, signal)
+        if (inspected.meta.agentPreset !== 'whaledot-companion' || inspected.meta.origin)
+          throw Error('companion-only')
+        return inspected.events
+      },
+      log: (message) => debug.host(message),
+    })
+    companion.recall = recall
     const companionActions = new CompanionActions(store, {
       enabled: () => config.companion?.actions?.enabled ?? true,
       locale: notificationLocale,
@@ -279,6 +306,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         autopilot.dispose(),
         notifier.dispose(),
         memoryDrafts.dispose(),
+        recall.dispose(),
       ])
       store.close()
     })
@@ -329,6 +357,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         rebuildCompanion: () => companionSessions.rebuild(),
         memory,
         memoryDrafts,
+        recall,
       },
     )
     const clock = { now: () => Date.now() }
@@ -369,7 +398,10 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     memoryDrafts.start()
     // Session creation needs the controller and the agent registry; wait for both without blocking load.
     const companionReady = ctx.inject(['sessionController', 'agents'], () => {
-      if (store.status().state === 'ok') void companionSessions.ensure()
+      if (store.status().state === 'ok') {
+        recall.start()
+        void companionSessions.ensure()
+      }
     })
     void Promise.resolve(companionReady).catch(report)
     logger.info('plugin loaded')

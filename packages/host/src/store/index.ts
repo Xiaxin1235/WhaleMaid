@@ -23,6 +23,8 @@ import {
   DeliveryRecordSchema,
   MemorySchema,
   MemoryProposalSchema,
+  CompanionJournalSchema,
+  journalOverflow,
   memoryScopeKey,
   canActivateMemory,
   hashScope,
@@ -115,6 +117,7 @@ export class WhaleStore {
   readonly notificationDeliveries
   readonly memories
   readonly memoryProposals
+  readonly journal
 
   constructor(
     private readonly dataDir: string,
@@ -122,6 +125,39 @@ export class WhaleStore {
   ) {
     this.clock = options.clock ?? productionClock
     this.idGen = options.idGen ?? productionIdGen
+    this.journal = {
+      get: (id: string) => this.one('companion_journal', id, CompanionJournalSchema),
+      list: () => this.rows('companion_journal', CompanionJournalSchema),
+      insert: (input: import('@whaledot/core').CompanionJournal) => {
+        const row = CompanionJournalSchema.parse(input)
+        this.transaction(() => {
+          this.writer()
+            .prepare('INSERT INTO companion_journal(id,kind,created_at,status,data) VALUES(?,?,?,?,?)')
+            .run(row.id, row.kind, row.createdAt, row.status, JSON.stringify(row))
+          const excess = journalOverflow(
+            this.writer()
+              .prepare('SELECT id,created_at FROM companion_journal WHERE kind=?')
+              .all(row.kind)
+              .map((r) => ({ id: String(r.id), createdAt: Number(r.created_at) })),
+          )
+          for (const id of excess) this.writer().prepare('DELETE FROM companion_journal WHERE id=?').run(id)
+          this.changed()
+        })
+      },
+      delete: (id?: string) => {
+        this.transaction(() => {
+          this.setRecallState('journal-revision', (this.recallState('journal-revision', z.int()) ?? 0) + 1)
+          for (const row of this.journal
+            .list()
+            .filter((r) => r.status === 'active' && (!id || r.id === id))) {
+            this.writer()
+              .prepare('UPDATE companion_journal SET status=?,data=? WHERE id=?')
+              .run('deleted', JSON.stringify({ ...row, status: 'deleted' }), row.id)
+          }
+          this.changed()
+        })
+      },
+    }
     const ledger = <T extends { id: string; goalId: string }>(table: string, schema: z.ZodType<T>) => ({
       get: (id: string) => this.one(table, id, schema),
       list: (goalId?: string) =>
@@ -556,6 +592,17 @@ export class WhaleStore {
       ) ?? { calls: [], references: {}, drafts: {} }
     )
   }
+  /** Recall-only durable cursors and attempt counters; never part of confirmed memory. */
+  recallState<T>(id: string, schema: z.ZodType<T>): T | undefined {
+    return this.one('companion_recall_state', id, schema)
+  }
+  setRecallState(id: string, input: unknown): void {
+    this.writer()
+      .prepare(
+        'INSERT INTO companion_recall_state(id,data) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data',
+      )
+      .run(id, JSON.stringify(input))
+  }
   setMemoryMeta(input: ReturnType<WhaleStore['memoryMeta']>): void {
     this.writer()
       .prepare(
@@ -703,13 +750,17 @@ export class WhaleStore {
       if (parsed && typeof parsed === 'object') {
         const fields = parsed as Record<string, unknown>
         const checks = {
-          id: fields.id ?? fields.run_id ?? (table === 'kv_settings' ? row.id : undefined),
+          id:
+            fields.id ??
+            fields.run_id ??
+            (['kv_settings', 'companion_recall_state'].includes(table) ? row.id : undefined),
           goal_id: table === 'autopilot_events' ? (fields.goalId ?? null) : fields.goalId,
           task_id: fields.taskId ?? fields.entityId,
           task_key: fields.key,
           version: fields.version,
           state: fields.state,
           status: fields.status,
+          ...(table === 'companion_journal' ? { kind: fields.kind, created_at: fields.createdAt } : {}),
           ...(['memories', 'memory_proposals'].includes(table)
             ? {
                 scope_key: memoryScopeKey(

@@ -1,6 +1,7 @@
 import type { NotificationDeliverer } from '../notify/deliverer.js'
 import type { CompanionMemory } from '../companion/memory.js'
 import type { MemoryDrafts } from '../companion/drafts.js'
+import type { CompanionRecall } from '../companion/recall.js'
 import { MemoryTextSchema, MemoryScopeSchema } from '@whaledot/core'
 import type { NotificationRouter } from '../notify/router.js'
 import { NotificationPreferencesSchema } from '@whaledot/core'
@@ -50,6 +51,11 @@ import type { PanelStatus } from './contract.js'
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
+  recall?: CompanionRecall
+  setRecallSettings?: (patch: {
+    enabled?: boolean | undefined
+    summarize?: boolean | undefined
+  }) => Promise<void>
   memoryDrafts?: MemoryDrafts
   setDraftProjectLessons?: (enabled: boolean) => Promise<void>
   memory?: CompanionMemory
@@ -81,6 +87,29 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'recall-list':
+          z.strictObject({}).parse(input)
+          result = runtime.recall!.panelList()
+          break
+        case 'recall-delete': {
+          const q = z.strictObject({ id: z.string().min(1).max(200) }).parse(input)
+          await runtime.recall!.remove(q.id)
+          result = { deleted: true }
+          break
+        }
+        case 'recall-clear':
+          z.strictObject({ confirm: z.literal(true) }).parse(input)
+          await runtime.recall!.remove()
+          result = { deleted: true }
+          break
+        case 'recall-settings': {
+          const q = z
+            .strictObject({ enabled: z.boolean().optional(), summarize: z.boolean().optional() })
+            .parse(input)
+          await runtime.setRecallSettings!(q)
+          result = q
+          break
+        }
         case 'companion-drafts':
           z.strictObject({}).parse(input)
           result = runtime.intake!.companionDrafts(peer)
@@ -326,12 +355,34 @@ export function installPanelApi(
     | 'rebuildCompanion'
     | 'memory'
     | 'memoryDrafts'
+    | 'recall'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {
     const runtime: PanelRuntime = {
       snapshot,
       ...storage,
+      async setRecallSettings(patch) {
+        const settings = child.get('settings') as Context['settings'] | undefined
+        const editor = child.get('configEditor') as Context['configEditor'] | undefined
+        const entry = editor?.entries().find((entry) => entry.fiber === ctx.fiber)
+        const form = settings?.describe().find((form) => form.ns === entry?.options.id)
+        if (!form || !settings) throw Error('settings-unavailable')
+        const value = z
+          .object({
+            companion: z
+              .object({ recall: z.object({}).passthrough().optional() })
+              .passthrough()
+              .optional(),
+          })
+          .passthrough()
+          .parse(form.value)
+        await settings.update(
+          form.ns,
+          { companion: { ...value.companion, recall: { ...value.companion?.recall, ...patch } } },
+          form.revision,
+        )
+      },
       async setDraftProjectLessons(enabled) {
         const settings = child.get('settings') as Context['settings'] | undefined
         const editor = child.get('configEditor') as Context['configEditor'] | undefined

@@ -119,4 +119,12 @@ export const MIGRATIONS: readonly Migration[] = [
         ALTER TABLE autopilot_events_next RENAME TO autopilot_events;`)
     },
   },
+  {
+    version: 9,
+    up(db) {
+      db.exec(`CREATE TABLE companion_journal (id TEXT PRIMARY KEY, kind TEXT NOT NULL, created_at INTEGER NOT NULL, status TEXT NOT NULL, data TEXT NOT NULL);
+        CREATE INDEX companion_journal_kind_date ON companion_journal(kind,created_at);
+        CREATE TABLE companion_recall_state (id TEXT PRIMARY KEY, data TEXT NOT NULL);`)
+    },
+  },
 ]
