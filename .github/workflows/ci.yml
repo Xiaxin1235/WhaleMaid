@@ -15,6 +15,14 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
+      - name: Use a canonical temporary directory
+        # Runner TEMP can be an alias; authorization intentionally rejects aliased project roots.
+        run: >-
+          node --input-type=module -e
+          "import { realpathSync, appendFileSync } from 'node:fs';
+          const temp = realpathSync(process.env.RUNNER_TEMP);
+          appendFileSync(process.env.GITHUB_ENV, 'TEMP=' + temp + '\nTMP=' + temp + '\n');
+          console.log('Test temporary directory:', temp);"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
       - run: pnpm typecheck
