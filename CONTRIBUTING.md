@@ -23,3 +23,13 @@
 `@takboo/dsh-coopanion` 是独立 AGPL-3.0 项目，其代码与角色素材不属于 WhaleDot。
 可阅读允许参考的项目以理解公开 API，但不要整段复制；借鉴实现时在文件头注明来源及许可证。
 新增依赖应小而必要，并检查许可证。WhaleDot 自有代码采用 MIT。
+
+`pnpm lint` 包含 `pnpm check:license` 和 `pnpm check:links`。前者扫描 Git 跟踪文件的依赖、模块引用、包许可及鲸鱼协作报告的长代码块；后者离线检查 Markdown/HTML 的相对路径和文档锚点，不检查外部网站是否在线。构建后的本地包还需核对清单，不能仅靠 files 字段推断发行内容。
+
+完整许可对照需要独立鲸鱼仓库的只读参考，可运行：
+
+```sh
+pnpm check:license --reference D:/dsh_plugins/dsh-coopanion
+```
+
+对照会计算本仓库跟踪文件与参考已提交树的 SHA-256，并检查去空白后的 16 行相同片段及内嵌 SVG/data URI；参考默认固定为运行开始时的 HEAD，可用 --revision 指定提交，不混入并发未提交改动，也不把参考源代码写入本仓库。不提供参考时，基础检查仍运行，但不会宣称已做完整比对。检查只能发现这些范围内的重合，不能证明所有改写内容的来源或第三方角色权利。详见 [P18 报告](docs/p18-report.md)。

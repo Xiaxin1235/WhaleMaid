@@ -55,7 +55,7 @@
 
 截图预览（完整证据仍保留在忽略目录）：
 
-![运行历史与检查点](../.dsh-dev/p08-evidence/final-panel.png)
+运行历史与检查点截图：`../.dsh-dev/p08-evidence/final-panel.png`（本地隔离证据，不随仓库分发）。
 
 关键日志摘录（不含提示词、参数或凭据）：
 

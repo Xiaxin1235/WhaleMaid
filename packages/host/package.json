@@ -1,7 +1,8 @@
 {
   "name": "dsh-whaledot",
   "version": "0.0.0",
-  "description": "Project Autopilot plugin for DeepSeek Harness",
+  "description": "Authorized project autopilot, independent verification and companion conversations for DeepSeek Harness",
+  "repository": "",
   "type": "module",
   "license": "MIT",
   "engines": {
@@ -48,9 +49,11 @@
     "project-autopilot"
   ],
   "files": [
-    "lib",
-    "companion",
-    "cordis.patch.yml"
+    "lib/**/*.js",
+    "lib/types/**/*.d.ts",
+    "companion/*.md",
+    "cordis.patch.yml",
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && node build-client.mjs",

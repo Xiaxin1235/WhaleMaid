@@ -44,7 +44,7 @@
 
 回归失败引用为 `83c5c5339b63518beea73e7d606c058048539ae1`；回滚后 HEAD 与 base 均为 `9501d6db273449681d9fd7a203b89acfedd68ebe`。原 P08 夹具仍为 master / `521a4ad6b8188c57f931ec96bfab7f23a16fe348` / 干净；三个新夹具的用户工作区也均保持 master、原 HEAD 和干净状态。
 
-![独立验收面板](../.dsh-dev/p09-evidence/final-panel.png)
+独立验收面板截图：`../.dsh-dev/p09-evidence/final-panel.png`（本地隔离证据，不随仓库分发）。
 
 ## 偏离与实现约定
 
