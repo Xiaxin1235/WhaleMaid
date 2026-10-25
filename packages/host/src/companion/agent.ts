@@ -1,4 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis'
+import type { Agent } from '@deepseek-ai/dsh-agent'
 import type {} from '@deepseek-ai/dsh-tools'
 import type {} from './service.js'
 import { companionTools } from './tools.js'
@@ -7,7 +8,7 @@ import { companionTools } from './tools.js'
 export const PERSONA_VARIABLE = 'whaledot_persona'
 
 interface SystemPromptVariables {
-  variable(name: string, value: () => string): unknown
+  variable(name: string, value: (env: { agent?: Agent }) => string): unknown
 }
 
 /**
@@ -23,6 +24,10 @@ export function apply(ctx: Context): void {
   prompt.variable(PERSONA_VARIABLE, () => api.persona())
   prompt.variable('whaledot_memory', () => api.memory?.block() ?? '')
   prompt.variable('whaledot_recall', () => api.recall?.block() ?? '')
+  prompt.variable('whaledot_brief', (env) => api.brief?.block(env.agent) ?? '')
+  ctx.on('agent/inbox/claimed', ({ agent, turn, message }) => {
+    api.brief?.enter(agent, turn, [message])
+  })
   prompt.variable('whaledot_memory_guidance', () => api.memory?.guidance() ?? '')
   for (const tool of companionTools(api)) ctx.tools.register(tool)
 }

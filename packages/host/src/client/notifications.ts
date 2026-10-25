@@ -1,4 +1,4 @@
-import { createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useEffect, useState, useRef } from 'react'
 import { MemoryProposals } from './memory-proposals.js'
 import { t, notificationMessages, NotificationPreferencesSchema } from '@whaledot/core'
 import type { Locale } from '@whaledot/core'
@@ -17,13 +17,25 @@ export function NotificationCenter({
   locale,
   onOpenGoal,
   goalId,
+  notificationId,
 }: {
   connection: ConnectionHandle
   locale: Locale
   onOpenGoal: (id: string) => void
   goalId?: string
+  notificationId?: string | undefined
 }) {
   const [data, setData] = useState<z.infer<typeof NotificationCenterSchema>>()
+  const focused = useRef<string>()
+  useEffect(() => {
+    if (!notificationId || focused.current === notificationId) return
+    const entry = document.getElementById(`whaledot-notification-${notificationId}`)
+    if (entry) {
+      entry.scrollIntoView({ block: 'center' })
+      entry.focus({ preventScroll: true })
+      focused.current = notificationId
+    }
+  }, [data, notificationId])
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [revision, refresh] = useState(0),
@@ -210,7 +222,11 @@ export function NotificationCenter({
             : items.map((item) =>
                 h(
                   'article',
-                  { key: item.notification.id },
+                  {
+                    key: item.notification.id,
+                    id: `whaledot-notification-${item.notification.id}`,
+                    tabIndex: -1,
+                  },
                   h('strong', null, item.copy.header),
                   h('p', null, item.copy.question),
                   h('small', null, item.copy.detail),

@@ -2,6 +2,7 @@ import type { NotificationDeliverer } from '../notify/deliverer.js'
 import type { CompanionMemory } from '../companion/memory.js'
 import type { MemoryDrafts } from '../companion/drafts.js'
 import type { CompanionRecall } from '../companion/recall.js'
+import type { CompanionDailyBrief } from '../companion/daily-brief.js'
 import type { CompanionArchives } from '../companion/archive.js'
 import { MemoryTextSchema, MemoryScopeSchema } from '@whaledot/core'
 import type { NotificationRouter } from '../notify/router.js'
@@ -52,6 +53,8 @@ import type { PanelStatus } from './contract.js'
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
+  brief?: CompanionDailyBrief
+  setDailyBrief?: (enabled: boolean) => Promise<void>
   archives?: CompanionArchives
   setArchiveEarlier?: (enabled: boolean) => Promise<void>
   recall?: CompanionRecall
@@ -90,6 +93,16 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'daily-brief':
+          z.strictObject({}).parse(input)
+          result = runtime.brief!.panel()
+          break
+        case 'daily-brief-settings': {
+          const q = z.strictObject({ enabled: z.boolean() }).parse(input)
+          await runtime.setDailyBrief!(q.enabled)
+          result = q
+          break
+        }
         case 'companion-archives':
           z.strictObject({}).parse(input)
           result = runtime.archives!.view()
@@ -377,12 +390,34 @@ export function installPanelApi(
     | 'memoryDrafts'
     | 'recall'
     | 'archives'
+    | 'brief'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {
     const runtime: PanelRuntime = {
       snapshot,
       ...storage,
+      async setDailyBrief(enabled) {
+        const settings = child.get('settings') as Context['settings'] | undefined
+        const editor = child.get('configEditor') as Context['configEditor'] | undefined
+        const entry = editor?.entries().find((entry) => entry.fiber === ctx.fiber)
+        const form = settings?.describe().find((form) => form.ns === entry?.options.id)
+        if (!form || !settings) throw Error('settings-unavailable')
+        const value = z
+          .object({
+            companion: z
+              .object({ dailyBrief: z.object({}).passthrough().optional() })
+              .passthrough()
+              .optional(),
+          })
+          .passthrough()
+          .parse(form.value)
+        await settings.update(
+          form.ns,
+          { companion: { ...value.companion, dailyBrief: { ...value.companion?.dailyBrief, enabled } } },
+          form.revision,
+        )
+      },
       async setArchiveEarlier(enabled) {
         const settings = child.get('settings') as Context['settings'] | undefined
         const editor = child.get('configEditor') as Context['configEditor'] | undefined

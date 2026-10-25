@@ -33,6 +33,7 @@ import { CompanionMemory, memoryQuestionAdapter } from './companion/memory.js'
 import { MemoryDrafts } from './companion/drafts.js'
 import { CompanionActions } from './companion/actions.js'
 import { CompanionRecall } from './companion/recall.js'
+import { CompanionDailyBrief } from './companion/daily-brief.js'
 import { CompanionArchives, dshCompanionArchiveHost } from './companion/archive.js'
 import { GoalDecisions } from './notify/goal-decisions.js'
 
@@ -41,6 +42,7 @@ export const name = 'whaledot'
 export const inject: string[] = []
 
 export interface CompanionConfig {
+  dailyBrief?: { enabled?: Volatile<boolean> }
   archiveEarlier?: Volatile<boolean>
   recall?: { enabled?: Volatile<boolean>; summarize?: Volatile<boolean> }
   actions?: { enabled?: boolean }
@@ -65,7 +67,8 @@ export interface Config {
 }
 type ConfigInput = Omit<Config, 'language' | 'companion'> & {
   language?: LanguageSetting
-  companion?: Omit<CompanionConfig, 'memory' | 'recall' | 'archiveEarlier'> & {
+  companion?: Omit<CompanionConfig, 'memory' | 'recall' | 'archiveEarlier' | 'dailyBrief'> & {
+    dailyBrief?: { enabled?: boolean }
     archiveEarlier?: boolean
     recall?: { enabled?: boolean; summarize?: boolean }
     memory?: { enabled?: boolean; suggest?: boolean; maxChars?: number; draftProjectLessons?: boolean }
@@ -80,6 +83,7 @@ export const Config: Schema<ConfigInput, Config> = Schema.object({
     .volatile()
     .description('WhaleDot language / 语言'),
   companion: Schema.object({
+    dailyBrief: Schema.object({ enabled: Schema.boolean().default(true).volatile() }).default({}),
     archiveEarlier: Schema.boolean().default(true).volatile(),
     recall: Schema.object({
       enabled: Schema.boolean().default(true).volatile(),
@@ -269,6 +273,13 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       log: (message) => debug.host(message),
     })
     companion.recall = recall
+    const brief = new CompanionDailyBrief(store, scopes, {
+      enabled: () =>
+        (config.companion?.enabled ?? true) && (config.companion?.dailyBrief?.enabled?.get() ?? true),
+      locale: notificationLocale,
+      owns: (id) => companionSessions.allSessionIds().includes(id),
+    })
+    companion.brief = brief
     const archives = new CompanionArchives(store, dshCompanionArchiveHost(ctx, dataDir), {
       enabled: () => (config.companion?.enabled ?? true) && (config.companion?.archiveEarlier?.get() ?? true),
       current: () => companionSessions.sessionId(),
@@ -376,6 +387,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         memoryDrafts,
         recall,
         archives,
+        brief,
       },
     )
     const clock = { now: () => Date.now() }

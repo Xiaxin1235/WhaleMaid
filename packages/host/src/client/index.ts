@@ -29,6 +29,7 @@ import { IntakeView, GoalDetailView } from './intake.js'
 import { Memories } from './memories.js'
 import { CompanionActionsView } from './companion-actions.js'
 import { CompanionArchivesView } from './companion-archives.js'
+import { DailyBriefView } from './daily-brief.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
@@ -53,6 +54,7 @@ function Panel({ ctx, connection }: Face) {
   const [initialDraftId, setInitialDraftId] = useState<string>()
   const [selectedGoal, setSelectedGoal] = useState<string | undefined>(() => pendingNavigationGoal)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [notificationId, setNotificationId] = useState<string>()
   useEffect(() => {
     pendingNavigationGoal = undefined
     const open = (event: Event) => {
@@ -177,6 +179,7 @@ function Panel({ ctx, connection }: Face) {
       h(NotificationCenter, {
         connection,
         locale,
+        notificationId,
         onOpenGoal: (id: string) => {
           setNotificationsOpen(false)
           setSelectedGoal(id)
@@ -231,6 +234,14 @@ function Panel({ ctx, connection }: Face) {
       h('button', { onClick: () => setNotificationsOpen(true) }, text('notificationCenter')),
     ),
     error && h('p', { role: 'alert' }, t(locale, 'requestFailed', { code: error })),
+    h(DailyBriefView, {
+      connection,
+      locale,
+      onDecision: (id: string) => {
+        setNotificationId(id)
+        setNotificationsOpen(true)
+      },
+    }),
     h(
       'section',
       { 'aria-label': text('status') },

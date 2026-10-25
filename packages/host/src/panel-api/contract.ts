@@ -21,10 +21,16 @@ import {
   AuthorizationScopeSchema,
   StateTransitionSchema,
   DirectionSchema,
+  DailyBriefRecordSchema,
 } from '@whaledot/core'
 
 export const LanguageSchema = z.enum(['auto', 'zh-CN', 'en'])
 export const EmptyRequestSchema = z.strictObject({})
+export const DailyBriefPanelSchema = z.strictObject({
+  enabled: z.boolean(),
+  today: DailyBriefRecordSchema.optional(),
+  records: z.array(DailyBriefRecordSchema).max(30),
+})
 export const LanguageRequestSchema = z.strictObject({ language: LanguageSchema })
 export const PausedSchema = z.strictObject({ paused: z.boolean() })
 export const RevokeScopeSchema = z.strictObject({ scopeId: ScopeIdSchema })
@@ -87,6 +93,8 @@ export const RouteResultSchema = z.strictObject({
 })
 export const ReminderSchema = z.strictObject({ notificationId: z.string().min(1) })
 export const PANEL_METHODS = [
+  'daily-brief',
+  'daily-brief-settings',
   'companion-archives',
   'companion-restore',
   'companion-archive-settings',

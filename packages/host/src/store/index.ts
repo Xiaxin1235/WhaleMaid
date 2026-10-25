@@ -29,6 +29,7 @@ import {
   canActivateMemory,
   hashScope,
   transition,
+  DailyGoalChangesSchema,
 } from '@whaledot/core'
 import type { AuthorizationScope, Clock, IdGen, ScopeHasher } from '@whaledot/core'
 import type {
@@ -252,11 +253,22 @@ export class WhaleStore {
       update: (input, expectedVersion) => {
         const row = ProjectGoalSchema.parse(input)
         if (row.version !== expectedVersion + 1) throw new Error('stale-version')
-        const result = this.writer()
-          .prepare('UPDATE goals SET version=?,data=? WHERE id=? AND version=?')
-          .run(row.version, JSON.stringify(row), row.id, expectedVersion)
-        if (result.changes !== 1) throw new Error('stale-version')
-        this.changed()
+        this.transaction(() => {
+          const previous = this.goals.get(row.id)
+          const result = this.writer()
+            .prepare('UPDATE goals SET version=?,data=? WHERE id=? AND version=?')
+            .run(row.version, JSON.stringify(row), row.id, expectedVersion)
+          if (result.changes !== 1) throw new Error('stale-version')
+          if (previous && previous.status !== row.status) {
+            const at = this.clock.now()
+            const changes = this.recallState('daily-brief-goal-changes', DailyGoalChangesSchema) ?? []
+            this.setRecallState('daily-brief-goal-changes', [
+              ...changes.filter((v) => v.at > at - 7 * 86400000),
+              { goalId: row.id, status: row.status, at },
+            ])
+          }
+          this.changed()
+        })
       },
     }
     this.scopes = {

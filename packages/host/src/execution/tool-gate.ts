@@ -105,7 +105,8 @@ export class ToolGate {
     if (
       (exec.name.startsWith('whaledot_memory_') ||
         exec.name.startsWith('whaledot_propose_') ||
-        exec.name === 'whaledot_recall_search') &&
+        exec.name === 'whaledot_recall_search' ||
+        exec.name === 'whaledot_daily_brief') &&
       (!owner || !this.registry.isCompanion(owner))
     )
       return { kind: 'deny', reason: 'companion-only' }
