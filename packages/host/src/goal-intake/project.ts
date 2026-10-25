@@ -2,7 +2,7 @@ import { realpath, stat, readFile, access } from 'node:fs/promises'
 import { resolve, relative, isAbsolute, join, dirname, basename } from 'node:path'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
-import { classifyCommand } from '@whaledot/core'
+import { classifyCommand } from '@whalemaid/core'
 const run = promisify(execFile)
 const inside = (root: string, target: string) => {
   const rel = relative(root, target)

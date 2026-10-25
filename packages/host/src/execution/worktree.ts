@@ -2,7 +2,7 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdir, realpath, lstat, readdir } from 'node:fs/promises'
 import { join, relative, isAbsolute, resolve } from 'node:path'
-import type { ProjectGoal } from '@whaledot/core'
+import type { ProjectGoal } from '@whalemaid/core'
 const exec = promisify(execFile)
 export interface Workspace {
   path: string
@@ -29,7 +29,7 @@ export class WorktreeManager {
           '-c',
           `core.hooksPath=${this.emptyHooks}`,
           '-c',
-          'user.name=WhaleDot',
+          'user.name=WhaleMaid',
           '-c',
           'user.email=whaledot@localhost',
           ...args,

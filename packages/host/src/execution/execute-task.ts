@@ -13,8 +13,8 @@ import {
   deriveRunScope,
   buildTaskPrompt,
   runEndToTaskState,
-} from '@whaledot/core'
-import type { GoalId, Run, RunId, Locale, Task } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { GoalId, Run, RunId, Locale, Task } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 import { productionIdGen } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'
@@ -144,7 +144,7 @@ export class TaskExecutor {
       await this.runner.launch({
         cwd: workspace.path,
         preset: runScope.permissionPreset,
-        title: `[WhaleDot] ${goal.title} · ${task.title}`,
+        title: `[WhaleMaid] ${goal.title} · ${task.title}`,
         prompt: buildTaskPrompt(
           goal,
           task,
@@ -288,7 +288,7 @@ export class TaskExecutor {
         if (forcedReason) throw new Error('cancellation-not-settled')
         const checkpoint = await this.worktrees.checkpoint(
           { path: run.worktreePath, baseCommit: run.baseCommit, git: run.baseCommit !== 'non-git' },
-          `WhaleDot ${task.goalId} ${task.id} ${id}`,
+          `WhaleMaid ${task.goalId} ${task.id} ${id}`,
         )
         if (this.store.status().state !== 'ok') return
         if (checkpoint.changed)

@@ -1,8 +1,8 @@
 import { z } from 'zod'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PeerScope } from '@deepseek-ai/dsh-client-connection'
-import { ScopeContentSchema, ScopeIdSchema, hashScope, checkCommandMode } from '@whaledot/core'
-import type { AuthorizationScope, Clock, GoalId, IdGen, ScopeHasher, ScopeId } from '@whaledot/core'
+import { ScopeContentSchema, ScopeIdSchema, hashScope, checkCommandMode } from '@whalemaid/core'
+import type { AuthorizationScope, Clock, GoalId, IdGen, ScopeHasher, ScopeId } from '@whalemaid/core'
 import { WhaleStore, productionClock, productionIdGen, sha256 } from './store/index.js'
 
 declare module '@deepseek-ai/cordis' {

@@ -1,4 +1,4 @@
-# Start the isolated WhaleDot test host (DSH Desktop's own CLI, DSH_HOME=.dsh-dev).
+# Start the isolated WhaleMaid test host (DSH Desktop's own CLI, DSH_HOME=.dsh-dev).
 # The API key is read without echo and lives only in this shell process.
 # -UseUiKey: ignore any DEEPSEEK_API_KEY in the environment and use the key saved in the test UI settings.
 param([string]$Profile = 'whaledot-p02', [switch]$UseUiKey, [string]$TestHome)

@@ -4,7 +4,7 @@ import { goals, status, languagePatch, failure } from './handlers.js'
 import { createPanelHandler } from './index.js'
 
 import { snapshot } from '../../tests/panel-fixture.js'
-import { ScopeIdSchema } from '@whaledot/core'
+import { ScopeIdSchema } from '@whalemaid/core'
 
 test('status validates requests and makes a detached, validated snapshot', () => {
   expect(status({}, snapshot)).toEqual(snapshot)

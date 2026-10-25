@@ -3,8 +3,8 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { PeerScope } from '@deepseek-ai/dsh-client-connection'
-import { RunSchema, deriveRunScope, DEFAULT_LIMITS } from '@whaledot/core'
-import type { TaskKind, TaskState, Limits } from '@whaledot/core'
+import { RunSchema, deriveRunScope, DEFAULT_LIMITS } from '@whalemaid/core'
+import type { TaskKind, TaskState, Limits } from '@whalemaid/core'
 import { makeGoal, makeTask } from '../../../core/tests/fixtures.js'
 import { WhaleStore, productionClock, productionIdGen, sha256 } from '../store/index.js'
 import { ScopeService } from '../scope-service.js'
@@ -200,7 +200,7 @@ test('tampering never executes acceptance code or automatically retries; choices
   expect(f.store.tasks.get(f.task.id)).toMatchObject({ state: 'READY', attempts: 0 })
   expect(f.store.suggestions.list().every((item) => item.consumedAt !== undefined)).toBe(true)
 })
-test('regression preserves failed ref, rolls back only WhaleDot branch, and records bounded retry', async () => {
+test('regression preserves failed ref, rolls back only WhaleMaid branch, and records bounded retry', async () => {
   const f = await setup({ before: 'good', after: 'bad' })
   const report = await f.verifier.verifyTask(f.task.id)
   expect(report.decision.taskOutcome).toBe('rollback-and-retry')

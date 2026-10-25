@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, expect, test, vi } from 'vitest'
-import { fixedClock, sequenceIdGen, RunSchema, DEFAULT_PROTECTED_NAMES, hashScope } from '@whaledot/core'
+import { fixedClock, sequenceIdGen, RunSchema, DEFAULT_PROTECTED_NAMES, hashScope } from '@whalemaid/core'
 import { makeGoal, makeTask } from '../../../core/tests/fixtures.js'
 import { makeScope } from '../../../core/tests/fixtures.js'
 import { WhaleStore, sha256 } from './index.js'
@@ -149,7 +149,7 @@ test('live PID yields read-only access and cannot mutate or steal writer lock', 
   seed(store)
   const lock = readFileSync(join(dir, 'whaledot.lock'), 'utf8')
   const reader = open(dir).store
-  expect(reader.status()).toMatchObject({ state: 'read-only', message: '另一个 DSH 正在使用 WhaleDot 数据' })
+  expect(reader.status()).toMatchObject({ state: 'read-only', message: '另一个 DSH 正在使用 WhaleMaid 数据' })
   expect(reader.goals.list()).toHaveLength(1)
   expect(() => reader.setPaused(true)).toThrow('store-unavailable')
   expect(() => reader.goals.insert(makeGoal())).toThrow('store-unavailable')

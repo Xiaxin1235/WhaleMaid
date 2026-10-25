@@ -1,5 +1,5 @@
-import { DirectionSchema } from '@whaledot/core'
-import type { GoalId } from '@whaledot/core'
+import { DirectionSchema } from '@whalemaid/core'
+import type { GoalId } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 import { productionIdGen } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'

@@ -30,8 +30,8 @@ import {
   hashScope,
   transition,
   DailyGoalChangesSchema,
-} from '@whaledot/core'
-import type { AuthorizationScope, Clock, IdGen, ScopeHasher } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { AuthorizationScope, Clock, IdGen, ScopeHasher } from '@whalemaid/core'
 import type {
   GoalRepo,
   ScopeRepo,
@@ -129,7 +129,7 @@ export class WhaleStore {
     this.journal = {
       get: (id: string) => this.one('companion_journal', id, CompanionJournalSchema),
       list: () => this.rows('companion_journal', CompanionJournalSchema),
-      insert: (input: import('@whaledot/core').CompanionJournal) => {
+      insert: (input: import('@whalemaid/core').CompanionJournal) => {
         const row = CompanionJournalSchema.parse(input)
         this.transaction(() => {
           this.writer()
@@ -183,14 +183,14 @@ export class WhaleStore {
     this.memoryProposals = {
       get: (id: string) => this.one('memory_proposals', id, MemoryProposalSchema),
       list: () => this.rows('memory_proposals', MemoryProposalSchema),
-      insert: (input: import('@whaledot/core').MemoryProposal) => {
+      insert: (input: import('@whalemaid/core').MemoryProposal) => {
         const p = MemoryProposalSchema.parse(input)
         this.writer()
           .prepare('INSERT INTO memory_proposals(id,scope_key,status,version,data) VALUES(?,?,?,?,?)')
           .run(p.id, memoryScopeKey(p.scope), p.status, p.version, JSON.stringify(p))
         this.changed()
       },
-      update: (input: import('@whaledot/core').MemoryProposal, version: number) => {
+      update: (input: import('@whalemaid/core').MemoryProposal, version: number) => {
         const p = MemoryProposalSchema.parse(input)
         if (p.version !== version + 1) throw Error('stale-version')
         const r = this.writer()
@@ -208,7 +208,7 @@ export class WhaleStore {
             (!scopeKey || memoryScopeKey(m.scope) === scopeKey) &&
             (options.includeArchived || m.status === 'active'),
         ),
-      insert: (input: import('@whaledot/core').Memory) => {
+      insert: (input: import('@whalemaid/core').Memory) => {
         const row = MemorySchema.parse(input)
         if (row.status === 'active' && !canActivateMemory(this.rows('memories', MemorySchema), row))
           throw Error('scope-full')
@@ -217,7 +217,7 @@ export class WhaleStore {
           .run(row.id, memoryScopeKey(row.scope), row.status, row.version, JSON.stringify(row))
         this.changed()
       },
-      update: (input: import('@whaledot/core').Memory, expectedVersion: number) => {
+      update: (input: import('@whalemaid/core').Memory, expectedVersion: number) => {
         const row = MemorySchema.parse(input)
         if (row.version !== expectedVersion + 1) throw Error('stale-version')
         if (row.status === 'active' && !canActivateMemory(this.rows('memories', MemorySchema), row))
@@ -280,7 +280,7 @@ export class WhaleStore {
         id
           ? this.rows('autopilot_events', AutopilotEventSchema, 'goal_id', id)
           : this.rows('autopilot_events', AutopilotEventSchema),
-      insert: (input: import('@whaledot/core').AutopilotEvent) => {
+      insert: (input: import('@whalemaid/core').AutopilotEvent) => {
         const row = AutopilotEventSchema.parse(input)
         this.writer()
           .prepare('INSERT INTO autopilot_events(id,goal_id,data) VALUES(?,?,?)')
@@ -289,7 +289,7 @@ export class WhaleStore {
     }
     this.plannerState = {
       get: (id: string) => this.one('planner_state', id, PlannerStateSchema),
-      put: (input: import('@whaledot/core').PlannerState) => {
+      put: (input: import('@whalemaid/core').PlannerState) => {
         const row = PlannerStateSchema.parse(input)
         this.writer()
           .prepare(
@@ -301,7 +301,7 @@ export class WhaleStore {
     this.verifications = {
       get: (id: string) => this.one('verifications', id, VerificationSchema),
       list: () => this.rows('verifications', VerificationSchema),
-      insert: (input: import('@whaledot/core').Verification) => {
+      insert: (input: import('@whalemaid/core').Verification) => {
         const row = VerificationSchema.parse(input)
         this.writer()
           .prepare(
@@ -313,14 +313,14 @@ export class WhaleStore {
     this.notifications = {
       get: (id: string) => this.one('notifications', id, NotificationSchema),
       list: () => this.rows('notifications', NotificationSchema),
-      insert: (input: import('@whaledot/core').Notification) => {
+      insert: (input: import('@whalemaid/core').Notification) => {
         const row = NotificationSchema.parse(input)
         this.writer()
           .prepare('INSERT INTO notifications(id,data) VALUES(?,?)')
           .run(row.id, JSON.stringify(row))
         this.changed()
       },
-      update: (input: import('@whaledot/core').Notification) => {
+      update: (input: import('@whalemaid/core').Notification) => {
         const row = NotificationSchema.parse(input)
         this.writer().prepare('UPDATE notifications SET data=? WHERE id=?').run(JSON.stringify(row), row.id)
         this.changed()
@@ -328,13 +328,13 @@ export class WhaleStore {
     }
     this.suggestions = {
       get: (id: string) => this.one('suggestions', id, SuggestionSchema),
-      update: (input: import('@whaledot/core').Suggestion) => {
+      update: (input: import('@whalemaid/core').Suggestion) => {
         const row = SuggestionSchema.parse(input)
         this.writer().prepare('UPDATE suggestions SET data=? WHERE id=?').run(JSON.stringify(row), row.id)
         this.changed()
       },
       list: () => this.rows('suggestions', SuggestionSchema),
-      insert: (input: import('@whaledot/core').Suggestion) => {
+      insert: (input: import('@whalemaid/core').Suggestion) => {
         const row = SuggestionSchema.parse(input)
         this.writer().prepare('INSERT INTO suggestions(id,data) VALUES(?,?)').run(row.id, JSON.stringify(row))
       },
@@ -550,7 +550,7 @@ export class WhaleStore {
   }
 
   /** Persist notification preferences in the existing settings ledger; malformed settings mute delivery. */
-  notificationPreferences(): import('@whaledot/core').NotificationPreferences {
+  notificationPreferences(): import('@whalemaid/core').NotificationPreferences {
     if (!this.db || this.state === 'error') return { maxPerHour: 4, muted: true }
     const row = this.db.prepare("SELECT * FROM kv_settings WHERE id='notifications.preferences'").get()
     return row
@@ -567,7 +567,7 @@ export class WhaleStore {
       .run(JSON.stringify(row))
     this.changed()
   }
-  /** The companion session WhaleDot created, if any; malformed rows read as absent. */
+  /** The companion session WhaleMaid created, if any; malformed rows read as absent. */
   companionSession(): CompanionSessionRecord | undefined {
     if (!this.db || this.state === 'error') return undefined
     const row = this.db.prepare("SELECT * FROM kv_settings WHERE id='companion.session'").get()
@@ -670,7 +670,7 @@ export class WhaleStore {
       const existed = existsSync(path) && statSync(path).size > 0
       if (!this.unlock) {
         this.state = 'read-only'
-        this.message = '另一个 DSH 正在使用 WhaleDot 数据'
+        this.message = '另一个 DSH 正在使用 WhaleMaid 数据'
         if (!existed) return
         this.db = new DatabaseSync(path, { readOnly: true })
         this.db.exec('PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000')

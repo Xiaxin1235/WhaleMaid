@@ -4,8 +4,8 @@ import {
   notificationCopy,
   NotificationIdSchema,
   goalDecisionCopy,
-} from '@whaledot/core'
-import type { Notification, NotificationFacts, Locale, GoalId } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { Notification, NotificationFacts, Locale, GoalId } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 import { productionClock, productionIdGen } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'

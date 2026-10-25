@@ -11,7 +11,7 @@ import { createPanelHandler } from '../panel-api/index.js'
 import type { PanelRuntime } from '../panel-api/index.js'
 import { exportTrace } from '../autopilot/trace.js'
 import { makeGoal } from '../../../core/tests/fixtures.js'
-import type { CompanionArchiveIdentity } from '@whaledot/core'
+import type { CompanionArchiveIdentity } from '@whalemaid/core'
 const clean: (() => unknown | Promise<unknown>)[] = []
 afterEach(async () => {
   for (const f of clean.splice(0).reverse()) await f()

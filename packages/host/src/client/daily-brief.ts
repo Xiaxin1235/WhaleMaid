@@ -1,6 +1,6 @@
 import { createElement as h, useEffect, useState } from 'react'
-import { dailyBriefCopy } from '@whaledot/core'
-import type { Locale } from '@whaledot/core'
+import { dailyBriefCopy } from '@whalemaid/core'
+import type { Locale } from '@whalemaid/core'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import { DailyBriefPanelSchema, PANEL_CHANNEL, PANEL_PREFIX } from '../panel-api/contract.js'
 

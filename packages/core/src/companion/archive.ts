@@ -28,7 +28,7 @@ export interface CompanionArchiveIdentity {
   origin?: string | undefined
   createdAt?: number | undefined
 }
-/** Three independent facts must agree: WhaleDot ownership, companion preset, and the exact companion workspace. */
+/** Three independent facts must agree: WhaleMaid ownership, companion preset, and the exact companion workspace. */
 export function isOwnedCompanion(
   id: string,
   owned: readonly string[],

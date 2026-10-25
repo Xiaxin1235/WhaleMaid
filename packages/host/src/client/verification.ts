@@ -1,6 +1,6 @@
 import { createElement as h, useState } from 'react'
-import { t, verificationText } from '@whaledot/core'
-import type { Locale, DecisionChoice } from '@whaledot/core'
+import { t, verificationText } from '@whalemaid/core'
+import type { Locale, DecisionChoice } from '@whalemaid/core'
 import type { z } from 'zod'
 import type { GoalDetailSchema } from '../panel-api/contract.js'
 import { GoalDecisionButtons } from './goal-decisions.js'

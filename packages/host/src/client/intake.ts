@@ -14,8 +14,8 @@ import {
   draftToRecords,
   fixedClock,
   sequenceIdGen,
-} from '@whaledot/core'
-import type { ConfirmedGoalForm, GoalDraft, Locale, MessageKey } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { ConfirmedGoalForm, GoalDraft, Locale, MessageKey } from '@whalemaid/core'
 import {
   ExecuteResultSchema,
   ConfirmResultSchema,

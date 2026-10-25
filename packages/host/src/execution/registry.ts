@@ -1,5 +1,5 @@
-import type { Run, RunId, Task, TaskState } from '@whaledot/core'
-import { companionSessionIds } from '@whaledot/core'
+import type { Run, RunId, Task, TaskState } from '@whalemaid/core'
+import { companionSessionIds } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 /** Durable before-send registration and a retained session ownership index, including ended runs. */
 export class RunRegistry {
@@ -35,7 +35,7 @@ export class RunRegistry {
     const record = this.store.companionSession()
     return companionSessionIds(record, this.store.autopilotEvents.list()).includes(sessionId)
   }
-  /** Every session WhaleDot owns (runs, inboxes, companions), for hiding them from the companion's tools. */
+  /** Every session WhaleMaid owns (runs, inboxes, companions), for hiding them from the companion's tools. */
   ownedSessionIds(): Set<string> {
     const record = this.store.companionSession()
     return new Set([

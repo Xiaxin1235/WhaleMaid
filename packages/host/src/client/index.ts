@@ -1,6 +1,6 @@
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client'
 import { NotificationCenter } from './notifications.js'
-import { NotificationChoiceSchema } from '@whaledot/core'
+import { NotificationChoiceSchema } from '@whalemaid/core'
 import type { Context } from '@deepseek-ai/cordis'
 import type { UiWorkspace } from '@deepseek-ai/dsh-client-ui-workspace/client'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
@@ -12,7 +12,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { createElement as h, useEffect, useState, useSyncExternalStore } from 'react'
-import { resolveLocale, t, goalDecisionCopy, type LanguageSetting } from '@whaledot/core'
+import { resolveLocale, t, goalDecisionCopy, type LanguageSetting } from '@whalemaid/core'
 import {
   GoalsSchema,
   LanguageResponseSchema,
@@ -229,7 +229,7 @@ function Panel({ ctx, connection }: Face) {
     h(
       'header',
       null,
-      h('div', null, h('h1', null, 'WhaleDot'), h('p', null, text('subtitle'))),
+      h('div', null, h('h1', null, 'WhaleMaid'), h('p', null, text('subtitle'))),
       h('button', { onClick: () => refresh((value) => value + 1) }, text('refresh')),
       h('button', { onClick: () => setNotificationsOpen(true) }, text('notificationCenter')),
     ),
@@ -490,7 +490,7 @@ function LanguageSettings({ ctx, connection }: Face) {
   return h(
     'div',
     { className: 'whaledot-settings', lang: locale },
-    h('h2', null, 'WhaleDot'),
+    h('h2', null, 'WhaleMaid'),
     error && h('p', { role: 'alert' }, t(locale, 'requestFailed', { code: error })),
     h(
       'label',
@@ -573,7 +573,7 @@ export function apply(ctx: Context): void {
       {
         name: 'settings.section',
         id: PANEL_ID,
-        label: 'WhaleDot',
+        label: 'WhaleMaid',
         order: 65,
         inject: () => ({ ctx, connection }),
       },
@@ -582,7 +582,7 @@ export function apply(ctx: Context): void {
   )
   ctx.slots.inject('sidebar.panellist', () =>
     ctx.slots.register(
-      { name: 'sidebar.panellist', id: PANEL_ID, order: 30, label: 'WhaleDot' },
+      { name: 'sidebar.panellist', id: PANEL_ID, order: 30, label: 'WhaleMaid' },
       ({ size }: { size: number; active: boolean }) =>
         h(
           'svg',

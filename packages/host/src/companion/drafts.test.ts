@@ -9,10 +9,10 @@ import { ScopeService } from '../scope-service.js'
 import { makeGoal, makeTask } from '../../../core/tests/fixtures.js'
 import { CompanionMemory } from './memory.js'
 import { MemoryDrafts } from './drafts.js'
-import { NotificationIdSchema, lessonTrigger, decideDelivery } from '@whaledot/core'
+import { NotificationIdSchema, lessonTrigger, decideDelivery } from '@whalemaid/core'
 import { MIGRATIONS } from '../store/migrations.js'
 import { notificationDeliveryHistory } from '../notify/history.js'
-import { decideNext, DEFAULT_LIMITS, RunIdSchema, RunSchema } from '@whaledot/core'
+import { decideNext, DEFAULT_LIMITS, RunIdSchema, RunSchema } from '@whalemaid/core'
 const cleanup: (() => void | Promise<void>)[] = []
 afterEach(async () => {
   for (const f of cleanup.splice(0).reverse()) await f()

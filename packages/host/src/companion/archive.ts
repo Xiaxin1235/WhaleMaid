@@ -7,8 +7,8 @@ import {
   normalizeWindowsPath,
   COMPANION_ARCHIVE_ACTION,
   COMPANION_RESTORE_ACTION,
-} from '@whaledot/core'
-import type { CompanionArchiveIdentity } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { CompanionArchiveIdentity } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 
 /** Verified narrow surface of dsh-workspace 0.2.1-rc.2; no workspace removal or stopActivity capability. */

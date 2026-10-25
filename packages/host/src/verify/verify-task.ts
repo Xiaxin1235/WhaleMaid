@@ -13,7 +13,7 @@ import {
   EvidenceIdSchema,
   t,
   goalDecisionChoices,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 import type {
   Task,
   Run,
@@ -23,7 +23,7 @@ import type {
   ChangedFile,
   Verification,
   Locale,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 import { productionIdGen } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'
@@ -499,7 +499,7 @@ export class TaskVerifier {
           await this.owned(run, task, latest, false)
           const checkpoint = await this.runner.worktrees.checkpoint(
             { path: run.worktreePath, baseCommit: latest, git: true },
-            `WhaleDot reconciled ${run.run_id}`,
+            `WhaleMaid reconciled ${run.run_id}`,
           )
           this.store.checkpoints.insert({
             id: CheckpointIdSchema.parse(productionIdGen.next('checkpoint')),

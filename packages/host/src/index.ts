@@ -14,13 +14,13 @@ import { createRequire } from 'node:module'
 import { TaskExecutor } from './execution/execute-task.js'
 import { dshRunner } from './execution/dsh-runner.js'
 import { ToolGate, installToolGate } from './execution/tool-gate.js'
-import { resolveLocale } from '@whaledot/core'
+import { resolveLocale } from '@whalemaid/core'
 import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import { createSessionEventSource } from './bridge/session-events.js'
 import { installPanelApi } from './panel-api/index.js'
 import { LanguageSchema } from './panel-api/contract.js'
 import type { PanelStatus } from './panel-api/contract.js'
-import type { LanguageSetting } from '@whaledot/core'
+import type { LanguageSetting } from '@whalemaid/core'
 import { DebugLog } from './debug-log.js'
 import { WhaleStore } from './store/index.js'
 import { createScopeService } from './scope-service.js'
@@ -81,7 +81,7 @@ export const Config: Schema<ConfigInput, Config> = Schema.object({
   language: Schema.union(['auto', 'zh-CN', 'en'])
     .default('auto')
     .volatile()
-    .description('WhaleDot language / 语言'),
+    .description('WhaleMaid language / 语言'),
   companion: Schema.object({
     dailyBrief: Schema.object({ enabled: Schema.boolean().default(true).volatile() }).default({}),
     archiveEarlier: Schema.boolean().default(true).volatile(),
@@ -136,7 +136,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       }
       return Intl.DateTimeFormat().resolvedOptions().locale
     }
-    const { version } = createRequire(import.meta.url)('dsh-whaledot/package.json') as { version: string }
+    const { version } = createRequire(import.meta.url)('dsh-whalemaid/package.json') as { version: string }
     const status = {
       version,
       startedAt: Date.now(),

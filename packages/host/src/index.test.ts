@@ -80,7 +80,7 @@ test('atomic replacement failure is logged without rejecting startup or leaving 
 })
 
 test('host declares compatible dependency ranges for home paths and schemastery', () => {
-  const manifest = createRequire(import.meta.url)('dsh-whaledot/package.json') as {
+  const manifest = createRequire(import.meta.url)('dsh-whalemaid/package.json') as {
     dependencies: Record<string, string>
   }
   expect(manifest.dependencies).toMatchObject({

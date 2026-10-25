@@ -10,8 +10,8 @@ import {
   experienceText,
   recallCopy,
   containsMemorySecret,
-} from '@whaledot/core'
-import type { CompanionAction, Locale, TranscriptEvent } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { CompanionAction, Locale, TranscriptEvent } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 import type { DraftModel } from '../goal-intake/model.js'
 import type { MemoryExecution } from './memory.js'

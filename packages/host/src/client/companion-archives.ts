@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { z } from 'zod'
-import { archiveCopy } from '@whaledot/core'
-import type { Locale } from '@whaledot/core'
+import { archiveCopy } from '@whalemaid/core'
+import type { Locale } from '@whalemaid/core'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import { PANEL_CHANNEL, PANEL_PREFIX } from '../panel-api/contract.js'
 const View = z.object({

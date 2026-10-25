@@ -46,7 +46,7 @@ export const goalDecisionCopy = (locale: Locale) =>
         submitDirection: '确认新方向',
         directionHint: '新方向会出现在之后每一轮任务的提示词里；授权路径、权限与验收命令保持原样。',
         inboxHint:
-          '放弃目标请到 WhaleDot 面板二次确认。填写自定义文字即选择“改方向”，新方向会出现在之后每一轮任务的提示词里；只选“改方向”但不填文字不会执行。',
+          '放弃目标请到 WhaleMaid 面板二次确认。填写自定义文字即选择“改方向”，新方向会出现在之后每一轮任务的提示词里；只选“改方向”但不填文字不会执行。',
         directionRequired: '请填写新方向（1–500 字，不能含密钥）。',
         cancelled: '已放弃',
       }
@@ -62,7 +62,7 @@ export const goalDecisionCopy = (locale: Locale) =>
         directionHint:
           'The new direction appears in every subsequent task prompt. Paths, permissions and verification commands remain unchanged.',
         inboxHint:
-          'Abandonment requires a second confirmation in the WhaleDot panel. Custom text chooses Change direction and appears in every subsequent task prompt. Selecting Change direction without text does nothing.',
+          'Abandonment requires a second confirmation in the WhaleMaid panel. Custom text chooses Change direction and appears in every subsequent task prompt. Selecting Change direction without text does nothing.',
         directionRequired: 'Enter a new direction (1–500 characters, no secrets).',
         cancelled: 'Abandoned',
       }

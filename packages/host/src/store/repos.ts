@@ -14,7 +14,7 @@ import type {
   TransitionError,
   TransitionMeta,
   Result,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 
 export interface GoalRepo {
   get(id: GoalId): ProjectGoal | undefined

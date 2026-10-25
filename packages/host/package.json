@@ -1,8 +1,12 @@
 {
-  "name": "dsh-whaledot",
+  "name": "dsh-whalemaid",
   "version": "0.0.0",
   "description": "Authorized project autopilot, independent verification and companion conversations for DeepSeek Harness",
-  "repository": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Xiaxin1235/WhaleMaid.git",
+    "directory": "packages/host"
+  },
   "type": "module",
   "license": "MIT",
   "engines": {
@@ -64,7 +68,7 @@
     "@deepseek-ai/dsh-atomic-write": "^0.2.1-rc.2",
     "@deepseek-ai/dsh-home-paths": "^0.2.1-rc.2",
     "@deepseek-ai/schemastery": "^3.18.4",
-    "@whaledot/core": "workspace:*",
+    "@whalemaid/core": "workspace:*",
     "zod": "4.6.7"
   },
   "peerDependencies": {

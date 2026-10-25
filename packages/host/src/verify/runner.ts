@@ -2,12 +2,12 @@ import { execFile } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
-import { classifyCommand, parseCommandResult } from '@whaledot/core'
-import type { CommandResult } from '@whaledot/core'
+import { classifyCommand, parseCommandResult } from '@whalemaid/core'
+import type { CommandResult } from '@whalemaid/core'
 import { WorktreeManager } from '../execution/worktree.js'
 
 const MAX_LOG = 2 * 1024 * 1024
-const MARKER = Buffer.from('\n[WhaleDot: output truncated at 2 MiB]\n')
+const MARKER = Buffer.from('\n[WhaleMaid: output truncated at 2 MiB]\n')
 let batch: Promise<unknown> = Promise.resolve()
 let batchesPending = 0
 /** Whether independent acceptance or a decision currently owns the host execution slot. */

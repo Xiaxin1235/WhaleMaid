@@ -8,7 +8,7 @@ import type {} from '@deepseek-ai/dsh-api-session-controller'
 import type {} from '@deepseek-ai/dsh-permission-presets'
 import type { WhaleStore } from '../store/index.js'
 import { COMPANION_PRESET } from './service.js'
-import { companionSessionIds } from '@whaledot/core'
+import { companionSessionIds } from '@whalemaid/core'
 
 export type CompanionState =
   | { state: 'disabled' }
@@ -46,7 +46,7 @@ export class CompanionSessionManager {
   sessionId(): string | undefined {
     return this.current.state === 'ready' ? this.current.sessionId : this.store.companionSession()?.sessionId
   }
-  /** Every session WhaleDot ever used as the companion, so the gate keeps owning old ones after a rebuild. */
+  /** Every session WhaleMaid ever used as the companion, so the gate keeps owning old ones after a rebuild. */
   allSessionIds(): string[] {
     const record = this.store.companionSession()
     return companionSessionIds(record, this.store.autopilotEvents.list())

@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useState } from 'react'
 import { z } from 'zod'
-import { MemoryProposalSchema, memoryCopy, memoryScopeKey } from '@whaledot/core'
-import type { Locale } from '@whaledot/core'
+import { MemoryProposalSchema, memoryCopy, memoryScopeKey } from '@whalemaid/core'
+import type { Locale } from '@whalemaid/core'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import { PANEL_CHANNEL, PANEL_PREFIX } from '../panel-api/contract.js'
 /** The same persisted proposal is visible in memory management and P04's notification center. */

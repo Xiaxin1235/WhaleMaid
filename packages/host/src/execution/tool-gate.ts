@@ -13,8 +13,8 @@ import {
   isPathAllowed,
   toolCallToIntents,
   EvidenceIdSchema,
-} from '@whaledot/core'
-import type { Run, Locale, ActionIntent } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { Run, Locale, ActionIntent } from '@whalemaid/core'
 import { productionIdGen } from '../store/index.js'
 import type { RunRegistry } from './registry.js'
 import { COMPANION_ALLOWED_TOOLS } from '../companion/tools.js'
@@ -116,7 +116,7 @@ export class ToolGate {
         kind: 'deny',
         reason: t(this.locale(), 'gateOutside', { rule: 'notification-session-tools-disabled' }),
       }
-    // The companion may only read WhaleDot facts and ask the user; DSH's own policy still runs after us.
+    // The companion may only read WhaleMaid facts and ask the user; DSH's own policy still runs after us.
     if (this.registry.isCompanion(owner))
       return COMPANION_ALLOWED_TOOLS.has(exec.name)
         ? next()

@@ -10,7 +10,7 @@ await build({
   loader: { '.css': 'text' },
   sourcemap: false,
   banner: {
-    js: 'window.__ModuleLoader__.load({ id: "dsh-whaledot", factory: (require) => { var module = { exports: {} }; var exports = module.exports;',
+    js: 'window.__ModuleLoader__.load({ id: "dsh-whalemaid", factory: (require) => { var module = { exports: {} }; var exports = module.exports;',
   },
   footer: { js: 'return module.exports; } });' },
 })

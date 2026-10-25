@@ -8,8 +8,8 @@ import {
   DailyBriefQuerySchema,
   DailyGoalChangesSchema,
   dailyBriefCopy,
-} from '@whaledot/core'
-import type { DailyBriefFacts, DailyBriefRecord, Locale } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { DailyBriefFacts, DailyBriefRecord, Locale } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'
 import type { MemoryExecution } from './memory.js'

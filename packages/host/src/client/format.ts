@@ -1,4 +1,4 @@
-import { t, type Locale } from '@whaledot/core'
+import { t, type Locale } from '@whalemaid/core'
 import type { PanelStatus } from '../panel-api/contract.js'
 
 export function serviceRows(status: PanelStatus, locale: Locale) {

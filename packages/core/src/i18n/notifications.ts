@@ -42,7 +42,7 @@ export const notificationMessages = {
     verify: ['再验收一次', '只重试独立验收，不重发任务提示词。'],
     'view-diff': ['先看看差异', '只查看这次改动，不执行修复。'],
     snooze: ['晚点提醒我', '一小时后再提醒一次。'],
-    'open-panel': ['打开面板看看', '只打开 WhaleDot 面板，查看完整证据和操作。'],
+    'open-panel': ['打开面板看看', '只打开 WhaleMaid 面板，查看完整证据和操作。'],
   },
   en: {
     abandon: [
@@ -135,6 +135,6 @@ export const notificationMessages = {
     verify: ['Verify again', 'Retries independent verification only; never resends the task prompt.'],
     'view-diff': ['Inspect changes', 'Shows the diff without starting a repair.'],
     snooze: ['Remind me later', 'Reminds once in one hour.'],
-    'open-panel': ['Open WhaleDot', 'Opens the panel to inspect full evidence and actions.'],
+    'open-panel': ['Open WhaleMaid', 'Opens the panel to inspect full evidence and actions.'],
   },
 } as const

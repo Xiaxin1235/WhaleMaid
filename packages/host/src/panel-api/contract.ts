@@ -22,7 +22,7 @@ import {
   StateTransitionSchema,
   DirectionSchema,
   DailyBriefRecordSchema,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 
 export const LanguageSchema = z.enum(['auto', 'zh-CN', 'en'])
 export const EmptyRequestSchema = z.strictObject({})

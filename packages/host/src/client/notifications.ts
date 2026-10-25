@@ -1,7 +1,7 @@
 import { createElement as h, useEffect, useState, useRef } from 'react'
 import { MemoryProposals } from './memory-proposals.js'
-import { t, notificationMessages, NotificationPreferencesSchema } from '@whaledot/core'
-import type { Locale } from '@whaledot/core'
+import { t, notificationMessages, NotificationPreferencesSchema } from '@whalemaid/core'
+import type { Locale } from '@whalemaid/core'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import {
   NotificationCenterSchema,

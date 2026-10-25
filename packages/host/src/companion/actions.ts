@@ -5,8 +5,8 @@ import {
   describeAction,
   CompanionActionSchema,
   CompanionProposalSchema,
-} from '@whaledot/core'
-import type { CompanionAction, ActionFacts, Locale } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { CompanionAction, ActionFacts, Locale } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 import type { GoalIntake } from '../goal-intake/service.js'
 import type { AutopilotScheduler } from '../autopilot/scheduler.js'

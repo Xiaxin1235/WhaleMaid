@@ -4,7 +4,7 @@ import {
   parsePlannerResponse,
   mergePlannerTasks,
   GoalIdSchema,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 import type {
   GoalId,
   TaskId,
@@ -16,7 +16,7 @@ import type {
   IdGen,
   PlannerState,
   AuthorizationScope,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 import { productionClock, productionIdGen } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'

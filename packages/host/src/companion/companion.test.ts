@@ -4,8 +4,8 @@ import { join } from 'node:path'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 import type { Context } from '@deepseek-ai/cordis'
 import type { PeerScope } from '@deepseek-ai/dsh-client-connection'
-import { REDACTED } from '@whaledot/core'
-import type { NotificationFacts } from '@whaledot/core'
+import { REDACTED } from '@whalemaid/core'
+import type { NotificationFacts } from '@whalemaid/core'
 import { makeGoal, makeTask } from '../../../core/tests/fixtures.js'
 import { WhaleStore, productionClock, productionIdGen, sha256 } from '../store/index.js'
 import { ScopeService } from '../scope-service.js'
@@ -61,7 +61,7 @@ async function setup(settings: Partial<CompanionSettings> = {}) {
   const sessions: Record<string, { updatedAt: number; running?: boolean; events: Ev[]; blank?: boolean }> = {
     s_work: { updatedAt: 3000, events: [title(0, '修 README'), user(1, 'key sk-test1234567890abcdefXYZ')] },
     s_other: { updatedAt: 2000, running: true, events: [title(0, '私密项目'), user(1, 'secret plans')] },
-    s_whaledot: { updatedAt: 1500, events: [title(0, '[WhaleDot] 让测试全部通过')] },
+    s_whaledot: { updatedAt: 1500, events: [title(0, '[WhaleMaid] 让测试全部通过')] },
     s_companion: { updatedAt: 1000, events: [title(0, '大肥鱼')] },
     s_blank: { updatedAt: 900, blank: true, events: [] },
   }
@@ -133,7 +133,7 @@ describe('companion read model', () => {
     expect(f.service.goalDetail('nope')).toBeUndefined()
   })
 
-  test('recent sessions hide WhaleDot, companion, blank and excluded sessions', async () => {
+  test('recent sessions hide WhaleMaid, companion, blank and excluded sessions', async () => {
     const f = await setup({ excludedSessions: ['私密'] })
     const recent = await f.service.recentSessions()
     expect(recent).toEqual({
@@ -144,13 +144,31 @@ describe('companion read model', () => {
 
   test('without title sharing only counts are returned', async () => {
     const f = await setup({ shareSessionTitles: false })
-    // WhaleDot-owned, companion and blank sessions are excluded from the counts too.
+    // WhaleMaid-owned, companion and blank sessions are excluded from the counts too.
     expect(await f.service.recentSessions()).toEqual({ titlesShared: false, total: 2, running: 1, idle: 1 })
     expect(f.controller.inspect).not.toHaveBeenCalled()
     // Reading a session by id must not reveal its title either.
     const read = await f.service.readSession('s_work')
     expect(read.ok).toBe(true)
     expect(read).not.toHaveProperty('title')
+  })
+
+  test('both current and legacy automatic-session titles remain excluded after the rename', async () => {
+    for (const prefix of ['[WhaleMaid]', '[WhaleDot]']) {
+      const f = await setup()
+      f.controller.list.mockResolvedValue({
+        items: [
+          { sessionId: 'external', updatedAt: 5000, running: false, blank: false, agentAvailable: false },
+        ],
+      })
+      f.controller.inspect.mockResolvedValue({
+        meta: { id: 'external' },
+        inheritedEventCount: 0,
+        events: [title(0, `${prefix} automatic task`)],
+      })
+      expect(await f.service.recentSessions()).toEqual({ titlesShared: true, sessions: [] })
+      expect(await f.service.readSession('external')).toEqual({ ok: false, reason: 'session-not-readable' })
+    }
   })
 
   test('reading a session redacts secrets and refuses hidden, excluded or disabled cases', async () => {
@@ -243,7 +261,7 @@ describe('companion session lifecycle', () => {
 })
 
 describe('companion gate', () => {
-  test('only read-only WhaleDot tools and ask_user_question run in the companion session', async () => {
+  test('only read-only WhaleMaid tools and ask_user_question run in the companion session', async () => {
     const f = await setup()
     f.store.setCompanionSession({ sessionId: 's_companion', createdAt: 1, previous: ['s_old'] })
     const gate = new ToolGate(new RunRegistry(f.store), () => 'en')

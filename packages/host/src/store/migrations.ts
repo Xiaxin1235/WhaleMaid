@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { AuthorizationScopeSchema, DEFAULT_PROTECTED_NAMES, hashScope } from '@whaledot/core'
+import { AuthorizationScopeSchema, DEFAULT_PROTECTED_NAMES, hashScope } from '@whalemaid/core'
 import type { DatabaseSync } from 'node:sqlite'
 
 export interface Migration {

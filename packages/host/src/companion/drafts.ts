@@ -12,7 +12,7 @@ import {
   redactSecrets,
   projectKeyForGoal,
   decideDelivery,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 import type {
   Memory,
   MemoryScope,
@@ -20,7 +20,7 @@ import type {
   LessonTrigger,
   GoalId,
   DeliveryNotice,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 import type { AskUserQuestionItem, AskUserQuestionAnswer } from '@deepseek-ai/dsh-user-questions'
 import type { DraftModel } from '../goal-intake/model.js'
 import { CompanionMemory, memoryReview } from './memory.js'

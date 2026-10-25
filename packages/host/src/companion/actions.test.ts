@@ -13,7 +13,7 @@ import { WhaleStore, productionClock, productionIdGen, sha256 } from '../store/i
 import { ScopeService } from '../scope-service.js'
 import { exportTrace } from '../autopilot/trace.js'
 import { makeGoal, makeTask } from '../../../core/tests/fixtures.js'
-import { buildTaskPrompt, deriveRunScope, CompanionActionSchema } from '@whaledot/core'
+import { buildTaskPrompt, deriveRunScope, CompanionActionSchema } from '@whalemaid/core'
 import { draft } from '../../../core/tests/draft-fixtures.js'
 import { ToolGate } from '../execution/tool-gate.js'
 import { RunRegistry } from '../execution/registry.js'

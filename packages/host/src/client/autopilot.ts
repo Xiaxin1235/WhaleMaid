@@ -1,6 +1,6 @@
 import { createElement as h, useState } from 'react'
-import { t, autopilotText, actionCopy, goalDecisionCopy } from '@whaledot/core'
-import type { Locale } from '@whaledot/core'
+import { t, autopilotText, actionCopy, goalDecisionCopy } from '@whalemaid/core'
+import type { Locale } from '@whalemaid/core'
 import type { z } from 'zod'
 import { TraceResponseSchema } from '../panel-api/contract.js'
 import type { GoalDetailSchema } from '../panel-api/contract.js'

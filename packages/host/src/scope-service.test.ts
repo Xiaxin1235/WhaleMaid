@@ -12,7 +12,7 @@ import {
   hashScope,
   ActionKindSchema,
   ActionIntentSchema,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 import { makeGoal, makeScope } from '../../core/tests/fixtures.js'
 import { WhaleStore, sha256 } from './store/index.js'
 import { ScopeService, createScopeService, ScopeDraftSchema } from './scope-service.js'

@@ -1,4 +1,4 @@
-import type { GoalId } from '@whaledot/core'
+import type { GoalId } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 /** Export only the addressed goal ledger; no caller path, credential file or session body is read. */
 export function exportTrace(store: WhaleStore, goalId: GoalId): { markdown: string; filename: string } {
@@ -9,7 +9,7 @@ export function exportTrace(store: WhaleStore, goalId: GoalId): { markdown: stri
   const section = (title: string, value: unknown) =>
     `## ${title}\n\n\`\`\`json\n${JSON.stringify(value, null, 2).replaceAll('`', '\\u0060')}\n\`\`\`\n`
   const markdown = [
-    `# WhaleDot trace: ${goalId}\n`,
+    `# WhaleMaid trace: ${goalId}\n`,
     section('Goal and authorization versions', { goal, scopes: store.scopes.list(goalId) }),
     section(
       'Tasks and transitions',

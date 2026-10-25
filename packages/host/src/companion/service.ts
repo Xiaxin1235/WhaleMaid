@@ -11,12 +11,18 @@ import {
   projectKeyForGoal,
   renderMemoryBlock,
   goalDecisionCopy,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 import type { CompanionMemory } from './memory.js'
 import type { CompanionActions } from './actions.js'
 import type { CompanionRecall } from './recall.js'
 import type { CompanionDailyBrief } from './daily-brief.js'
-import type { Locale, Notification, NotificationFacts, TranscriptEvent, TranscriptPage } from '@whaledot/core'
+import type {
+  Locale,
+  Notification,
+  NotificationFacts,
+  TranscriptEvent,
+  TranscriptPage,
+} from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 
 declare module '@deepseek-ai/cordis' {
@@ -105,7 +111,7 @@ export function localTime(ms: number): string {
 const defaultPersona = (locale: Locale) =>
   fileURLToPath(new URL(`../../companion/persona.${locale}.md`, import.meta.url))
 
-/** Builds the companion's read model from WhaleDot's store and DSH's public session controller. */
+/** Builds the companion's read model from WhaleMaid's store and DSH's public session controller. */
 export class CompanionService implements CompanionApi {
   brief: CompanionDailyBrief | undefined
   recall: CompanionRecall | undefined
@@ -204,8 +210,8 @@ export class CompanionService implements CompanionApi {
           ],
           where:
             locale === 'zh-CN'
-              ? '请在小信封或 WhaleDot 面板里处理'
-              : 'Resolve it in the inbox or the WhaleDot panel',
+              ? '请在小信封或 WhaleMaid 面板里处理'
+              : 'Resolve it in the inbox or the WhaleMaid panel',
         }
       })
   }
@@ -282,7 +288,12 @@ export class CompanionService implements CompanionApi {
     const sessions = []
     for (const s of listed) {
       const title = await this.title(s.sessionId, s.updatedAt, signal)
-      if (title?.startsWith('[WhaleDot]') || this.excluded(s.sessionId, title)) continue
+      if (
+        title?.startsWith('[WhaleMaid]') ||
+        title?.startsWith('[WhaleDot]') ||
+        this.excluded(s.sessionId, title)
+      )
+        continue
       sessions.push({
         id: s.sessionId,
         title: clip(title ?? '(untitled)', 80),
@@ -314,7 +325,11 @@ export class CompanionService implements CompanionApi {
       throw error
     }
     const title = transcriptTitle(events)
-    if (title?.startsWith('[WhaleDot]') || this.excluded(sessionId, title))
+    if (
+      title?.startsWith('[WhaleMaid]') ||
+      title?.startsWith('[WhaleDot]') ||
+      this.excluded(sessionId, title)
+    )
       return { ok: false, reason: 'session-not-readable' }
     return {
       ok: true,
@@ -333,7 +348,7 @@ export class CompanionService implements CompanionApi {
     if (!controller) throw new Error('session-controller-unavailable')
     return controller
   }
-  /** The companion's own session and WhaleDot run/inbox sessions are never listed or read. */
+  /** The companion's own session and WhaleMaid run/inbox sessions are never listed or read. */
   private hidden(id: string): boolean {
     return id === this.deps.companionSessionId() || this.deps.ownedSessions().has(id)
   }

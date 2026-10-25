@@ -7,8 +7,8 @@ import {
   ConfirmedGoalFormSchema,
   classifyCommand,
   GoalIdSchema,
-} from '@whaledot/core'
-import type { Clock, IdGen, GoalDraft, Locale } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { Clock, IdGen, GoalDraft, Locale } from '@whalemaid/core'
 import { join } from 'node:path'
 import { WhaleStore, productionClock, productionIdGen } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'

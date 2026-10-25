@@ -4,9 +4,9 @@ import type { MemoryDrafts } from '../companion/drafts.js'
 import type { CompanionRecall } from '../companion/recall.js'
 import type { CompanionDailyBrief } from '../companion/daily-brief.js'
 import type { CompanionArchives } from '../companion/archive.js'
-import { MemoryTextSchema, MemoryScopeSchema } from '@whaledot/core'
+import { MemoryTextSchema, MemoryScopeSchema } from '@whalemaid/core'
 import type { NotificationRouter } from '../notify/router.js'
-import { NotificationPreferencesSchema } from '@whaledot/core'
+import { NotificationPreferencesSchema } from '@whalemaid/core'
 import {
   NotificationCenterRequestSchema,
   NotificationCenterSchema,
@@ -24,7 +24,7 @@ import type {
   HostConnectionHandle,
   PeerScope,
 } from '@deepseek-ai/dsh-client-connection'
-import type { ProjectGoal, ScopeId } from '@whaledot/core'
+import type { ProjectGoal, ScopeId } from '@whalemaid/core'
 import type { TaskVerifier } from '../verify/verify-task.js'
 import { VerifyTaskSchema, ResolveDecisionSchema, VerificationLogSchema } from './contract.js'
 import type { TaskExecutor } from '../execution/execute-task.js'

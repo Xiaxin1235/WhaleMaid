@@ -13,8 +13,8 @@ import {
   projectKeyForGoal,
   renderMemoryBlock,
   searchMemories,
-} from '@whaledot/core'
-import type { Memory, MemoryScope, Locale } from '@whaledot/core'
+} from '@whalemaid/core'
+import type { Memory, MemoryScope, Locale } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 
 export const MemoryQuerySchema = z

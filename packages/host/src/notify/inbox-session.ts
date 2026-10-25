@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { access } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
-import type { GoalId } from '@whaledot/core'
-import { shortTitle } from '@whaledot/core'
+import type { GoalId } from '@whalemaid/core'
+import { shortTitle } from '@whalemaid/core'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import type {} from '@deepseek-ai/dsh-user-questions'
 import type {} from '@deepseek-ai/dsh-agent'
@@ -54,7 +54,7 @@ export function dshInbox(ctx: Context, store: WhaleStore): InboxPort {
       const fresh = store.goals.get(goalId)!
       store.goals.update({ ...fresh, inboxSessionId: id, version: fresh.version + 1 }, fresh.version)
     }
-    await controller.rename({ sessionId: id, title: `[WhaleDot] ${shortTitle(goal.title)}` })
+    await controller.rename({ sessionId: id, title: `[WhaleMaid] ${shortTitle(goal.title)}` })
     const agents = ctx.get('agents') as Context['agents'] | undefined
     const presets = ctx.get('permissionPresets') as Context['permissionPresets'] | undefined
     const agent = agents?.get(id)

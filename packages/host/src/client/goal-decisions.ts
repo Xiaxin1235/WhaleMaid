@@ -1,6 +1,6 @@
 import { createElement as h, useState } from 'react'
-import { DirectionSchema, goalDecisionCopy } from '@whaledot/core'
-import type { Locale, Notification } from '@whaledot/core'
+import { DirectionSchema, goalDecisionCopy } from '@whalemaid/core'
+import type { Locale, Notification } from '@whalemaid/core'
 /** Only owner-facing cards render these controls. Snapshot the version at the first click. */
 export function GoalDecisionButtons({
   notification,

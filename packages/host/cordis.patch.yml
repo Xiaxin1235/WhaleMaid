@@ -1,9 +1,9 @@
 - insert:
     - id: whaledot
-      name: 'dsh-whaledot'
-    # The companion "大肥鱼": an agent preset whose sessions get a persona and read-only WhaleDot
-    # tools, and nothing else (no file, shell, web or subagent tools). WhaleDot creates one long-lived
-    # session with it; the WhaleDot tool gate additionally denies any other tool in that session.
+      name: 'dsh-whalemaid'
+    # The companion "大肥鱼": an agent preset whose sessions get a persona and read-only WhaleMaid
+    # tools, and nothing else (no file, shell, web or subagent tools). WhaleMaid creates one long-lived
+    # session with it; the WhaleMaid tool gate additionally denies any other tool in that session.
     - id: preset-whaledot-companion
       name: '@deepseek-ai/dsh-agent-preset'
       config:
@@ -16,7 +16,7 @@
               prefix: "{{whaledot_persona}}\n\n{{whaledot_memory}}\n\n{{whaledot_recall}}\n\n{{whaledot_brief}}\n\n{{whaledot_memory_guidance}}"
               complete: true
           - id: whaledot-companion
-            name: 'dsh-whaledot/companion'
+            name: 'dsh-whalemaid/companion'
           - id: time-context
             name: '@deepseek-ai/dsh-time-context'
           - id: tool-ask-user

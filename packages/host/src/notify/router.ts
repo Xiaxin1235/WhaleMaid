@@ -5,7 +5,7 @@ import {
   notificationReason,
   NotificationIdSchema,
   DirectionSchema,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 import type {
   Suggestion,
   Notification,
@@ -13,7 +13,7 @@ import type {
   Locale,
   GoalId,
   ActionIntent,
-} from '@whaledot/core'
+} from '@whalemaid/core'
 import type { PeerScope } from '@deepseek-ai/dsh-client-connection'
 import type { WhaleStore } from '../store/index.js'
 import { productionClock, productionIdGen } from '../store/index.js'

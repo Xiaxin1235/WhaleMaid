@@ -1,5 +1,5 @@
-import { NotificationIdSchema, SuggestionIdSchema, t, goalDecisionChoices } from '@whaledot/core'
-import type { ProjectGoal, DecisionChoice, Locale, Notification } from '@whaledot/core'
+import { NotificationIdSchema, SuggestionIdSchema, t, goalDecisionChoices } from '@whalemaid/core'
+import type { ProjectGoal, DecisionChoice, Locale, Notification } from '@whalemaid/core'
 import { productionIdGen } from './store/index.js'
 import type { WhaleStore } from './store/index.js'
 
