@@ -30,7 +30,7 @@
 | — | 桌宠列表隐藏空白草稿 | 鲸鱼插件 | ✅ Claude 直接实现（`3e9ec2d`，报告 `docs/coopanion/blank-draft-report.md`） |
 | P12 | `P12-大肥鱼的长期记忆.md` | M3 | ✅ GPT 完成并审查（`8ad8a0d`、`d6e7e54`） |
 | P12F | `P12F-P12审查修正.md` | M3 | ✅ GPT 完成并审查（`e3fac84`） |
-| 可并行 | `C02-Decisions表情最小版.md` | 鲸鱼插件（可选功能） | 待执行（附 C00；需要 OpenAI API Key，不能用订阅账户） |
+| C10 之后 | `C02-Decisions表情最小版.md` | 鲸鱼插件（可选功能） | 等 C10 完成（C02 靠会话标题排除 WhaleDot 会话）；附 C00；需要 OpenAI API Key，不能用订阅账户 |
 | P13 | `P13-大肥鱼提议项目管理动作.md` | M3 | ✅ GPT 完成并审查（`5e7dd18`、`958ceba`） |
 | P13B | `P13B-决策卡放弃与改方向.md` | M3 | ✅ GPT 完成并审查（`188601f`），遗留 1 项见下方“待修” |
 | C09 | `C09-安静模式.md` | 鲸鱼插件 | ✅ 另一模型写代码，Claude 审查、修 1 处测试并验收提交（`e1bb4c3`，报告 `docs/coopanion/c09-report.md`）；待用户目视两种界面下的开关 |
@@ -42,7 +42,8 @@
 | 已由 P14H 修复 | 高权限模式下带通配符的普通命令被直接拒绝：默认保护名称 `id_rsa*`、`id_ed25519*` 与任何 `*.xx` 理论上有交集，所以 `npx prettier --write "src/*.ts"`、`npx eslint src/*.js`、`git add *.md`、`Get-ChildItem *.log`、`copy *.txt out` 全部 deny（P14 起就有；P14G 提示词“可能命中就 deny”的写法加固了它） | M3 | 建议：通配符的字面部分明确指向保护项（如 `*.key`、`.env*`、`id_rsa*`、保护目录下的通配）才 deny；仅理论交集不 deny，普通命令放行，危险类命令仍按类别 ask |
 | 已由 P14G 修复 | 高权限模式仍放行的少量命令（审查时另测 54 条，9 条 allow，其中 6 条应拦） | M3 | `forfiles /c "cmd /c del @file"`（未知包装器）、`rundll32`、`regsvr32`、`shutdown`、`Stop-Process -Force` 应归系统类；`git checkout .`、`git switch -f` 会丢弃未提交改动，应归 repository-delete；`schtasks`、`taskkill` 现在只是碰巧以 ambiguous-command-path 被问，类别应改为系统类；`npm uninstall` 可归 package-install。`npm run clean` 等看不到脚本内容属已知限制 |
 | P14I | `P14I-危险审批可读原因.md` | M3 | ✅ GPT 完成并审查（`a152779`），信封显示可读原因 |
-| 待查 | 桌宠会话列表里 WhaleDot 执行会话全部显示为“WhaleDot: execute this single task within the immutable authoriz…”，看不出是哪个目标 / 任务。执行器传了标题 `[WhaleDot] 目标 · 任务`，但实际显示的是提示词开头，说明标题没生效或被自动标题覆盖。这也影响 C02：它按标题以 `[WhaleDot]` 开头来排除自动任务会话，实际可能匹配不上 | 鲸鱼插件 | 已查明：WhaleDot 的 `rename` 生效了，会话日志里有 `session/title`（来源 user，内容为“[WhaleDot] 目标 · 任务”），之后没有被覆盖。问题在鲸鱼插件：`src/model.ts` 的 `describe` 只用第一条用户消息的前 64 字当名字，从不读取 `session/title`。所以用户手动改名、DSH 自动生成的标题在桌宠里都不显示。修法：在 coopanion 里处理 `session/title` 事件，以最新的标题为名，没有标题时才回退到第一条消息。C02 交出前要先修这个 |
+| **下一个** | `C10-会话名读取标题.md` | 鲸鱼插件 | 待执行（附 C00）；修下一行的问题，C02 之前必须先做。执行会话必须一开始就能写 coopanion 和 WhaleDot 两个目录 |
+| 已写成 C10 | 桌宠会话列表里 WhaleDot 执行会话全部显示为“WhaleDot: execute this single task within the immutable authoriz…”，看不出是哪个目标 / 任务。执行器传了标题 `[WhaleDot] 目标 · 任务`，但实际显示的是提示词开头，说明标题没生效或被自动标题覆盖。这也影响 C02：它按标题以 `[WhaleDot]` 开头来排除自动任务会话，实际可能匹配不上 | 鲸鱼插件 | 已查明：WhaleDot 的 `rename` 生效了，会话日志里有 `session/title`（来源 user，内容为“[WhaleDot] 目标 · 任务”），之后没有被覆盖。问题在鲸鱼插件：`src/model.ts` 的 `describe` 只用第一条用户消息的前 64 字当名字，从不读取 `session/title`。所以用户手动改名、DSH 自动生成的标题在桌宠里都不显示。修法：在 coopanion 里处理 `session/title` 事件，以最新的标题为名，没有标题时才回退到第一条消息。C02 交出前要先修这个 |
 | 原 P14I 说明 | `P14I-危险审批可读原因.md` | M3 | 待执行（附 00）：危险审批在桌宠信封只显示 `whaledot-danger` 标识。原因在 WhaleDot：DSH 只持久化 `reason`，桌宠用它做预览，所以在 WhaleDot 侧把 `reason` 改成可读，不改鲸鱼插件；顺带修下方偶发超时测试 |
 | 待修 | 放弃 / 改方向会被历史运行卡死：`execution/execute-task.ts` 的 `stopGoal` 对目标下**所有**未成功任务的历史运行都要求 `observeSession` 返回 `endReason`；宿主崩溃留下的 UNKNOWN 运行或已不存在的会话没有 `turn/end`，于是永远报 `goal-stop-unconfirmed`，目标只能停在 paused | M3 | 并入 P14 第零部分（单独提交） |
 | 待修 | Web 上空白大肥鱼会话首次提问时预设被切成 standard | M3 | 已知限制，目前从桌宠发起首次提问 |
