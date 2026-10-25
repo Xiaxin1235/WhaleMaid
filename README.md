@@ -1,8 +1,10 @@
-# WhaleDot
+# WhaleMaid
 
-WhaleDot 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确认的范围内规划和执行任务，独立验收结果，需要决定时再找你。
+中文 | [English](README.en.md)
 
-当前为 **Unreleased / 0.0.0**。目标宿主为 DSH Desktop **0.2.1-rc.2 或 0.2.1-rc.3**，Node.js ≥22.19；仍有预览版限制，见[使用说明](docs/usage.md)。
+WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确认的范围内规划和执行任务，独立验收结果，需要决定时再找你。
+
+**1.0.0** 文档。目标宿主为 DSH Desktop **0.2.1-rc.2 或 0.2.1-rc.3**，Node.js ≥22.19；仍有预览版限制，见[使用说明](docs/usage.md)。
 
 ## 当前能做什么
 
@@ -16,9 +18,9 @@ WhaleDot 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确认
 
 ## 开始使用
 
-按[日常安装与自查指南](docs/日常安装与自查.md)准备固定副本并安装。该指南含本机路径、备份、卸载和检查步骤；它不会自动安装，也不代表已经发布 npm 包。
+按[安装说明](docs/install.md)获取代码、构建固定副本并安装到 Harness。该说明同时覆盖备份、更新和卸载；不代表已经发布 npm 包。
 
-装好后打开 Harness 的 **WhaleDot** 面板，从不重要的小项目开始，审查目标草案并确认授权。自动推进还需单独开启。详细操作、默认设置、关闭方法和限制统一见[使用说明](docs/usage.md)。
+装好后打开 Harness 的 **WhaleMaid** 面板，从不重要的小项目开始，审查目标草案并确认授权。自动推进还需单独开启。详细操作、默认设置、关闭方法和限制统一见[使用说明](docs/usage.md)。
 
 ## 使用边界
 
@@ -29,9 +31,9 @@ WhaleDot 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确认
 
 ## 与鲸鱼桌宠的关系
 
-桌面窗口、角色、动画、声音和信封界面由可选的 [`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion) 提供，独立采用 **AGPL-3.0-or-later**。WhaleDot 通过 DSH 公开会话、提问、审批等服务协作，不直接依赖或分发该插件的代码、角色包或媒体。
+桌面窗口、角色、动画、声音和信封界面由可选的 [`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion) 提供，独立采用 **AGPL-3.0-or-later**。WhaleMaid 通过 DSH 公开会话、提问、审批等服务协作，不直接依赖或分发该插件的代码、角色包或媒体。
 
-WhaleDot 自有代码采用 [MIT](LICENSE)。`docs/coopanion/` 是协作过程中的说明、设计草图和验收记录，不是鲸鱼插件的实现或安装包。没有安装桌宠时，目标、执行、通知中心和伙伴会话仍可通过 Harness 使用；桌宠显示效果取决于独立插件版本。
+`docs/coopanion/` 是协作过程中的说明、设计草图和验收记录，不是鲸鱼插件的实现或安装包。没有安装桌宠时，目标、执行、通知中心和伙伴会话仍可通过 Harness 使用；桌宠显示效果取决于独立插件版本。
 
 ## 开发入口
 
@@ -47,3 +49,7 @@ pnpm format:check
 使用 `package.json` 指定的 pnpm 11。`packages/core` 是纯 TypeScript 领域层，`packages/host` 是 Cordis 插件和 Web 面板。`pnpm lint` 同时检查许可边界与文档相对链接；完整对照独立鲸鱼仓库的方法见[参与开发](CONTRIBUTING.md)。
 
 继续阅读[文档索引](docs/README.md)、[工程架构](docs/架构与开发路线.md)、[隔离联调](docs/dev-dsh.md)和[变更记录](CHANGELOG.md)。[产品规划](项目规划.txt)含尚未实现的设想，不是功能承诺。
+
+## 许可证
+
+WhaleMaid 自有代码采用 [MIT](LICENSE)。独立鲸鱼桌宠采用 AGPL-3.0-or-later，其代码、角色包和媒体不随 WhaleMaid 分发。

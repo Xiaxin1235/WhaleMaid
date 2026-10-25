@@ -47,7 +47,7 @@ $dshCli = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin
 ```
 
 启动前停掉占用相同 Web 端口的测试 Host。使用 `Ctrl+C` 停止，修改代码后重新构建再启动。
-配置中应包含 `id: whaledot`、`name: dsh-whaledot`；WhaleDot 不包含桌宠运行时或对外 WebSocket。
+配置中应包含 `id: whaledot`、`name: dsh-whalemaid`；WhaleMaid 不包含桌宠运行时或对外 WebSocket。
 
 ## 同一 profile 安装鲸鱼桌宠
 
@@ -60,6 +60,6 @@ $dshCli = "$env:LOCALAPPDATA\Programs\DeepSeek Harness\resources\runtime\cli\bin
 & $dshCli --profile whaledot-p02
 ```
 
-检查两个 bundle 同时启用、WhaleDot 加载日志、Web UI 与鲸鱼动作。桌宠首次启动可能下载 Electron。
+检查两个 bundle 同时启用、WhaleMaid 加载日志、Web UI 与鲸鱼动作。桌宠首次启动可能下载 Electron。
 兼容性来源为该包的版本声明；后续变更需重新核对，不豁免兼容检查。
 P02 的真实联调记录见 `docs/p02-report.md`（实现完成后生成）。
