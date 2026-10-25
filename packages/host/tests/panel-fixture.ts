@@ -1,7 +1,7 @@
 import type { PanelStatus } from '../src/panel-api/contract.js'
 
 export const snapshot: PanelStatus = {
-  version: '0.0.0',
+  version: '1.0.0',
   startedAt: 1000,
   dataDir: 'D:/test/whaledot',
   language: 'auto',

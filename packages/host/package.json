@@ -1,10 +1,10 @@
 {
   "name": "dsh-whalemaid",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Authorized project autopilot, independent verification and companion conversations for DeepSeek Harness",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Xiaxin1235/WhaleMaid.git",
+    "url": "git+https://github.com/Xiaxin1235/WhaleMaid.git",
     "directory": "packages/host"
   },
   "type": "module",
@@ -99,5 +99,10 @@
     "@types/react": "18.3.31",
     "esbuild": "0.25.12",
     "react": "18.3.1"
+  },
+  "author": "Xiaxin1235",
+  "homepage": "https://github.com/Xiaxin1235/WhaleMaid#readme",
+  "bugs": {
+    "url": "https://github.com/Xiaxin1235/WhaleMaid/issues"
   }
 }

@@ -1,8 +1,12 @@
 {
   "name": "@whalemaid/core",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Pure TypeScript domain models and policies for WhaleMaid project autopilot",
-  "repository": "",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xiaxin1235/WhaleMaid.git",
+    "directory": "packages/core"
+  },
   "type": "module",
   "license": "MIT",
   "engines": {
@@ -32,5 +36,10 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "4.1.12"
+  },
+  "author": "Xiaxin1235",
+  "homepage": "https://github.com/Xiaxin1235/WhaleMaid#readme",
+  "bugs": {
+    "url": "https://github.com/Xiaxin1235/WhaleMaid/issues"
   }
 }
