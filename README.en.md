@@ -16,6 +16,98 @@ Documentation for **1.0.0**. Requires DSH Desktop **0.2.1-rc.2 or 0.2.1-rc.3** a
 | Da Fei Yu                              | A dedicated companion conversation, confirmed long-term memories, conversation recaps and experiences, management proposals requiring your confirmation, and a progress brief on the first chat of the day.                    |
 | Trusted command execution              | Separately confirm this mode for writable goals to allow ordinary commands. Recognized dangerous commands still require live, one-time approval. Command text cannot fully constrain what an arbitrary script does internally. |
 
+### Context-aware replies
+
+Da Fei Yu has a dedicated companion conversation. She can inspect goals and pending decisions, and query ordinary conversations according to your settings. Replies can draw on confirmed preferences, the relevant project's long-term memories, and clearly identified conversation recollections. Starting a new companion conversation does not require introducing yourself again.
+
+| You can ask                                | What she can do                                                                            |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| “Which goals are blocked?”                 | Summarize goal states and pending decisions, and point you to the relevant controls.       |
+| “Where did we leave off?”                  | Retrieve stored recollections or experiences, distinguishing them from confirmed memories. |
+| “Give the conclusion before the evidence.” | Propose a personal preference for your confirmation and later conversations.               |
+| “Pause this goal for now.”                 | Propose a management action; the host executes it after you confirm.                       |
+
+She has no file, command or network execution tools. Conversation suggestions do not grant authorization. You still control trusted execution, dangerous approvals, abandonment and changes of direction. See [companion conversations](docs/usage.en.md#da-fei-yus-dedicated-conversation) and [management proposals](docs/usage.en.md#management-proposals).
+
+### Editable personal and project memories
+
+Long-term memories are visible, maintainable records. New proposals in conversation require your confirmation; you can also maintain them directly in **WhaleMaid → Dafeiyu’s memories**.
+
+| Memory type | Suitable content                                                                    | How it is used                                                          |
+| ----------- | ----------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| Personal    | Preferred name, response style, lasting preferences and personal facts you confirm. | Retained across companion conversations to guide replies.               |
+| Project     | Project constraints, conventions, confirmed decisions and lessons.                  | Stored by project and retrieved on demand when that project is queried. |
+
+The panel supports **viewing, editing, archiving, restoring, deleting and exporting**. Permanent deletion requires a second confirmation. You can optionally enable draft project lessons or review suggestions for organizing and merging memories before saving them. Automatic recollections and experiences remain separate: they do not promote themselves into confirmed memories or change permissions. See [long-term memories](docs/usage.en.md#confirmed-long-term-memories) and [recollections](docs/usage.en.md#conversation-recollections-and-her-experiences).
+
+### Autopilot, independent verification and smart options
+
+Goals can contain dependent tasks that advance within budget, protected-path and concurrency limits. Git projects use separate worktrees with checkpoints, changes and trace records. The host runs the verification commands you confirmed and decides whether to continue, repair or wait for you, rather than accepting a model's completion claim as success.
+
+When work fails, its outcome is unknown or a choice is needed, notification cards offer actions appropriate to the current state. Successful choices for similar problems influence their order. Depending on task state and authorization, you can inspect changes, retry verification, pause or defer. Simultaneous answers in the panel and a compatible pet settle only once; expired options cannot execute. See [verification](docs/usage.en.md#autopilot-and-independent-verification) and [notifications](docs/usage.en.md#notifications-and-owner-decisions).
+
+The first chat of the day can also begin with a short progress brief. Earlier companion conversations can be archived and restored without deleting their content. See [daily briefs](docs/usage.en.md#daily-brief) and [earlier conversations](docs/usage.en.md#earlier-companion-conversations).
+
+### Instant Decisions API expressions — compatible pet required
+
+With a pet version supporting this extension, a final reply can trigger a Decisions API choice among happy, excited, love, shy, smug, surprised, thinking, confused, worried, sad, flustered, determined and neutral. Neutral adds no reaction. Expressions last about 2.5 seconds; working, waiting and error states take precedence. Quiet mode permits the expression without opening a panel.
+
+In **Settings → Desktop pet → Reply emotion reactions**, select **OpenAI direct** or **OpenRouter**, save that service's key, then enable **Choose reply emotions**. The compatible version saves keys in local Harness credential storage; the next decision uses the new value without restarting. Environment-variable or `.env` keys must be managed at their source. Only the selected service is requested, without sharing credentials between services.
+
+This feature is off by default. It sends only the opening of the final reply: the first paragraph if it is at most 120 characters, otherwise the first 200 characters. User input and tool records are not appended, but excerpts may repeat private information. Automatic task conversations, archived conversations and historical replies are excluded. Low confidence, neutral, timeout or failure keeps the existing behavior without automatic retries. **This belongs to the separately adapted pet, not this MIT plugin; the upstream base version does not guarantee it.** See the [C12 integration record, in Chinese](docs/coopanion/c12-report.md) and the version guidance below.
+
+## Installation and prerequisites
+
+| Component                | Required?                                                             | Preparation                                                                                                                                                       |
+| ------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DeepSeek Harness Desktop | Yes                                                                   | Install and initialize **0.2.1-rc.2 / rc.3**, then configure a working chat model in Harness. [Official project](https://github.com/deepseek-ai/deepseek-harness) |
+| Node.js, pnpm and Git    | For source installation                                               | Node.js ≥22.19, Git, and the repository's pnpm 11 enabled through `corepack enable`.                                                                              |
+| `@takboo/dsh-coopanion`  | For the desktop character and envelope; optional for backend features | Install the base pet below. Dedicated chat entry points, instant expressions and other integrations require a version supporting those features.                  |
+
+Supported Harness Desktop supplies conversation, tool and approval services; you do not install their SDK packages individually. WhaleMaid chat and execution use Harness's model configuration. Decisions expressions use the service selected separately in pet settings.
+
+### 1. Install the optional pet
+
+In Harness, open **Plugins → Add plugin** (插件 → 添加插件), enter `@takboo/dsh-coopanion@0.4.14`, install and enable `dsh-coopanion`, then fully restart Harness.
+
+Alternatively, use Desktop's bundled CLI. Initialize Desktop once, then fully exit it. Use a terminal without a test `DSH_HOME` and [back up the profile](docs/install.en.md#4-confirm-the-profile-and-back-it-up) before running:
+
+```powershell
+$dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
+$dshProfile = 'desktop'
+& $dsh plugin --profile $dshProfile add @takboo/dsh-coopanion@0.4.14
+```
+
+As checked on 2026-10-25, [upstream package metadata](https://github.com/takboo/dsh-coopanion/blob/main/package.json) declares rc.2 / rc.3 support for 0.4.14. After restarting, check **Settings → Desktop pet**; first launch downloads Electron. This installs the upstream base version, **not necessarily every pet extension developed during this project's integration work**. Extensions require compatible source or an installation package obtained separately; historical reports in this repository are not installers. See [pet installation](docs/install.en.md#9-optional-whale-desktop-pet) and the [upstream guide](https://github.com/takboo/dsh-coopanion#开始一起工作).
+
+### 2. Build and install WhaleMaid
+
+The repository is private and requires access. WhaleMaid has not been published to npm; build a fixed copy from source:
+
+```powershell
+git clone https://github.com/Xiaxin1235/WhaleMaid.git
+Set-Location WhaleMaid
+corepack enable
+pnpm install --frozen-lockfile
+pnpm build
+$fixedCopy = Join-Path (Split-Path (Get-Location).Path -Parent) 'whalemaid-fixed'
+pnpm --filter dsh-whalemaid deploy --legacy --prod "$fixedCopy"
+```
+
+The fixed copy lives outside the source repository, so later source edits do not directly change the installed plugin. Keep `--legacy`; choose a destination that does not yet exist for the first deployment.
+
+Fully exit Harness. In a terminal **without `DSH_HOME` set**, back up the profile, then install:
+
+```powershell
+$dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
+$dshProfile = 'desktop'
+& $dsh plugin --profile $dshProfile add "link:$fixedCopy"
+$profileDir = Join-Path $env:USERPROFILE ".dsh\profiles\$dshProfile"
+(Get-Content -LiteralPath (Join-Path $profileDir 'package.json') -Raw | ConvertFrom-Json).dsh.profile.bundles
+```
+
+The list should contain `dsh-whalemaid`, plus `@takboo/dsh-coopanion` if you installed the pet. Start Harness from the Start menu, open **WhaleMaid**, and check storage and required services. Only Windows installation has been verified; other platforms are unverified. See [installation](docs/install.en.md) for complete backups, legacy-package migration, updates and removal.
+
 ## Get started
 
 Follow the [installation guide](docs/install.en.md) to obtain the code, build a fixed copy and install it into Harness. The guide also covers backups, updates and removal; it does not imply an npm package has been published.

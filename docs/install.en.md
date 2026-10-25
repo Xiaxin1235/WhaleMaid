@@ -110,7 +110,15 @@ If an update fails, stop Harness and restore the old fixed copy to the original 
 
 WhaleMaid does not require a desktop pet. For a desktop character, install [`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion) separately, following that project's instructions. It uses **AGPL-3.0-or-later**; its code, character packs and media are outside WhaleMaid's MIT distribution.
 
-The upstream version may not include all UI integration for Da Fei Yu's dedicated conversations. Presentation depends on the installed version. Goals, the notification center and companion conversations remain available in Harness without the pet.
+In Harness, open **Plugins → Add plugin** (插件 → 添加插件), enter `@takboo/dsh-coopanion@0.4.14`, install and enable `dsh-coopanion`, then fully restart Harness. Alternatively, after exiting Harness, use the terminal prepared in step 4:
+
+```powershell
+& $dsh plugin --profile $dshProfile add @takboo/dsh-coopanion@0.4.14
+```
+
+As checked on 2026-10-25, [upstream package metadata](https://github.com/takboo/dsh-coopanion/blob/main/package.json) declares Desktop rc.2 / rc.3 support for 0.4.14. After restarting, check **Settings → Desktop pet**; first launch downloads Electron. Ordinary chat uses the model configured in Harness.
+
+These steps install the upstream base version; the WhaleMaid rehearsal did not install it into your everyday environment. Extra integrations such as the dedicated-chat default, inline envelope answers, instant Decisions expressions and settings-based key management require compatible pet source or an installation package obtained separately. This repository does not distribute that implementation, and historical integration reports are not installers. Installing the base version does not imply that every adaptation is present. Without a pet or a compatible version, goals, the notification center, companion conversations and long-term memories remain available through Harness.
 
 ## 10. Troubleshooting and verification scope
 

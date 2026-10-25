@@ -110,7 +110,15 @@ if ($LASTEXITCODE -ne 0) { throw 'WhaleMaid 卸载失败，请检查 CLI 输出�
 
 WhaleMaid 不依赖桌宠。需要桌面角色时，另行安装 [`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion)，安装方法以该项目说明为准。它采用 **AGPL-3.0-or-later**，代码、角色包和媒体不属于 WhaleMaid 的 MIT 分发内容。
 
-上游版本未必包含与大肥鱼专属对话相关的全部界面配合，显示效果取决于所装版本。不安装桌宠仍可使用 Harness 中的目标、通知中心和伙伴会话。
+在 Harness 的 **插件 → 添加插件** 中输入 `@takboo/dsh-coopanion@0.4.14`，安装并启用 `dsh-coopanion`，完全退出后重新打开 Harness。也可在第 4 步准备好的终端中，确认 Harness 已退出再执行：
+
+```powershell
+& $dsh plugin --profile $dshProfile add @takboo/dsh-coopanion@0.4.14
+```
+
+截至 2026-10-25，[上游包声明](https://github.com/takboo/dsh-coopanion/blob/main/package.json)的 0.4.14 支持 Desktop rc.2 / rc.3。重启后到 **Settings → 桌宠** 检查状态；首次使用需要下载 Electron。普通聊天沿用 Harness 中配置的模型。
+
+上述步骤安装上游基础版，未在本次 WhaleMaid 安装演练中代装到日常环境。大肥鱼专属聊天默认入口、信封内作答、Decisions API 即时表情和设置页密钥管理等额外配合，需另行取得支持这些功能的兼容桌宠源码或安装包；本仓库不分发桌宠实现，历史协作报告也不是安装包。不要把安装基础版等同于安装了全部适配功能。没有桌宠或尚未取得兼容版本时，仍可通过 Harness 使用目标、通知中心、伙伴对话和长期记忆。
 
 ## 10. 常见问题与验证范围
 
