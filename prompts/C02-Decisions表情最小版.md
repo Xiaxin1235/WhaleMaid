@@ -1,8 +1,24 @@
 # C02 鲸鱼插件：用 OpenAI Decisions API 选表情（最小版，可选功能）
 
-**前置**：`whaledot-local` 分支工作区干净，最新提交至少包含 `3e9ec2d fix: hide blank Harness drafts from the conversation lists`。若工作区不干净，先停下说明。
+**前置**：`whaledot-local` 分支工作区干净，最新提交至少包含 C11 的提交 `fix: hide archived conversations from the pet lists`，以及之前的 `c97ad54`（rc.3 兼容）、`f6d36a8`（会话名用 Harness 标题）、`e1bb4c3`（安静模式）。若工作区不干净或 C11 尚未提交，先停下说明。
 
-### 本提示词写于 C01 之后，此后代码有这些变化（2026-10-23 更新）
+**执行环境**：
+
+- 本任务要写 `D:\dsh_plugins\dsh-coopanion`，报告和证据写在 `D:\dsh_plugins\WhaleDot`，还要能运行 Git、Chromium、Electron，并能访问 `https://api.openai.com`。
+- 会话必须在开始时就具备这些权限。发现做不到，立即停下说明，不要只写一半代码。
+- 本机宿主为 DSH Desktop **0.2.1-rc.3**。
+
+### 2026-10-25 补充：C08 之后的变化
+
+- **C09 安静模式（`options.quietMode`）**：
+  - 安静模式只拦主动弹出的框；鲸鱼自己的表情不算弹框。所以安静模式下**照常**播放情绪反应，但不能借此弹出任何气泡或卡片。
+  - 测试里要覆盖“安静模式开启 + 收到 reaction”的情况。
+- **C10 会话名**：会话的 `label` 现在取 Harness 的会话标题，WhaleDot 自动任务会话显示为 `[WhaleDot] 目标 · 任务`。“不发送 WhaleDot 会话”的判断用 `label` 以 `[WhaleDot]` 开头即可。另外，再加一个兜底条件：第一条用户消息（`prompt` 字段）以 `WhaleDot: execute this single task` 开头的，也不发送。
+- **C11 已归档会话**：已归档会话不会再产生新回复，无需特殊处理；有 `archived` 标记的会话一律不发送。
+- **大肥鱼会话**：大肥鱼会话的回复照常适用本功能。大肥鱼会话的回复里可能复述你的记忆或对话回顾，所以发送规则仍然只发开头约 200 字，不放宽。
+- **基线测试**：C11 已修复 `figures` 与 `inbox-receipts` 两个超时用例，`npm test` 应能在默认并发下通过。若仍有基线失败，先在基线上复现并写进报告，不改它们。
+
+### 2026-10-23 补充：C01 之后的变化
 
 - C06/C07 界面改版：新版 / 经典两种界面风格（`options.interfaceStyle`、`web/panel-style.js`、`web/redesign.css`）。设置项与状态文字两种风格都要显示正常。
 - C08/C08F：大肥鱼专属会话（`snapshot.companionSessionId`、`companionRole`、`web/companion-session.js`）。大肥鱼会话的回复**同样适用**本功能；会话标题判断改为：WhaleDot 自动任务会话（标题以 `[WhaleDot]` 开头）不发送，大肥鱼会话照常。
@@ -46,16 +62,36 @@
 ### 4. 测试
 - host（mock `fetch`）：请求体只含允许的文本且长度符合规则；未开启/无 Key/WhaleDot 会话/超过每小时上限时不发请求；超时、非 2xx、非法返回、低置信度、`neutral` 均不发送 reaction；同一 result 不重复调用；日志中不出现 Key 与回复原文。
 - 渲染页：过期/非最新/不支持的表情被丢弃；任务状态优先；保持 2.5 秒后恢复 mood 映射；减少动态效果时不播放。
-- `npm test`、`npm run test:inbox-ui` 全部通过。
+- 补充用例：
+  - 安静模式开启时照常播放反应，且不弹出任何气泡或卡片；
+  - `label` 以 `[WhaleDot]` 开头、`prompt` 以 `WhaleDot: execute this single task` 开头、`archived` 为真的会话，均不发请求；
+  - 大肥鱼会话照常发送，且只发开头。
+- `npm test`、`npm run test:inbox-ui`、`npm run test:desktop` 全部通过。
 
 ### 5. 提交
 `feat: optional OpenAI Decisions reaction for reply mood`
 
 ## 验收
-1. 不设置 Key 或不开启开关：行为与之前完全一致（含测试结果）。
-2. 在 WhaleDot 隔离测试环境中（测试鲸鱼使用独立数据目录；**测试终端里的 Key 只在该终端临时设置**），开启后发几条情绪明显不同的消息让模型回复（如庆祝修好 bug、报告失败、提出疑问），记录每次 API 返回的表情与置信度、耗时。
-3. `[WhaleDot]` 开头的会话不产生任何 API 请求（贴出请求计数）。
-4. 请用户目视确认：鲸鱼在回复出现后做出的表情是否与内容相符、是否会和任务状态动画打架。
+
+**Key 的处理**：
+
+- OpenAI API Key 由**用户本人**在测试终端里临时设置，命令为 `$env:OPENAI_API_KEY = '...'`，然后在该终端启动隔离宿主。
+- 你（执行模型）不要索取、读取、打印或记录 Key 的值。
+- 用户暂时没有 Key 时，完成验收 1、3 和全部自动测试，把验收 2 标为“待用户提供 Key”，不要伪造 API 返回。
+
+**验收步骤**：
+
+1. 不设置 Key 或不开启开关：行为与之前完全一致，包括测试结果。
+2. 在 WhaleDot 隔离测试环境中开启开关：
+   - 环境要求：profile `whaledot-p02`；启动命令 `$env:DSH_PET_TEST_DEBUG_PORT='9498'; & .\scripts\dev-host.ps1 -UseUiKey`；测试鲸鱼使用 `DSH_PET_TEST_DATA_DIR`。
+   - 让模型回复几条情绪明显不同的消息，例如庆祝修好 bug、报告失败、提出疑问。
+   - 记录每次 API 返回的表情、置信度和耗时，截图鲸鱼表情。
+   - 再开启安静模式重复一次，确认只做表情、不弹框。
+3. WhaleDot 自动任务会话（`[WhaleDot]` 开头）不产生任何 API 请求，贴出请求计数。
+4. 请用户目视确认：鲸鱼在回复出现后做出的表情是否与内容相符、是否会和任务状态动画冲突。
+5. 清理：停止测试宿主与测试鲸鱼，3182 / 9498 无监听；关闭测试终端，让临时 Key 一起失效；不在日常 profile 测试。
+
+报告写到 `D:\dsh_plugins\WhaleDot\docs\coopanion\c02-report.md`（prettier 格式），证据放 `D:\dsh_plugins\WhaleDot\.dsh-dev\c02-evidence\`。证据中不得出现 Key。报告不要提交进 coopanion 仓库。完成后停下，等审查。
 
 ## 不做
 - 不做多档判断来源、不对外开放表情接口、不判断动作（motion）、不分析用户输入；不调用 Decisions 以外的 OpenAI 接口。
