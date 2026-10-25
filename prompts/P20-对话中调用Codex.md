@@ -1,6 +1,9 @@
-# P20 WhaleDot：在 Harness 对话里调用 Codex
+# P20 WhaleMaid：在 Harness 对话里调用 Codex
 
-**前置**：`master` 工作区干净，P19 已完成（仓库已上传）。先跑一遍 `pnpm test`，确认基线通过。宿主为 DSH Desktop **0.2.1-rc.3**；本机已安装 `codex-cli`，在 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`，与 Codex Desktop 共用登录。
+**前置**：`master` 工作区干净，P19 已完成（仓库已上传）。先跑一遍 `pnpm test`，确认基线通过。
+
+> **改名说明**：项目已从 WhaleDot 改名为 WhaleMaid（包名 `dsh-whalemaid`、`@whalemaid/core`）。以下内容**有意保持旧名**，不要改：本地目录 `D:\dsh_plugins\WhaleDot`、插件配置 ID 和数据目录 `whaledot`（`<DSH_HOME>\whaledot`）、大肥鱼预设 `whaledot-companion`、执行提示前缀 `WhaleDot: execute this single task`、隔离 profile `whaledot-p02`。改名前的旧任务会话标题仍以 `[WhaleDot]` 开头。
+宿主为 DSH Desktop **0.2.1-rc.3**；本机已安装 `codex-cli`，在 `%LOCALAPPDATA%\Programs\OpenAI\Codex\bin\codex.exe`，与 Codex Desktop 共用登录。
 
 ## 目标
 
@@ -12,7 +15,7 @@
    - 如果能，先评估直接接 `codex mcp-server`：能否限定工作目录和沙箱模式、能否逐次审批、取消能否传到 Codex。
    - 满足下文全部安全要求时，可以只写配置说明，不写代码；否则走第 2 条。
    - 不能接，就写明依据。
-2. **工具注册**：WhaleDot 给大肥鱼注册工具的方式（`ctx.tools` 等），能否注册成**所有普通会话**可用、但受 WhaleDot 开关控制的工具？大肥鱼会话和 WhaleDot 自动任务会话要排除，见下文。
+2. **工具注册**：WhaleMaid 给大肥鱼注册工具的方式（`ctx.tools` 等），能否注册成**所有普通会话**可用、但受 WhaleMaid 开关控制的工具？大肥鱼会话和 WhaleMaid 自动任务会话要排除，见下文。
 3. **超时与进度**：一次工具调用最长能等多久？Codex 可能跑好几分钟。能否在运行中向对话报告进度？取消这一轮时，工具能否收到中止信号？
 4. **审批**：工具执行前能否用 Harness 原生审批（`PreToolDecision {kind:'ask', reason, displayReason}` 或 `approval` 服务）？`reason` 会被持久化，P14I 的经验是只放可读文字。
 5. **Codex 实测**，在 `.dsh-dev/p20-probe/` 下的临时 Git 仓库里进行：
@@ -31,10 +34,10 @@
 
 ### 开关与范围
 
-- **开关**：WhaleDot 设置“允许对话调用 Codex”，**默认关闭**，中英文案。关闭时工具不出现，或调用后直接返回“未开启”。
+- **开关**：WhaleMaid 设置“允许对话调用 Codex”，**默认关闭**，中英文案。关闭时工具不出现，或调用后直接返回“未开启”。
 - **可用范围**：只在普通会话里提供。**排除**：
   - 大肥鱼专属会话；
-  - WhaleDot 自动任务会话（标题以 `[WhaleDot]` 开头，或首条消息以 `WhaleDot: execute this single task` 开头）；
+  - WhaleMaid 自动任务会话（标题以 `[WhaleMaid]` 或旧的 `[WhaleDot]` 开头，或首条消息以 `WhaleDot: execute this single task` 开头）；
   - 已归档会话。
 - **工作目录**：固定为当前会话的工作目录，**模型不能传入目录参数**。工作目录不存在或不是目录时，拒绝执行。
 - **参数**：只有 `task`（1–8000 字）和 `mode`（`read-only` | `workspace-write`，默认 `read-only`）。
@@ -71,8 +74,8 @@
   - 时间、会话 ID、模式、工作目录、任务前 300 字；
   - 退出码、耗时、改动文件列表；
   - 完整 JSON 日志的文件路径。
-- 日志放在 WhaleDot 数据目录下的 `codex-runs/`，保留最近 100 次。
-- 面板的 WhaleDot 设置旁显示最近几次的摘要。
+- 日志放在 WhaleMaid 数据目录下的 `codex-runs/`，保留最近 100 次。
+- 面板的 WhaleMaid 设置旁显示最近几次的摘要。
 - 日志和记录中**不得出现**任何 API Key、令牌或环境变量值。Codex 子进程只继承必要的环境变量（`PATH`、`USERPROFILE`、`APPDATA`、`LOCALAPPDATA`、`TEMP` 等），**不传** `DEEPSEEK_API_KEY` 或其他与 DSH 相关的密钥。
 
 ### 复用
