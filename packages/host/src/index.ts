@@ -390,6 +390,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           scopes.revoke(scopeId, peer)
         },
         rebuildCompanion: () => companionSessions.rebuild(),
+        logFailure: (method, error) => debug.host(`panel ${method} failed`, error),
         memory,
         memoryDrafts,
         recall,

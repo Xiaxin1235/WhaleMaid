@@ -84,6 +84,8 @@ export interface PanelRuntime {
   execution?: TaskExecutor
   intake?: GoalIntake
   rebuildCompanion?: () => Promise<unknown>
+  /** Records why a panel call failed; the panel itself only receives a short code. */
+  logFailure?: (method: string, error: unknown) => void
 }
 
 /** Peer is supplied by Connection after admission, never accepted from a payload. */
@@ -387,6 +389,7 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
       }
       return { ok: true, value: result }
     } catch (error) {
+      runtime.logFailure?.(method, error)
       return { ok: false, error: { ...failure(error).error, details: {} } }
     }
   }
@@ -408,6 +411,7 @@ export function installPanelApi(
     | 'notifier'
     | 'notificationRouter'
     | 'rebuildCompanion'
+    | 'logFailure'
     | 'memory'
     | 'memoryDrafts'
     | 'recall'
