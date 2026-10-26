@@ -8,8 +8,11 @@ on:
 
 jobs:
   check:
-    # Scope authorization uses Windows paths; Windows is the validated host platform.
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
