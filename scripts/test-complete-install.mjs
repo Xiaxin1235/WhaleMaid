@@ -92,9 +92,10 @@ try {
     'one complete bundle owns both components',
   )
   const maid = JSON.parse(await readFile(join(profile, 'node_modules/dsh-whalemaid/package.json'), 'utf8'))
-  const petManifest = createRequire(join(profile, 'node_modules/dsh-whalemaid/package.json')).resolve(
-    '@takboo/dsh-coopanion/package.json',
+  const petEntry = createRequire(join(profile, 'node_modules/dsh-whalemaid/package.json')).resolve(
+    '@takboo/dsh-coopanion',
   )
+  const petManifest = join(dirname(petEntry), '../package.json')
   const pet = JSON.parse(await readFile(petManifest, 'utf8'))
   assert.equal(maid.version, report.version)
   assert.equal(pet.version, report.companion.version)
