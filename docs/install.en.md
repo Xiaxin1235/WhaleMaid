@@ -2,13 +2,13 @@
 
 [中文](install.md) | English
 
-For WhaleMaid 1.2.0. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](market-release-report.md) for evidence and the [usage guide](usage.en.md) for features and permission boundaries.
+For WhaleMaid 1.2.1. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](market-release-report.md) for evidence and the [usage guide](usage.en.md) for features and permission boundaries.
 
 <a id="complete-installation"></a>
 
 ## Complete installation (recommended)
 
-Install the prebuilt [WhaleMaid Complete 1.2.0 package](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.2.0/dsh-whalemaid-full-1.2.0.tgz) through Harness **Plugins → Add plugin**. It installs WhaleMaid and its compatible Coopanion fork in one operation. No Git, pnpm or source build is needed for this route. Configure a model in Harness first.
+Install the prebuilt [WhaleMaid Complete 1.2.1 package](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.2.1/dsh-whalemaid-full-1.2.1.tgz) through Harness **Plugins → Add plugin**. It installs WhaleMaid and its compatible Coopanion fork in one operation. No Git, pnpm or source build is needed for this route. Configure a model in Harness first.
 
 Before upgrading from separate installations, fully exit Harness and back up the profile and data as described below. Remove the old top-level pet bundle with `dsh plugin --profile desktop remove @takboo/dsh-coopanion` and the old WhaleMaid bundle with `dsh plugin --profile desktop remove dsh-whalemaid`, then add the complete-package URL. Use Harness's bundled CLI, not an old global CLI. Do not delete data directories. The complete package owns both configuration nodes; only `dsh-whalemaid` needs to appear as a top-level bundle.
 

@@ -8,6 +8,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { createServer } from 'node:net'
 import { createHash } from 'node:crypto'
+import { createRequire } from 'node:module'
 import { chromium } from 'playwright-core'
 
 const root = await realpath(await mkdtemp(join(tmpdir(), 'whalemaid-complete-')))
@@ -91,9 +92,10 @@ try {
     'one complete bundle owns both components',
   )
   const maid = JSON.parse(await readFile(join(profile, 'node_modules/dsh-whalemaid/package.json'), 'utf8'))
-  const pet = JSON.parse(
-    await readFile(join(profile, 'node_modules/@takboo/dsh-coopanion/package.json'), 'utf8'),
+  const petManifest = createRequire(join(profile, 'node_modules/dsh-whalemaid/package.json')).resolve(
+    '@takboo/dsh-coopanion/package.json',
   )
+  const pet = JSON.parse(await readFile(petManifest, 'utf8'))
   assert.equal(maid.version, report.version)
   assert.equal(pet.version, report.companion.version)
   const source = JSON.parse(

@@ -36,8 +36,12 @@ run('git', ['config', 'core.autocrlf', 'false'], directory)
 run('git', ['config', 'user.name', 'github-actions[bot]'], directory)
 run('git', ['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], directory)
 run('git', ['config', 'credential.helper', '!gh auth git-credential'], directory)
-run('git', ['add', '.'], directory)
-run('git', ['commit', '-m', `build: WhaleMaid complete ${version} from ${report.sourceCommit}`], directory)
+run('git', ['add', '--force', '.'], directory)
+run(
+  'git',
+  ['commit', '--quiet', '-m', `build: WhaleMaid complete ${version} from ${report.sourceCommit}`],
+  directory,
+)
 run('git', ['remote', 'add', 'origin', repoUrl], directory)
 const existing = run('git', ['ls-remote', '--heads', 'origin', `refs/heads/${branch}`], directory)
 let commit

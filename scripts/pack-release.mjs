@@ -55,7 +55,8 @@ for (const [name, version] of Object.entries(core.dependencies ?? {})) {
   assert.ok(!pkg.dependencies[name] || pkg.dependencies[name] === version, `Conflicting ${name}`)
   pkg.dependencies[name] = version
 }
-pkg.dependencies['@takboo/dsh-coopanion'] = companion.tarball
+pkg.dependencies['@takboo/dsh-coopanion'] = companion.version
+pkg.bundledDependencies = ['@takboo/dsh-coopanion']
 pkg.imports = {
   '#whalemaid/core': {
     types: './vendor/core/lib/types/index.d.ts',
@@ -77,7 +78,7 @@ writeFileSync(
 )
 writeFileSync(
   join(stage, 'DISTRIBUTION.md'),
-  `# WhaleMaid complete installation\n\nWhaleMaid and its bundled private core are MIT licensed. Source: https://github.com/Xiaxin1235/WhaleMaid\n\nThis distribution installs the separate AGPL-3.0-or-later companion fork ${companion.version} as a pinned dependency, and activates both through the bundle patch. Its implementation and media are not embedded in this archive. Fork source: https://github.com/Xiaxin1235/dsh-coopanion/tree/${companion.sourceCommit}\nUpstream and attribution: https://github.com/takboo/dsh-coopanion\nThe dependency retains its original package identity for settings compatibility. It is distributed through the fork's GitHub Release, not the upstream npm account. See its LICENSE and THIRD_PARTY_NOTICES.md.\n`,
+  `# WhaleMaid complete installation\n\nThis is a multi-license distribution. WhaleMaid and its private core are MIT licensed. Source: https://github.com/Xiaxin1235/WhaleMaid\n\nThe separate AGPL-3.0-or-later companion fork ${companion.version} is included as an npm bundled dependency, with its corresponding source, LICENSE, THIRD_PARTY_NOTICES.md and artwork notices under node_modules/@takboo/dsh-coopanion. It retains its own package identity and license; its implementation is not copied into WhaleMaid's MIT source. The two plugins still communicate through public DSH services. Fork source: https://github.com/Xiaxin1235/dsh-coopanion/tree/${companion.sourceCommit}\nUpstream and attribution: https://github.com/takboo/dsh-coopanion\nOther bundled runtime dependencies retain their own licenses. No package is published to the upstream npm account.\n`,
 )
 const source = { sourceCommit: git('rev-parse', 'HEAD'), version: host.version, companion }
 saveJson(join(stage, 'release-source.json'), source)
@@ -85,6 +86,41 @@ if (stageOnly) {
   console.log(stage)
 } else {
   assert.ok(process.env.npm_execpath, 'Run through pnpm pack:release')
+  const response = await globalThis.fetch(companion.tarball, {
+    signal: globalThis.AbortSignal.timeout(120000),
+  })
+  assert.equal(response.status, 200, 'Published companion archive is required')
+  const bytes = new Uint8Array(await response.arrayBuffer())
+  const metadata = await globalThis.fetch(companion.tarball.replace(/[^/]+$/, 'verification.json'), {
+    signal: globalThis.AbortSignal.timeout(120000),
+  })
+  assert.equal(metadata.status, 200)
+  const verified = await metadata.json()
+  assert.equal(verified.version, companion.version)
+  assert.equal(verified.sourceCommit, companion.sourceCommit)
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), verified.sha256)
+  const dependency = join(out, `companion-${companion.version}.tgz`)
+  writeFileSync(dependency, bytes)
+  // Keep the consumer's blockExoticSubdeps protection enabled. Fetch the
+  // verified archive only while assembling this separate distribution tree.
+  writeFileSync(
+    join(stage, 'pnpm-workspace.yaml'),
+    'packages:\n  - .\nnodeLinker: hoisted\nautoInstallPeers: false\nblockExoticSubdeps: true\n',
+  )
+  const assembling = globalThis.structuredClone(pkg)
+  delete assembling.bundledDependencies
+  assembling.dependencies['@takboo/dsh-coopanion'] = `file:${dependency.replaceAll('\\', '/')}`
+  saveJson(join(stage, 'package.json'), assembling)
+  execFileSync(
+    process.execPath,
+    [process.env.npm_execpath, '--dir', stage, 'install', '--ignore-scripts', '--lockfile=false'],
+    { stdio: 'inherit' },
+  )
+  assert.equal(
+    readJson(join(stage, 'node_modules/@takboo/dsh-coopanion/package.json')).version,
+    companion.version,
+  )
+  saveJson(join(stage, 'package.json'), pkg)
   execFileSync(
     process.execPath,
     [process.env.npm_execpath, '--dir', stage, 'pack', '--pack-destination', out],
@@ -96,8 +132,8 @@ if (stageOnly) {
   const alias = join(out, 'dsh-whalemaid-full.tgz')
   cpSync(packed, versioned)
   cpSync(packed, alias)
-  const bytes = readFileSync(packed)
-  const sha256 = createHash('sha256').update(bytes).digest('hex')
+  const packedBytes = readFileSync(packed)
+  const sha256 = createHash('sha256').update(packedBytes).digest('hex')
   saveJson(join(out, 'verification.json'), { name: host.name, ...source, sha256 })
   writeFileSync(
     join(out, 'SHA256SUMS'),

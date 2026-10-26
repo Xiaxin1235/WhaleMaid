@@ -16,8 +16,9 @@ test('complete distribution loads without an unpublished workspace core and acti
   assert.equal(pkg.dependencies['@whalemaid/core'], undefined)
   assert.equal(
     pkg.dependencies['@takboo/dsh-coopanion'],
-    JSON.parse(readFileSync(join(root, 'market/companion.json'), 'utf8')).tarball,
+    JSON.parse(readFileSync(join(root, 'market/companion.json'), 'utf8')).version,
   )
+  assert.deepEqual(pkg.bundledDependencies, ['@takboo/dsh-coopanion'])
   assert.ok(!JSON.stringify(pkg).includes('workspace:'))
   const patch = readFileSync(join(stage, 'cordis.patch.yml'), 'utf8')
   assert.equal(patch.match(/id: dsh-coopanion\b/g)?.length, 1)
@@ -26,7 +27,7 @@ test('complete distribution loads without an unpublished workspace core and acti
   assert.deepEqual(readdirSync(join(stage, 'vendor')), ['core'])
   assert.ok(!readdirSync(stage).includes('desktop'))
   // Resolve against the installed development dependencies only for this load
-  // check. node_modules is never part of the generated archive or Git package.
+  // check. The actual archive separately materializes the verified bundled pet.
   mkdirSync(join(stage, 'node_modules'), { recursive: true })
   for (const packageDir of ['host', 'core']) {
     const modules = join(root, 'packages', packageDir, 'node_modules')

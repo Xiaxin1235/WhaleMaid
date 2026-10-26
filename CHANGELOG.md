@@ -1,6 +1,11 @@
 # Changelog
 
-## 1.2.0
+## 1.2.1
+
+- Ship the verified companion and its runtime dependencies using standard npm bundled dependencies, preserving component licenses and corresponding source. Installation works with pnpm blockExoticSubdeps enabled.
+- Retain the failed 1.2.0 tag and package diagnostics; no complete 1.2.0 release was published.
+
+## 1.2.0 (unreleased candidate)
 
 - Add a single complete installation package that automatically installs and enables the pinned WhaleMaid Coopanion fork.
 - Include the private MIT core in the host archive; no unpublished workspace package is required.
