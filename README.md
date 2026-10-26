@@ -60,27 +60,36 @@ WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确�
 
 ## 安装与前置条件
 
-| 组件                         | 是否需要                           | 准备方式                                                                                                                           |
-| ---------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| DeepSeek Harness Desktop     | 必需                               | 安装并初始化 **0.2.1-rc.2 / rc.3**，在 Harness 中配置能正常聊天的模型。[官方入口](https://github.com/deepseek-ai/deepseek-harness) |
-| Node.js、pnpm、Git           | 源码安装需要                       | Node.js ≥22.19，`corepack enable` 启用仓库指定的 pnpm 11，准备 Git。                                                               |
-| `@takboo/dsh-coopanion` 桌宠 | 桌面角色与信封需要；后台功能可不装 | 先安装下述基础桌宠；专属聊天入口、即时表情等配合另需支持相应功能的兼容版本。                                                       |
+| 组件                        | 是否需要                           | 准备方式                                                                                                                                                        |
+| --------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DeepSeek Harness Desktop    | 必需                               | 安装并初始化 **0.2.1-rc.2 / rc.3**，在 Harness 中配置能正常聊天的模型。[官方入口](https://github.com/deepseek-ai/deepseek-harness)                              |
+| Node.js、pnpm、Git          | 源码安装需要                       | Node.js ≥22.19，`corepack enable` 启用仓库指定的 pnpm 11，准备 Git。                                                                                            |
+| 鲸鱼桌宠（`dsh-coopanion`） | 桌面角色与信封需要；后台功能可不装 | 推荐 WhaleMaid 配套修改版 [`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion)，见下方第 1 步；原版 `@takboo/dsh-coopanion` 只有基础桌宠。 |
 
 会话、工具、审批等基础服务由受支持的 Harness Desktop 提供，不需要另外逐个安装 SDK 包。WhaleMaid 的聊天与执行使用 Harness 的模型配置；Decisions 表情使用桌宠里单独选择的服务。
 
 ### 1. 安装桌宠插件（可选）
 
-可在 Harness 的 **插件 → 添加插件** 中输入 `@takboo/dsh-coopanion@0.4.14`，安装并启用 `dsh-coopanion`，然后完全退出、重新打开 Harness。
+推荐安装与 WhaleMaid 配套的修改版 [`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion)（fork 自 [takboo/dsh-coopanion](https://github.com/takboo/dsh-coopanion)，同样采用 AGPL-3.0-or-later）。它在原版之上增加了双击直接和大肥鱼聊天、在桌宠信封里回答审批并显示实际命令、在设置页填写情绪判断密钥等配合功能。需要 Git 和 Node.js ≥22.19。
 
-也可使用 Desktop 自带 CLI。先启动 Desktop 一次完成初始化，再完全退出；确认终端没有测试用 `DSH_HOME`，并按[安装说明](docs/install.md#4-确认-profile-并备份)备份 profile 后执行：
+```powershell
+git clone https://github.com/Xiaxin1235/dsh-coopanion.git
+Set-Location dsh-coopanion
+npm ci
+npm run build
+```
+
+然后完全退出 Harness，确认终端没有测试用 `DSH_HOME`，并按[安装说明](docs/install.md#4-确认-profile-并备份)备份 profile 后，在这个目录里执行：
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
 $dshProfile = 'desktop'
-& $dsh plugin --profile $dshProfile add @takboo/dsh-coopanion@0.4.14
+& $dsh plugin --profile $dshProfile add "link:$((Get-Location).Path)"
 ```
 
-截至 2026-10-25，[上游包声明](https://github.com/takboo/dsh-coopanion/blob/main/package.json)的 0.4.14 支持上述 rc.2 / rc.3。重启后在 **Settings → 桌宠** 检查状态；首次启动会下载 Electron。该命令安装上游基础版，**不代表已安装本项目协作过程中开发的全部桌宠扩展**；扩展须使用另行取得的兼容源码或安装包，不能从本仓库的历史报告安装。详见[桌宠安装说明](docs/install.md#9-可选的鲸鱼桌宠)和[上游安装指南](https://github.com/takboo/dsh-coopanion#开始一起工作)。
+从开始菜单重新打开 Harness，在 **Settings → 桌宠** 检查状态；首次启动会下载 Electron。这种方式直接链接源码目录，不要删除或移动它。若之前装过原版，先执行 `& $dsh plugin --profile $dshProfile remove @takboo/dsh-coopanion`。更多说明见[桌宠安装说明](docs/install.md#9-可选的鲸鱼桌宠)。
+
+只想要基础桌宠时，也可以从 npm 安装原版 `@takboo/dsh-coopanion@0.4.14`（支持 Desktop rc.2 / rc.3），但它不含上述配合功能。
 
 ### 2. 构建并安装 WhaleMaid
 

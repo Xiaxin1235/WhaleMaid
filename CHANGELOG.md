@@ -15,7 +15,7 @@
 
 ### 配合鲸鱼桌宠
 
-以下改动在独立的鲸鱼插件（`@takboo/dsh-coopanion`，AGPL）本地版本中，不属于 WhaleMaid 的发行内容：在桌宠信封里回答审批（经 Harness 自己的审批卡，只有“允许一次 / 拒绝”，带防误触），审批卡显示脱敏后的实际命令，以及在 Harness 设置页直接填写情绪判断的 API Key。见 [C13B](docs/coopanion/c13b-report.md)、[C13C](docs/coopanion/c13c-report.md)、[C12](docs/coopanion/c12-report.md)。
+以下改动在独立的鲸鱼插件修改版 [`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion)（fork 自 `@takboo/dsh-coopanion`，AGPL）中，不属于 WhaleMaid 的发行内容，安装方法见[安装说明](docs/install.md#9-可选的鲸鱼桌宠)：在桌宠信封里回答审批（经 Harness 自己的审批卡，只有“允许一次 / 拒绝”，带防误触），审批卡显示脱敏后的实际命令，以及在 Harness 设置页直接填写情绪判断的 API Key。见 [C13B](docs/coopanion/c13b-report.md)、[C13C](docs/coopanion/c13c-report.md)、[C12](docs/coopanion/c12-report.md)。
 
 ## 1.0.0 - 2026-10-25
 

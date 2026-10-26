@@ -108,17 +108,41 @@ if ($LASTEXITCODE -ne 0) { throw 'WhaleMaid 卸载失败，请检查 CLI 输出�
 
 ## 9. 可选的鲸鱼桌宠
 
-WhaleMaid 不依赖桌宠。需要桌面角色时，另行安装 [`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion)，安装方法以该项目说明为准。它采用 **AGPL-3.0-or-later**，代码、角色包和媒体不属于 WhaleMaid 的 MIT 分发内容。
+WhaleMaid 不依赖桌宠。没有桌宠时，仍可通过 Harness 使用目标、通知中心、伙伴对话和长期记忆。桌宠采用 **AGPL-3.0-or-later**，代码、角色包和媒体不属于 WhaleMaid 的 MIT 分发内容。
 
-在 Harness 的 **插件 → 添加插件** 中输入 `@takboo/dsh-coopanion@0.4.14`，安装并启用 `dsh-coopanion`，完全退出后重新打开 Harness。也可在第 4 步准备好的终端中，确认 Harness 已退出再执行：
+### 推荐：WhaleMaid 配套修改版
+
+[`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion) 是 fork 自 [takboo/dsh-coopanion](https://github.com/takboo/dsh-coopanion) 的修改版，默认分支 `whaledot-local`。在原版之上增加了：
+
+- 双击直接和大肥鱼聊天，空白草稿和已归档对话不进列表，会话名跟随 Harness 标题，安静模式；
+- 可选的回复情绪表情，API Key 可在 **Settings → 桌宠** 中直接填写；
+- 在桌宠信封里回答审批：经 Harness 自己的审批卡作答，只有“允许一次 / 拒绝”，显示脱敏后的实际命令。
+
+从源码构建（需要 Git 和 Node.js ≥22.19）：
 
 ```powershell
-& $dsh plugin --profile $dshProfile add @takboo/dsh-coopanion@0.4.14
+git clone https://github.com/Xiaxin1235/dsh-coopanion.git
+Set-Location dsh-coopanion
+npm ci
+npm run build
 ```
 
-截至 2026-10-25，[上游包声明](https://github.com/takboo/dsh-coopanion/blob/main/package.json)的 0.4.14 支持 Desktop rc.2 / rc.3。重启后到 **Settings → 桌宠** 检查状态；首次使用需要下载 Electron。普通聊天沿用 Harness 中配置的模型。
+确认 Harness 已完全退出，在第 4 步准备好的终端里（已设置 `$dsh` 和 `$dshProfile`），于这个目录执行：
 
-上述步骤安装上游基础版，未在本次 WhaleMaid 安装演练中代装到日常环境。大肥鱼专属聊天默认入口、信封内作答、Decisions API 即时表情和设置页密钥管理等额外配合，需另行取得支持这些功能的兼容桌宠源码或安装包；本仓库不分发桌宠实现，历史协作报告也不是安装包。不要把安装基础版等同于安装了全部适配功能。没有桌宠或尚未取得兼容版本时，仍可通过 Harness 使用目标、通知中心、伙伴对话和长期记忆。
+```powershell
+& $dsh plugin --profile $dshProfile remove @takboo/dsh-coopanion   # 仅在装过原版时执行
+& $dsh plugin --profile $dshProfile add "link:$((Get-Location).Path)"
+```
+
+从开始菜单重新打开 Harness，到 **Settings → 桌宠** 检查状态；首次使用需要下载 Electron。普通聊天沿用 Harness 中配置的模型。
+
+这种方式直接链接源码目录，不要删除或移动它。更新时在目录里执行 `git pull`、`npm ci`、`npm run build`，再重启 Harness。
+
+已演练：从这个 fork 干净克隆，默认取得 `whaledot-local` 分支，`npm ci` 和 `npm run build` 成功。以 `link:` 方式安装与作者日常环境的安装方式相同。
+
+### 只要基础桌宠
+
+也可以在 Harness 的 **插件 → 添加插件** 中输入原版 `@takboo/dsh-coopanion@0.4.14`（截至 2026-10-25，[上游包声明](https://github.com/takboo/dsh-coopanion/blob/main/package.json)支持 Desktop rc.2 / rc.3）。原版不含上面列出的配合功能。
 
 ## 10. 常见问题与验证范围
 

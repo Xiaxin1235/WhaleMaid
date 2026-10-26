@@ -108,17 +108,41 @@ If an update fails, stop Harness and restore the old fixed copy to the original 
 
 ## 9. Optional whale desktop pet
 
-WhaleMaid does not require a desktop pet. For a desktop character, install [`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion) separately, following that project's instructions. It uses **AGPL-3.0-or-later**; its code, character packs and media are outside WhaleMaid's MIT distribution.
+WhaleMaid does not require a desktop pet. Without one, goals, the notification center, companion conversations and long-term memories remain available through Harness. The pet uses **AGPL-3.0-or-later**; its code, character packs and media are outside WhaleMaid's MIT distribution.
 
-In Harness, open **Plugins → Add plugin** (插件 → 添加插件), enter `@takboo/dsh-coopanion@0.4.14`, install and enable `dsh-coopanion`, then fully restart Harness. Alternatively, after exiting Harness, use the terminal prepared in step 4:
+### Recommended: the WhaleMaid companion build
+
+[`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion) is a fork of [takboo/dsh-coopanion](https://github.com/takboo/dsh-coopanion) with default branch `whaledot-local`. On top of the original it adds:
+
+- Double-click to chat with Da Fei Yu, hiding blank drafts and archived conversations from the list, session names that follow Harness titles, and quiet mode;
+- Optional reply emotion reactions, with the API key entered directly in **Settings → Desktop pet**;
+- Answering approvals from the pet's envelope through Harness's own approval card, with only "Allow once / Reject" and the redacted actual command shown.
+
+Build from source (needs Git and Node.js ≥22.19):
 
 ```powershell
-& $dsh plugin --profile $dshProfile add @takboo/dsh-coopanion@0.4.14
+git clone https://github.com/Xiaxin1235/dsh-coopanion.git
+Set-Location dsh-coopanion
+npm ci
+npm run build
 ```
 
-As checked on 2026-10-25, [upstream package metadata](https://github.com/takboo/dsh-coopanion/blob/main/package.json) declares Desktop rc.2 / rc.3 support for 0.4.14. After restarting, check **Settings → Desktop pet**; first launch downloads Electron. Ordinary chat uses the model configured in Harness.
+With Harness fully exited, in the terminal prepared in step 4 (`$dsh` and `$dshProfile` already set), run this inside that directory:
 
-These steps install the upstream base version; the WhaleMaid rehearsal did not install it into your everyday environment. Extra integrations such as the dedicated-chat default, inline envelope answers, instant Decisions expressions and settings-based key management require compatible pet source or an installation package obtained separately. This repository does not distribute that implementation, and historical integration reports are not installers. Installing the base version does not imply that every adaptation is present. Without a pet or a compatible version, goals, the notification center, companion conversations and long-term memories remain available through Harness.
+```powershell
+& $dsh plugin --profile $dshProfile remove @takboo/dsh-coopanion   # only if the original pet was installed
+& $dsh plugin --profile $dshProfile add "link:$((Get-Location).Path)"
+```
+
+Reopen Harness from the Start menu and check **Settings → Desktop pet**; first use downloads Electron. Ordinary chat uses the model configured in Harness.
+
+This links the source directory directly, so do not delete or move it. To update, run `git pull`, `npm ci` and `npm run build` in that directory, then restart Harness.
+
+Rehearsed: a clean clone of this fork checks out `whaledot-local` by default, and `npm ci` and `npm run build` succeed. The `link:` installation matches the author's everyday setup.
+
+### Basic pet only
+
+You can instead enter the original `@takboo/dsh-coopanion@0.4.14` in Harness under **Plugins → Add plugin** (插件 → 添加插件). As checked on 2026-10-25, [upstream package metadata](https://github.com/takboo/dsh-coopanion/blob/main/package.json) declares Desktop rc.2 / rc.3 support. The original lacks the integrations listed above.
 
 ## 10. Troubleshooting and verification scope
 

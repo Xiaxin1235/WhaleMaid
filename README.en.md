@@ -60,27 +60,36 @@ This feature is off by default. It sends only the opening of the final reply: th
 
 ## Installation and prerequisites
 
-| Component                | Required?                                                             | Preparation                                                                                                                                                       |
-| ------------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DeepSeek Harness Desktop | Yes                                                                   | Install and initialize **0.2.1-rc.2 / rc.3**, then configure a working chat model in Harness. [Official project](https://github.com/deepseek-ai/deepseek-harness) |
-| Node.js, pnpm and Git    | For source installation                                               | Node.js ≥22.19, Git, and the repository's pnpm 11 enabled through `corepack enable`.                                                                              |
-| `@takboo/dsh-coopanion`  | For the desktop character and envelope; optional for backend features | Install the base pet below. Dedicated chat entry points, instant expressions and other integrations require a version supporting those features.                  |
+| Component                   | Required?                                                             | Preparation                                                                                                                                                                                         |
+| --------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DeepSeek Harness Desktop    | Yes                                                                   | Install and initialize **0.2.1-rc.2 / rc.3**, then configure a working chat model in Harness. [Official project](https://github.com/deepseek-ai/deepseek-harness)                                   |
+| Node.js, pnpm and Git       | For source installation                                               | Node.js ≥22.19, Git, and the repository's pnpm 11 enabled through `corepack enable`.                                                                                                                |
+| Whale pet (`dsh-coopanion`) | For the desktop character and envelope; optional for backend features | Recommended: the WhaleMaid companion build [`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion), see step 1 below; the original `@takboo/dsh-coopanion` is the basic pet only. |
 
 Supported Harness Desktop supplies conversation, tool and approval services; you do not install their SDK packages individually. WhaleMaid chat and execution use Harness's model configuration. Decisions expressions use the service selected separately in pet settings.
 
 ### 1. Install the optional pet
 
-In Harness, open **Plugins → Add plugin** (插件 → 添加插件), enter `@takboo/dsh-coopanion@0.4.14`, install and enable `dsh-coopanion`, then fully restart Harness.
+We recommend the WhaleMaid companion build [`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion), a fork of [takboo/dsh-coopanion](https://github.com/takboo/dsh-coopanion) under the same AGPL-3.0-or-later license. On top of the original it adds double-click to chat with Da Fei Yu, answering approvals from the pet's envelope with the actual command shown, entering the emotion-reaction key in Settings, and other integrations. It needs Git and Node.js ≥22.19.
 
-Alternatively, use Desktop's bundled CLI. Initialize Desktop once, then fully exit it. Use a terminal without a test `DSH_HOME` and [back up the profile](docs/install.en.md#4-confirm-the-profile-and-back-it-up) before running:
+```powershell
+git clone https://github.com/Xiaxin1235/dsh-coopanion.git
+Set-Location dsh-coopanion
+npm ci
+npm run build
+```
+
+Then fully exit Harness, make sure the terminal has no test `DSH_HOME`, [back up the profile](docs/install.en.md#4-confirm-the-profile-and-back-it-up), and run this inside that directory:
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
 $dshProfile = 'desktop'
-& $dsh plugin --profile $dshProfile add @takboo/dsh-coopanion@0.4.14
+& $dsh plugin --profile $dshProfile add "link:$((Get-Location).Path)"
 ```
 
-As checked on 2026-10-25, [upstream package metadata](https://github.com/takboo/dsh-coopanion/blob/main/package.json) declares rc.2 / rc.3 support for 0.4.14. After restarting, check **Settings → Desktop pet**; first launch downloads Electron. This installs the upstream base version, **not necessarily every pet extension developed during this project's integration work**. Extensions require compatible source or an installation package obtained separately; historical reports in this repository are not installers. See [pet installation](docs/install.en.md#9-optional-whale-desktop-pet) and the [upstream guide](https://github.com/takboo/dsh-coopanion#开始一起工作).
+Reopen Harness from the Start menu and check **Settings → Desktop pet**; first launch downloads Electron. This links the source directory directly, so do not delete or move it. If the original pet was installed before, first run `& $dsh plugin --profile $dshProfile remove @takboo/dsh-coopanion`. See [pet installation](docs/install.en.md#9-optional-whale-desktop-pet) for more.
+
+If you only want the basic pet, you can install the original `@takboo/dsh-coopanion@0.4.14` from npm (supports Desktop rc.2 / rc.3), but it lacks the integrations above.
 
 ### 2. Build and install WhaleMaid
 
