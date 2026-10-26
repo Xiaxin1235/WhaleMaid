@@ -32,6 +32,7 @@ run('tar', ['-xzf', archive, '-C', work])
 const directory = join(work, 'package')
 const branch = `codex/market-package-v${version}`
 run('git', ['init', '--initial-branch', branch], directory)
+run('git', ['config', 'core.autocrlf', 'false'], directory)
 run('git', ['config', 'user.name', 'github-actions[bot]'], directory)
 run('git', ['config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com'], directory)
 run('git', ['config', 'credential.helper', '!gh auth git-credential'], directory)
