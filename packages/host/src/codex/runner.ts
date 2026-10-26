@@ -138,7 +138,7 @@ async function descendants(pid: number, env: NodeJS.ProcessEnv): Promise<number[
     env.SystemRoot ?? env.SYSTEMROOT ?? 'C:\\Windows',
     'System32/WindowsPowerShell/v1.0/powershell.exe',
   )
-  const script = `$nodes=@(Get-CimInstance Win32_Process | Select-Object ProcessId,ParentProcessId); $ids=[Collections.Generic.List[int]]::new(); $ids.Add(${pid}); for($i=0;$i -lt $ids.Count;$i++){foreach($n in $nodes){if($n.ParentProcessId -eq $ids[$i] -and -not $ids.Contains([int]$n.ProcessId)){$ids.Add([int]$n.ProcessId)}}}; ConvertTo-Json -InputObject @($ids)`
+  const script = `$nodes=@(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId | Select-Object ProcessId,ParentProcessId); $ids=[Collections.Generic.List[int]]::new(); $ids.Add(${pid}); for($i=0;$i -lt $ids.Count;$i++){foreach($n in $nodes){if($n.ParentProcessId -eq $ids[$i] -and -not $ids.Contains([int]$n.ProcessId)){$ids.Add([int]$n.ProcessId)}}}; ConvertTo-Json -InputObject @($ids)`
   const { stdout } = await exec(shell, ['-NoProfile', '-NonInteractive', '-Command', script], {
     env,
     windowsHide: true,
@@ -377,6 +377,10 @@ export class CodexRunner {
       if (killing || !child.pid) return
       stopReason = reason
       killing = stopCodexTree(child.pid, this.env).catch((error) => {
+        log({
+          type: 'cleanup-failed',
+          error: this.clean(error instanceof Error ? error.message : String(error)),
+        })
         killFailure = error
         child.kill()
       })

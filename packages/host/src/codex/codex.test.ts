@@ -176,7 +176,7 @@ test.each(['cancelled', 'timeout'] as const)(
     )
     if (reason === 'cancelled') controller.abort()
     const result = await pending
-    expect(result.status).toBe(reason)
+    expect(result.status, await readFile(result.record.logPath, 'utf8')).toBe(reason)
     const pid = Number(await readFile(join(f.dir, 'child.pid'), 'utf8'))
     expect(() => process.kill(pid, 0)).toThrow()
   },
