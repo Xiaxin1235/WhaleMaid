@@ -239,6 +239,28 @@ describe('companion session lifecycle', () => {
     if (a.state === 'ready') expect(registry.isCompanion(a.sessionId)).toBe(true)
   })
 
+  test('an archived current session is replaced, at startup and while running', async () => {
+    const f = await setup()
+    const { host } = fakeHost()
+    const archived = new Set<string>()
+    host.archived = (id) => archived.has(id)
+    const options = { dataDir: f.dir, enabled: () => true, title: () => '大肥鱼', log: vi.fn() }
+    const manager = new CompanionSessionManager(f.store, host, options)
+    const a = await manager.ensure()
+    if (a.state !== 'ready') throw new Error('not ready')
+    expect(manager.replaceIfArchived()).toBeUndefined()
+    archived.add(a.sessionId)
+    const b = await manager.replaceIfArchived()
+    expect(b?.state === 'ready' && b.sessionId !== a.sessionId).toBe(true)
+    expect(manager.allSessionIds()).toContain(a.sessionId)
+    if (b?.state !== 'ready') throw new Error('not ready')
+    archived.add(b.sessionId)
+    const restarted = new CompanionSessionManager(f.store, host, options)
+    const c = await restarted.ensure()
+    expect(c.state === 'ready' && c.sessionId !== b.sessionId).toBe(true)
+    expect(host.created).toHaveLength(3)
+  })
+
   test('rebuild starts a fresh session; failures and disabled settings degrade without throwing', async () => {
     const f = await setup()
     const { host } = fakeHost()

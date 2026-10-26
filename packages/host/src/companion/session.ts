@@ -21,6 +21,8 @@ export interface CompanionHost {
   exists(id: string): Promise<boolean>
   create(id: string, cwd: string, title: string): Promise<string>
   pinReadOnly(id: string): void
+  /** Archived in Harness: the pet locks its input, so it can no longer be her current session. */
+  archived?(id: string): boolean
 }
 
 /** Create once, reuse across restarts, recreate when the user deleted it. Never sends a prompt. */
@@ -64,12 +66,24 @@ export class CompanionSessionManager {
     this.pending = after.then(() => this.run(true)).finally(() => (this.pending = undefined))
     return this.pending
   }
+  /** Harness has no archive event; callers poll this and get a fresh session once hers is archived. */
+  replaceIfArchived(): Promise<CompanionState> | undefined {
+    if (this.pending || this.current.state !== 'ready' || !this.options.enabled()) return undefined
+    if (!this.host.archived?.(this.current.sessionId)) return undefined
+    this.options.log('companion session archived; starting a new one')
+    return this.rebuild()
+  }
 
   private async run(fresh: boolean): Promise<CompanionState> {
     try {
       this.current = { state: 'starting' }
       const record = this.store.companionSession()
-      if (record && !fresh && (await this.host.exists(record.sessionId))) {
+      if (
+        record &&
+        !fresh &&
+        !this.host.archived?.(record.sessionId) &&
+        (await this.host.exists(record.sessionId))
+      ) {
         this.host.pinReadOnly(record.sessionId)
         return await this.ready(record.sessionId, record.sessionId, fresh)
       }
@@ -145,6 +159,11 @@ export function dshCompanionHost(ctx: Context): CompanionHost {
         throw new Error('companion-preset-not-applied')
       await controller().rename({ sessionId: created.sessionId, title })
       return created.sessionId
+    },
+    archived(id) {
+      const registry = ctx.get('workspaceRegistry') as
+        { readonly archivedSessionIds?: readonly string[] } | undefined
+      return registry?.archivedSessionIds?.includes(id) ?? false
     },
     pinReadOnly(id) {
       const agent = (ctx.get('agents') as Context['agents'] | undefined)?.get(id as SessionId)

@@ -437,10 +437,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     notifier.start()
     memoryDrafts.start()
     // Session creation needs the controller and the agent registry; wait for both without blocking load.
-    const companionReady = ctx.inject(['sessionController', 'agents'], () => {
+    const companionReady = ctx.inject(['sessionController', 'agents'], (child) => {
       if (store.status().state === 'ok') {
         recall.start()
         void companionSessions.ensure()
+        // Archiving her current session in Harness would leave the pet with a locked chat.
+        child.effect(() => {
+          const timer = setInterval(() => void companionSessions.replaceIfArchived(), 2000)
+          timer.unref()
+          return () => clearInterval(timer)
+        })
       }
     })
     void Promise.resolve(companionReady).catch(report)
