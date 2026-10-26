@@ -9,6 +9,7 @@
 - Port core authorization, isolated worktrees, path checks, project memories and command execution to native POSIX paths, retaining Windows grant hashes and case-sensitive POSIX boundaries.
 - Gate publication on all three operating systems and six complete-package installations across DSH rc.2 / rc.3.
 - Include current companion work delegation and ordinary conversation tools from the main development branch.
+- Pin the companion fork with passive macOS recovery, native X11 pointer tracking and a fix preventing old read acknowledgements from changing the selected conversation.
 
 ## 1.1.0 - 2026-10-25
 
