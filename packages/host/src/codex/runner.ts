@@ -138,51 +138,17 @@ async function descendants(pid: number, env: NodeJS.ProcessEnv): Promise<number[
     env.SystemRoot ?? env.SYSTEMROOT ?? 'C:\\Windows',
     'System32/WindowsPowerShell/v1.0/powershell.exe',
   )
-  // WMI can stall on a fresh Windows runner. Toolhelp reads process identities
-  // directly; retain the same fail-closed verification and termination scope.
-  const script = `$ErrorActionPreference='Stop'
-Add-Type -TypeDefinition @'
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
-public static class WhaleMaidProcessTree {
-  [StructLayout(LayoutKind.Sequential, CharSet=CharSet.Unicode)]
-  public struct Entry {
-    public uint Size, Usage, Pid;
-    public IntPtr Heap;
-    public uint Module, Threads, Parent;
-    public int Priority;
-    public uint Flags;
-    [MarshalAs(UnmanagedType.ByValTStr, SizeConst=260)] public string File;
-  }
-  [DllImport("kernel32.dll", SetLastError=true)] static extern IntPtr CreateToolhelp32Snapshot(uint flags, uint pid);
-  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool Process32FirstW(IntPtr snapshot, ref Entry entry);
-  [DllImport("kernel32.dll", CharSet=CharSet.Unicode, SetLastError=true)] static extern bool Process32NextW(IntPtr snapshot, ref Entry entry);
-  [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
-  public static int[] Descendants(int root) {
-    IntPtr snapshot=CreateToolhelp32Snapshot(2, 0);
-    if(snapshot==new IntPtr(-1)) throw new Win32Exception(Marshal.GetLastWin32Error());
-    var pairs=new List<uint[]>();
-    try {
-      var entry=new Entry(); entry.Size=(uint)Marshal.SizeOf(typeof(Entry));
-      if(!Process32FirstW(snapshot, ref entry)) throw new Win32Exception(Marshal.GetLastWin32Error());
-      do { pairs.Add(new uint[]{entry.Pid,entry.Parent}); } while(Process32NextW(snapshot,ref entry));
-      int error=Marshal.GetLastWin32Error(); if(error!=18) throw new Win32Exception(error);
-    } finally { CloseHandle(snapshot); }
-    var ids=new List<int>(); ids.Add(root);
-    for(int i=0;i<ids.Count;i++) foreach(var pair in pairs)
-      if(pair[1]==ids[i] && pair[0]>0 && pair[0]<=int.MaxValue && !ids.Contains((int)pair[0])) ids.Add((int)pair[0]);
-    return ids.ToArray();
-  }
-}
-'@
-$ids=[WhaleMaidProcessTree]::Descendants(${pid}); ConvertTo-Json -InputObject @($ids)`
-  const { stdout } = await exec(shell, ['-NoProfile', '-NonInteractive', '-Command', script], {
-    env,
-    windowsHide: true,
-    timeout: 15000,
-    maxBuffer: 1024 * 1024,
+  const script = `$ErrorActionPreference='Stop'; $nodes=@(Get-CimInstance Win32_Process -Property ProcessId,ParentProcessId | Select-Object ProcessId,ParentProcessId); $ids=[Collections.Generic.List[int]]::new(); $ids.Add(${pid}); for($i=0;$i -lt $ids.Count;$i++){foreach($n in $nodes){if($n.ParentProcessId -eq $ids[$i] -and -not $ids.Contains([int]$n.ProcessId)){$ids.Add([int]$n.ProcessId)}}}; ConvertTo-Json -InputObject @($ids)`
+  // Pass literal script bytes across Windows argv parsing and close stdin:
+  // this noninteractive probe must never wait for another console input line.
+  const stdout = await new Promise<string>((resolve, reject) => {
+    const child = execFile(
+      shell,
+      ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')],
+      { env, windowsHide: true, timeout: 15000, maxBuffer: 1024 * 1024 },
+      (error, output) => (error ? reject(error) : resolve(output)),
+    )
+    child.stdin?.end()
   })
   const ids: unknown = JSON.parse(stdout)
   if (!Array.isArray(ids) || ids.some((id) => !Number.isSafeInteger(id) || id <= 0))
