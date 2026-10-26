@@ -194,10 +194,12 @@ export async function stopCodexTree(pid: number, env: NodeJS.ProcessEnv): Promis
   if (process.platform === 'win32') {
     let ids = [pid],
       verified = true
+    let verificationFailure: unknown
     try {
       ids = await descendants(pid, env)
-    } catch {
+    } catch (error) {
       verified = false
+      verificationFailure = error
     }
     try {
       await exec(
@@ -210,7 +212,10 @@ export async function stopCodexTree(pid: number, env: NodeJS.ProcessEnv): Promis
     }
     for (let i = 0; i < 30 && ids.some(alive); i++) await new Promise((r) => setTimeout(r, 100))
     if (ids.some(alive)) throw Error('process-tree-still-running')
-    if (!verified) throw Error('process-tree-unverified')
+    if (!verified)
+      throw Error(
+        `process-tree-unverified: ${verificationFailure instanceof Error ? verificationFailure.message : String(verificationFailure)}`,
+      )
   } else {
     try {
       process.kill(-pid, 'SIGKILL')
