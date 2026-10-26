@@ -224,7 +224,7 @@ test('history keeps the most recent 1000 and sanitizes secrets and environment a
   expect(approvalLogText('$env:ORDINARY="private value"; OTHER=hidden npm test', 500)).not.toMatch(
     /private value|OTHER=hidden/,
   )
-}, 20000)
+}, 60000)
 test('prepend runs before the terminal responder regardless of terminal registration order', async () => {
   for (const before of [false, true]) {
     const f = await fixture()

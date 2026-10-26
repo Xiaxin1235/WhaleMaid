@@ -97,6 +97,7 @@ jobs:
       - run: node scripts/test-complete-install.mjs
         env:
           DSH_TEST_VERSION: ${{ matrix.dsh }}
+          DSH_TEST_SOFTWARE_GL: ${{ runner.os == 'macOS' && runner.arch == 'X64' && '1' || '' }}
       - uses: actions/upload-artifact@v4
         if: always()
         with:
