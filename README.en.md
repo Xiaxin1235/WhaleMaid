@@ -62,9 +62,9 @@ This feature is off by default. It sends only the opening of the final reply: th
 
 **Install WhaleMaid Complete once.** It automatically installs and enables WhaleMaid plus the [WhaleMaid companion fork](https://github.com/Xiaxin1235/dsh-coopanion); no separate pet installation or source build is needed.
 
-Requires DeepSeek Harness Desktop **0.2.1-rc.2 / rc.3**, a working model configured in Harness, and an internet connection for dependencies and the initial Electron download. Windows is the validated platform.
+Requires DeepSeek Harness Desktop **0.2.1-rc.2 / rc.3**, a working model configured in Harness, and an internet connection for dependencies and the initial Electron download. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](docs/market-release-report.md) for platform evidence.
 
-In **Plugins → Discover → Manage index sources**, add `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`, then install **WhaleMaid Complete**. This is our own index; community catalog review is separate. If your Harness configuration has no Discover tab, use the complete-package URL below.
+In **Plugins → Discover → Manage index sources**, add `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`, then install **WhaleMaid Complete**. This is our own index using pinned Git commits, so Git must be installed; community catalog review is separate. Without Git or a Discover tab, use the complete-package URL below.
 
 Alternatively, in **Plugins → Add plugin**, enter the complete-package URL:
 

@@ -6,6 +6,9 @@
 - Include the private MIT core in the host archive; no unpublished workspace package is required.
 - Preserve separate source repositories, licenses and corresponding source for the AGPL companion.
 - Add reproducible release packaging and package validation.
+- Port core authorization, isolated worktrees, path checks, project memories and command execution to native POSIX paths, retaining Windows grant hashes and case-sensitive POSIX boundaries.
+- Gate publication on all three operating systems and six complete-package installations across DSH rc.2 / rc.3.
+- Include current companion work delegation and ordinary conversation tools from the main development branch.
 
 ## 1.1.0 - 2026-10-25
 

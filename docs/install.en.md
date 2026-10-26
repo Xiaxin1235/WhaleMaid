@@ -2,7 +2,7 @@
 
 [中文](install.md) | English
 
-For WhaleMaid 1.2.0. This guide is for someone obtaining the repository for the first time. Only the Windows installation workflow has been verified; macOS and Linux are unverified. See the [usage guide](usage.en.md) for features, defaults and permission boundaries.
+For WhaleMaid 1.2.0. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](market-release-report.md) for evidence and the [usage guide](usage.en.md) for features and permission boundaries.
 
 <a id="complete-installation"></a>
 

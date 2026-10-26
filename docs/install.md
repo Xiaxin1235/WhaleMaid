@@ -2,7 +2,7 @@
 
 中文 | [English](install.en.md)
 
-适用于 WhaleMaid 1.2.0。以下面向首次获取仓库的用户；只有 Windows 安装流程经过验证，macOS / Linux 尚未验证。功能、默认值和权限边界见[使用说明](usage.md)。
+适用于 WhaleMaid 1.2.0。以下面向首次获取仓库的用户。核心授权与执行支持 Windows、macOS、Linux；Linux 桌宠使用 X11，需要 `/usr/bin/python3` 与 libX11，Wayland 桌宠未声明支持。验收范围见[市场发布报告](market-release-report.md)，功能和权限边界见[使用说明](usage.md)。
 
 <a id="complete-installation"></a>
 
