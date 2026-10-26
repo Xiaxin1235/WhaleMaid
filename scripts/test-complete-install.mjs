@@ -5,7 +5,7 @@ import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, mkdir, readFile, writeFile, realpath, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { createServer } from 'node:net'
 import { chromium } from 'playwright-core'
 
@@ -13,9 +13,12 @@ const root = await realpath(await mkdtemp(join(tmpdir(), 'whalemaid-complete-'))
 const home = join(root, 'home'),
   profileName = 'complete-install',
   profile = join(home, 'profiles', profileName)
-const cli = resolve('.dsh-dev/complete-runtime/node_modules/@deepseek-ai/dsh/lib/bin.js')
-const archive = resolve('dist/release/dsh-whalemaid-full.tgz')
-const report = JSON.parse(await readFile('dist/release/verification.json', 'utf8'))
+const cli = resolve(
+  process.env.DSH_TEST_RUNTIME ?? '.dsh-dev/complete-runtime',
+  'node_modules/@deepseek-ai/dsh/lib/bin.js',
+)
+const archive = resolve(process.env.DSH_TEST_ARCHIVE ?? 'dist/release/dsh-whalemaid-full.tgz')
+const report = JSON.parse(await readFile(join(dirname(archive), 'verification.json'), 'utf8'))
 const environment = Object.fromEntries(
   Object.entries(process.env).filter(([key]) =>
     /^(path|systemroot|windir|comspec|pathext|temp|tmp|tmpdir|home|userprofile|appdata|localappdata|programfiles|programfiles\(x86\)|programw6432|display|xauthority|xdg_runtime_dir)$/i.test(
@@ -37,6 +40,7 @@ environment.DSH_PET_TEST_DEBUG_PORT = String(port)
 let host,
   browser,
   petBrowser,
+  page,
   hostLog = ''
 const run = async (args) => {
   const child = spawn(process.execPath, [cli, ...args], {
@@ -97,7 +101,7 @@ try {
   )
   await writeFile(
     join(profile, 'cordis.patch.yml'),
-    `- insert:\n    - id: complete-observer\n      name: ${JSON.stringify(join(observer, 'index.mjs').replaceAll('\\', '/'))}\n- id: locale\n  config:\n    preference: en\n- id: ui-settings-models\n  config:\n    credentialOnboarding: false\n`,
+    `- insert:\n    - id: complete-observer\n      name: ${JSON.stringify(join(observer, 'index.mjs').replaceAll('\\', '/'))}\n- id: locale\n  config:\n    preference: en\n- id: ui-settings-models\n  config:\n    credentialOnboarding: false\n- id: ui-settings-general\n  config:\n    welcomeNoticeVersion: '2026-09-28.1'\n`,
   )
   host = spawn(process.execPath, [cli, '--profile', profileName, '--no-open', '--port', '0'], {
     cwd: root,
@@ -122,7 +126,7 @@ try {
     })
   })
   browser = await chromium.launch({ headless: true })
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
+  page = await browser.newPage({ viewport: { width: 1280, height: 900 } })
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto(url)
@@ -171,6 +175,17 @@ try {
     'Complete installation passed: one bundle, both components, real host UI and native pet, clean removal; no model calls.',
   )
 } catch (error) {
+  await mkdir('artifacts', { recursive: true })
+  await page?.screenshot({ path: 'artifacts/complete-install-failure.png' }).catch(() => {})
+  if (page)
+    console.error(
+      (
+        await page
+          .locator('body')
+          .innerText()
+          .catch(() => '')
+      ).slice(0, 6000),
+    )
   console.error(hostLog.replace(/([?&]token=)[^&\s]+/g, '$1[REDACTED]'))
   throw error
 } finally {
