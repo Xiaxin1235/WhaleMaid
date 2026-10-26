@@ -7,6 +7,7 @@ import { mkdtemp, mkdir, readFile, writeFile, realpath, rm } from 'node:fs/promi
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { createServer } from 'node:net'
+import { createHash } from 'node:crypto'
 import { chromium } from 'playwright-core'
 
 const root = await realpath(await mkdtemp(join(tmpdir(), 'whalemaid-complete-')))
@@ -19,6 +20,12 @@ const cli = resolve(
 )
 const archive = resolve(process.env.DSH_TEST_ARCHIVE ?? 'dist/release/dsh-whalemaid-full.tgz')
 const report = JSON.parse(await readFile(join(dirname(archive), 'verification.json'), 'utf8'))
+assert.equal(
+  createHash('sha256')
+    .update(await readFile(archive))
+    .digest('hex'),
+  report.sha256,
+)
 const environment = Object.fromEntries(
   Object.entries(process.env).filter(([key]) =>
     /^(path|systemroot|windir|comspec|pathext|temp|tmp|tmpdir|home|userprofile|appdata|localappdata|programfiles|programfiles\(x86\)|programw6432|display|xauthority|xdg_runtime_dir)$/i.test(
@@ -28,7 +35,7 @@ const environment = Object.fromEntries(
 )
 Object.assign(environment, {
   DSH_HOME: home,
-  DSH_TELEMETRY: '0',
+  DSH_TELEMETRY_DISABLED: '1',
   DSH_PET_TEST_DATA_DIR: join(root, 'pet'),
   DSH_PET_TEST_NO_SANDBOX: '1',
 })
@@ -89,6 +96,10 @@ try {
   )
   assert.equal(maid.version, report.version)
   assert.equal(pet.version, report.companion.version)
+  const source = JSON.parse(
+    await readFile(join(profile, 'node_modules/dsh-whalemaid/release-source.json'), 'utf8'),
+  )
+  if (report.sourceCommit) assert.equal(source.sourceCommit, report.sourceCommit)
   const observer = join(root, 'observer')
   await mkdir(observer)
   await writeFile(
