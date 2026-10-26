@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-latest]
+        os: [windows-latest, ubuntu-latest, macos-15-intel]
         dsh: ['0.2.1-rc.2', '0.2.1-rc.3']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
