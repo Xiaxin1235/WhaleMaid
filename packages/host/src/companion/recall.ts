@@ -83,7 +83,8 @@ export class CompanionRecall {
   }
   /** Forget existing material in every owned conversation, including answers that quoted a deleted recall. Future messages remain eligible. */
   async remove(id?: string): Promise<void> {
-    const cuts = await Promise.all(
+    // A session the user deleted in Harness has nothing left to summarize; it must not block the deletion.
+    const settled = await Promise.allSettled(
       this.deps.sessionIds().map(async (sessionId) => {
         const events = await this.deps.read(
           sessionId,
@@ -92,6 +93,8 @@ export class CompanionRecall {
         return { sessionId, through: events.reduce((n, event) => Math.max(n, event.seq), -1) }
       }),
     )
+    this.lifetime.signal.throwIfAborted()
+    const cuts = settled.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []))
     this.store.transaction(() => {
       const state = this.state()
       for (const cut of cuts) {
