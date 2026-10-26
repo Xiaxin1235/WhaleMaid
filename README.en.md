@@ -29,7 +29,7 @@ Da Fei Yu has a dedicated companion conversation. She can inspect goals and pend
 | “Give the conclusion before the evidence.” | Propose a personal preference for your confirmation and later conversations.               |
 | “Pause this goal for now.”                 | Propose a management action; the host executes it after you confirm.                       |
 
-She has no file, command or network execution tools. Conversation suggestions do not grant authorization. You still control trusted execution, dangerous approvals, abandonment and changes of direction. See [companion conversations](docs/usage.en.md#da-fei-yus-dedicated-conversation) and [management proposals](docs/usage.en.md#management-proposals).
+When you ask, she can read and edit files and run commands in the project you name, under the same permission preset and approvals as an ordinary Harness conversation: deletion, publishing, installs and other dangerous operations still need your approval. Sessions, files and tool output she reads are treated as data, not instructions. Conversation suggestions do not grant authorization. You still control trusted execution, dangerous approvals, abandonment and changes of direction. See [companion conversations](docs/usage.en.md#da-fei-yus-dedicated-conversation) and [management proposals](docs/usage.en.md#management-proposals).
 
 ### Editable personal and project memories
 

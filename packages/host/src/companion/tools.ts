@@ -4,6 +4,7 @@ import type { CompanionApi } from './service.js'
 import { MemoryQuerySchema, MemoryProposeSchema, MemoryForgetSchema } from './memory.js'
 import {
   ProposeGoalSchema,
+  ProposeWorkSchema,
   ProposeGoalPauseSchema,
   ProposeAutopilotSchema,
   ProposeGlobalPauseSchema,
@@ -15,6 +16,7 @@ import {
 /** Every tool the companion session may call; the WhaleMaid gate denies anything else there. */
 export const COMPANION_TOOL_NAMES = [
   'whaledot_propose_goal',
+  'whaledot_propose_work',
   'whaledot_propose_goal_pause',
   'whaledot_propose_autopilot',
   'whaledot_propose_global_pause',
@@ -81,6 +83,12 @@ export function companionTools(api: CompanionApi): ToolDefinition[] {
           ProposeGoalSchema.omit({ kind: true }),
           'draft-goal',
           'Propose drafting a goal from the current user’s explicit request. Requires text and projectRoot. Only a draft; authorization must be reviewed by the user in the panel. Never grant or start execution.',
+        ],
+        [
+          'whaledot_propose_work',
+          ProposeWorkSchema.omit({ kind: true }),
+          'start-work',
+          'Propose handing a task to a new ordinary Harness conversation in projectRoot, so the work runs there while you stay free to chat. Requires projectRoot and task. Write task as complete, self-contained instructions: the new conversation has none of this chat. After it starts, check its progress with whaledot_recent_sessions and read_session.',
         ],
         [
           'whaledot_propose_goal_pause',

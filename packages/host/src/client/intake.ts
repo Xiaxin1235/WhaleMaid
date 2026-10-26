@@ -1,6 +1,6 @@
 import { AutopilotView } from './autopilot.js'
 import { VerificationView } from './verification.js'
-import { createElement as h, useEffect, useState } from 'react'
+import { createElement as h, useEffect, useRef, useState } from 'react'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import {
   t,
@@ -101,6 +101,11 @@ export function IntakeView({
     [approving, setApproving] = useState(false)
   const [riskOpen, setRiskOpen] = useState(false)
   const [authorizationVersion, setAuthorizationVersion] = useState(existing?.activeScope?.hash)
+  const alertRef = useRef<HTMLParagraphElement>(null)
+  // The form is long and the buttons sit at the bottom; bring a new error into view.
+  useEffect(() => {
+    if (error) alertRef.current?.scrollIntoView({ block: 'center' })
+  }, [error])
   function edit(patch: Partial<ConfirmedGoalForm>) {
     setForm((previous) => previous && { ...previous, ...patch })
     setApproving(false)
@@ -334,7 +339,7 @@ export function IntakeView({
     error &&
       h(
         'p',
-        { role: 'alert' },
+        { role: 'alert', ref: alertRef },
         text('draftError'),
         ' ',
         error.includes('model-not-configured') ? text('modelNotConfigured') : error,

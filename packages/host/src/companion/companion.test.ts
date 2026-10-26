@@ -1,3 +1,4 @@
+import { workTitle } from './work.js'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -216,7 +217,6 @@ describe('companion session lifecycle', () => {
         existing.add(id)
         return id
       }),
-      pinReadOnly: vi.fn(),
     }
     return { host, existing }
   }
@@ -237,6 +237,28 @@ describe('companion session lifecycle', () => {
     expect(restarted.allSessionIds()).toHaveLength(2)
     const registry = new RunRegistry(f.store)
     if (a.state === 'ready') expect(registry.isCompanion(a.sessionId)).toBe(true)
+  })
+
+  test('an archived current session is replaced, at startup and while running', async () => {
+    const f = await setup()
+    const { host } = fakeHost()
+    const archived = new Set<string>()
+    host.archived = (id) => archived.has(id)
+    const options = { dataDir: f.dir, enabled: () => true, title: () => '大肥鱼', log: vi.fn() }
+    const manager = new CompanionSessionManager(f.store, host, options)
+    const a = await manager.ensure()
+    if (a.state !== 'ready') throw new Error('not ready')
+    expect(manager.replaceIfArchived()).toBeUndefined()
+    archived.add(a.sessionId)
+    const b = await manager.replaceIfArchived()
+    expect(b?.state === 'ready' && b.sessionId !== a.sessionId).toBe(true)
+    expect(manager.allSessionIds()).toContain(a.sessionId)
+    if (b?.state !== 'ready') throw new Error('not ready')
+    archived.add(b.sessionId)
+    const restarted = new CompanionSessionManager(f.store, host, options)
+    const c = await restarted.ensure()
+    expect(c.state === 'ready' && c.sessionId !== b.sessionId).toBe(true)
+    expect(host.created).toHaveLength(3)
   })
 
   test('rebuild starts a fresh session; failures and disabled settings degrade without throwing', async () => {
@@ -261,7 +283,7 @@ describe('companion session lifecycle', () => {
 })
 
 describe('companion gate', () => {
-  test('only read-only WhaleMaid tools and ask_user_question run in the companion session', async () => {
+  test('her session passes every tool to DSH policy; WhaleMaid-only tools stay hers', async () => {
     const f = await setup()
     f.store.setCompanionSession({ sessionId: 's_companion', createdAt: 1, previous: ['s_old'] })
     const gate = new ToolGate(new RunRegistry(f.store), () => 'en')
@@ -276,14 +298,20 @@ describe('companion gate', () => {
     ])
       expect(await call(name, 's_companion')).toEqual({ kind: 'allow' })
     for (const name of ['read', 'write', 'bash', 'pwsh', 'web_fetch', 'subagent'])
-      expect(await call(name, 's_companion')).toMatchObject({ kind: 'deny' })
-    expect(await call('write', 's_old')).toMatchObject({ kind: 'deny' })
+      expect(await call(name, 's_companion')).toEqual({ kind: 'allow' })
+    expect(await call('write', 's_old')).toEqual({ kind: 'allow' })
     expect(await call('write', 's_unrelated')).toEqual({ kind: 'allow' })
     expect(await call('whaledot_recall_search', 's_unrelated')).toMatchObject({ kind: 'deny' })
-    expect(next).toHaveBeenCalledTimes(5)
+    expect(next).toHaveBeenCalledTimes(12)
   })
 
   test('the preset id is stable for the pet plugin to recognise', () => {
     expect(COMPANION_PRESET).toBe('whaledot-companion')
   })
+})
+
+test('work conversations are titled as ordinary work, never as WhaleMaid tasks', () => {
+  expect(workTitle('修好测试\n然后写 README', 'zh-CN')).toBe('大肥鱼派的活：修好测试')
+  expect(workTitle('x'.repeat(50), 'en')).toBe(`Work from Da Fei Yu: ${'x'.repeat(40)}…`)
+  expect(workTitle('任务', 'zh-CN').startsWith('[')).toBe(false)
 })

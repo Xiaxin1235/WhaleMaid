@@ -461,3 +461,16 @@ it('records an explicit abandon decision using the actual cancelled goal state a
     refs: [goal.id, 'choice'],
   })
 })
+
+it('deleting still works when an old companion conversation was deleted in Harness', async () => {
+  const s = await setup()
+  await s.recall.summarize('old')
+  s.events['gone'] = []
+  s.read.mockImplementation(async (id: string) => {
+    if (id === 'gone') throw new Error('session "gone" not found')
+    return s.events[id] ?? []
+  })
+  await s.recall.remove(s.store.journal.list()[0]!.id)
+  expect(s.store.journal.list().every((row) => row.status !== 'active')).toBe(true)
+  await s.recall.remove()
+})

@@ -77,6 +77,9 @@ function fixture(ask?: MemoryDependencies['ask']) {
     { locale: () => 'zh-CN', log: vi.fn() },
   )
   let enabled = true
+  const startWork = vi.fn<(input: { projectRoot: string; task: string }) => Promise<{ sessionId: string }>>(
+    async () => ({ sessionId: 'worker-1' }),
+  )
   const actions = new CompanionActions(store, {
     owns: (id) => id === 'companion',
     enabled: () => enabled,
@@ -85,6 +88,7 @@ function fixture(ask?: MemoryDependencies['ask']) {
     intake,
     autopilot,
     setPaused: (p) => store.setPaused(p),
+    startWork,
     now: () => 1000,
   })
   clean.push(
@@ -102,6 +106,7 @@ function fixture(ask?: MemoryDependencies['ask']) {
     model,
     autopilot,
     actions,
+    startWork,
     disable: () => {
       enabled = false
     },
@@ -242,7 +247,7 @@ test('draft uses P07 start, remains a draft and cannot use a companion capabilit
     'Authenticated owner required',
   )
 })
-test('enabled setting, 3 pending cap, exact tool ownership and gate retain file/command denial', async () => {
+test('enabled setting, 3 pending cap, exact tool ownership; her file and command tools go to DSH policy', async () => {
   const f = fixture(async () => new Promise(() => {}))
   const pending = Array.from({ length: 3 }, () => f.actions.propose(pause, f.actor))
   expect(await f.actions.propose(pause, f.actor)).toMatchObject({
@@ -264,7 +269,7 @@ test('enabled setting, 3 pending cap, exact tool ownership and gate retain file/
   const names = companionTools({ actions: off.actions } as CompanionApi)
     .filter((t) => t.name.startsWith('whaledot_propose_'))
     .map((t) => t.name)
-  expect(names).toHaveLength(5)
+  expect(names).toHaveLength(6)
   for (const name of names) {
     expect(
       await gate.check({ name, arguments: {}, agent: { session: { id: 'companion' } } }, next),
@@ -274,16 +279,10 @@ test('enabled setting, 3 pending cap, exact tool ownership and gate retain file/
         kind: 'deny',
       })
   }
-  for (const name of [
-    'read',
-    'write',
-    'pwsh',
-    'whaledot_propose_abandon',
-    'whaledot_propose_change_direction',
-  ])
+  for (const name of ['read', 'write', 'pwsh'])
     expect(
       await gate.check({ name, arguments: {}, agent: { session: { id: 'companion' } } }, next),
-    ).toMatchObject({ kind: 'deny' })
+    ).toMatchObject({ kind: 'allow' })
 })
 test('v8 preserves old event bytes and can read goal-less companion audit rows after reopening', () => {
   const dir = mkdtempSync(join(tmpdir(), 'p13-v8-'))
@@ -331,4 +330,32 @@ test('confirmed global pause/resume uses the same persistent service and emits g
   expect(
     f.store.autopilotEvents.list().every((e) => e.goalId === undefined && e.actor === 'companion-proposal'),
   ).toBe(true)
+})
+
+test('start-work opens a work conversation only after the user confirms, and is audited', async () => {
+  const f = fixture()
+  const work = { kind: 'start-work', projectRoot: f.dir, task: '修好 node --test 的失败' }
+  expect(await f.actions.propose(work, f.actor)).toMatchObject({
+    status: 'succeeded',
+    result: { sessionId: 'worker-1' },
+  })
+  expect(f.startWork).toHaveBeenCalledWith({ projectRoot: f.dir, task: '修好 node --test 的失败' })
+  const question = f.askFn.mock.calls[0]![1]
+  expect(question.detail).toContain('开一个工作对话')
+  expect(question.detail).toContain('修好 node --test 的失败')
+  expect(JSON.stringify(f.store.autopilotEvents.list())).toContain('start-work')
+})
+
+test('start-work does nothing when declined, and reports a failure without retrying', async () => {
+  const declined = fixture(async (_a, q) => ({ answers: [{ id: q.id, selected: ['不用了'] }] }))
+  const work = { kind: 'start-work', projectRoot: declined.dir, task: 'x' }
+  expect(await declined.actions.propose(work, declined.actor)).toMatchObject({ status: 'declined' })
+  expect(declined.startWork).not.toHaveBeenCalled()
+  const failing = fixture()
+  failing.startWork.mockRejectedValueOnce(new Error('project-not-directory'))
+  expect(await failing.actions.propose({ ...work, projectRoot: failing.dir }, failing.actor)).toMatchObject({
+    status: 'failed',
+    message: 'project-not-directory',
+  })
+  expect(failing.startWork).toHaveBeenCalledTimes(1)
 })

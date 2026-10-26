@@ -17,6 +17,12 @@ export const ProposeGoalSchema = z.strictObject({
   text: z.string().trim().min(1).max(4000),
   projectRoot: z.string().trim().min(1).max(2000),
 })
+/** Hand a task to a new ordinary Harness conversation in the project, so she stays free to chat. */
+export const ProposeWorkSchema = z.strictObject({
+  kind: z.literal('start-work'),
+  projectRoot: z.string().trim().min(1).max(2000),
+  task: z.string().trim().min(1).max(8000),
+})
 export const ProposeGoalPauseSchema = z.strictObject({
   kind: z.literal('goal-pause'),
   goalId: GoalIdSchema,
@@ -42,6 +48,7 @@ export const CompanionActionSchema = z.discriminatedUnion('kind', [
   ProposeAutopilotSchema,
   ProposeGlobalPauseSchema,
   ProposeGoalNoteSchema,
+  ProposeWorkSchema,
 ])
 export type CompanionAction = z.infer<typeof CompanionActionSchema>
 export const CompanionProposalSchema = z.strictObject({
@@ -88,6 +95,10 @@ export const actionCopy = (locale: Locale) =>
         autoEffect: '仅使用现有授权；开启后可自动执行已授权任务。',
         globalEffect: '影响所有 WhaleMaid 目标；恢复后原先已启用的目标可继续自动推进。',
         attribution: (time: string) => `由大肥鱼提议，你在 ${time} 确认`,
+        work: '开一个工作对话',
+        workEffect:
+          '在这个项目目录新开一个普通 Harness 对话去做这件事；它按你的权限预设和审批运行，危险操作仍会问你。我可以随时帮你看它的进展。',
+        workStarted: '工作对话已开始',
         drafts: '大肥鱼起草的目标',
         review: '审核草案与授权',
         saved: '已执行',
@@ -129,6 +140,10 @@ export const actionCopy = (locale: Locale) =>
         autoEffect: 'Uses existing authorization only. Enabling permits automatic authorized tasks.',
         globalEffect: 'Affects all WhaleMaid goals. Resuming may restart previously enabled goals.',
         attribution: (time: string) => `Proposed by Dafeiyu; you confirmed at ${time}`,
+        work: 'Start a work conversation',
+        workEffect:
+          'Opens an ordinary Harness conversation in this project directory to do the task. It runs under your permission preset and approvals; dangerous operations still ask you. I can check its progress for you any time.',
+        workStarted: 'Work conversation started',
         drafts: 'Goals drafted by Dafeiyu',
         review: 'Review draft and authorization',
         saved: 'Executed',
@@ -157,6 +172,7 @@ export function actionLabel(kind: string, locale: Locale): string {
     autopilot: c.autopilot,
     'global-pause': c.global,
     'goal-note': c.note,
+    'start-work': c.work,
   }
   return labels[kind] ?? kind
 }
@@ -170,6 +186,14 @@ export function describeAction(
     state = (b: boolean) => (b ? c.on : c.off)
   if (action.kind === 'draft-goal')
     return { ok: true, detail: `${c.draft}\n${action.text}\n${action.projectRoot}\n${c.draftOnly}` }
+  if (action.kind === 'start-work')
+    return {
+      ok: true,
+      detail: `${c.work}
+${action.projectRoot}
+${action.task}
+${c.workEffect}`,
+    }
   if (action.kind === 'global-pause')
     return facts.globalPaused === action.paused
       ? { ok: false, reason: c.unchanged }

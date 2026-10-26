@@ -39,6 +39,8 @@ import { GoalDecisions } from './notify/goal-decisions.js'
 import { EverydayApprovals, installEverydayApprovals } from './everyday-approval/service.js'
 import { ConversationCodex, installConversationCodex } from './codex/service.js'
 import { CodexRunner } from './codex/runner.js'
+import { installCompanionPermission } from './companion/permission.js'
+import { startWork } from './companion/work.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -188,6 +190,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     installEverydayApprovals(ctx, everydayApprovals)
     const codex = new ConversationCodex(ctx, store, execution.registry, new CodexRunner(dataDir))
     installConversationCodex(ctx, codex)
+    installCompanionPermission(ctx, store, (message, error) => debug.host(message, error))
     const autopilot = new AutopilotScheduler(
       store,
       scopes,
@@ -303,6 +306,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       intake,
       autopilot,
       setPaused: (paused) => store.setPaused(paused),
+      startWork: (input) => startWork(ctx, input, notificationLocale()),
     })
     companion.actions = companionActions
     const proposalInbox = notificationInbox
@@ -390,6 +394,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           scopes.revoke(scopeId, peer)
         },
         rebuildCompanion: () => companionSessions.rebuild(),
+        logFailure: (method, error) => debug.host(`panel ${method} failed`, error),
         memory,
         memoryDrafts,
         recall,
@@ -436,10 +441,16 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     notifier.start()
     memoryDrafts.start()
     // Session creation needs the controller and the agent registry; wait for both without blocking load.
-    const companionReady = ctx.inject(['sessionController', 'agents'], () => {
+    const companionReady = ctx.inject(['sessionController', 'agents'], (child) => {
       if (store.status().state === 'ok') {
         recall.start()
         void companionSessions.ensure()
+        // Archiving her current session in Harness would leave the pet with a locked chat.
+        child.effect(() => {
+          const timer = setInterval(() => void companionSessions.replaceIfArchived(), 2000)
+          timer.unref()
+          return () => clearInterval(timer)
+        })
       }
     })
     void Promise.resolve(companionReady).catch(report)

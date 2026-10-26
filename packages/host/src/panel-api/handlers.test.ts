@@ -31,6 +31,32 @@ test('expected failures use stable error codes without leaking host exception de
   })
 })
 
+test('short internal failure identifiers reach the panel; prose and paths stay generic', () => {
+  for (const id of ['draft-busy', 'draft-expired', 'project-root-changed', 'paths-must-be-canonical'])
+    expect(failure(new Error(id)).error.code).toBe(`whaledot/${id}`)
+  for (const message of ['Authenticated owner required', 'D:/secret/path', 'ENOENT: no such file', 'x'])
+    expect(failure(new Error(message)).error.code).toBe('whaledot/unavailable')
+})
+
+test('a failed panel call is logged with its method before the short code is returned', async () => {
+  const logFailure = vi.fn()
+  const handler = createPanelHandler({
+    snapshot: () => snapshot,
+    setLanguage: vi.fn(),
+    goals: () => {
+      throw new Error('draft-busy')
+    },
+    setPaused: vi.fn(),
+    revokeScope: vi.fn(),
+    takeoverStore: vi.fn(),
+    logFailure,
+  })
+  const peer = { principal: { kind: 'owner' }, signal: new AbortController().signal } as unknown as PeerScope
+  const reply = await handler('goals', {}, new AbortController().signal, peer)
+  expect(reply).toMatchObject({ ok: false, error: { code: 'whaledot/draft-busy' } })
+  expect(logFailure).toHaveBeenCalledWith('goals', expect.objectContaining({ message: 'draft-busy' }))
+})
+
 test('missing/disposed/non-owner peer cannot read or mutate; payload cannot impersonate owner', async () => {
   const read = vi.fn(() => snapshot),
     write = vi.fn()
