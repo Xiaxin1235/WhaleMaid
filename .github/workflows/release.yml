@@ -65,13 +65,22 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Use the official Ubuntu archive for graphical test dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          for source in /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
+            if [ -f "$source" ]; then
+              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
+            fi
+          done
       - run: pnpm exec playwright-core install --with-deps chromium
       - name: Start managed Linux display
         if: runner.os == 'Linux'
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb openbox x11-utils libxtst6 python3
+          sudo timeout 120 apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
+          sudo timeout 300 apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y --no-install-recommends xvfb openbox x11-utils libxtst6 python3
           Xvfb :99 -screen 0 1200x800x24 -nolisten tcp > "$RUNNER_TEMP/xvfb.log" 2>&1 &
           for attempt in {1..100}; do if DISPLAY=:99 xdpyinfo > /dev/null 2>&1; then break; fi; sleep .1; done
           export DISPLAY=:99
