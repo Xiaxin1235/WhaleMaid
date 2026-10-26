@@ -4,6 +4,7 @@ import { mkdir, writeFile, appendFile, readFile, readdir, rm, lstat, rename } fr
 import { dirname, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { StringDecoder } from 'node:string_decoder'
+import { performance } from 'node:perf_hooks'
 import { redactSecrets } from '@whalemaid/core'
 import { CodexRecordSchema } from './contract.js'
 import type { CodexArguments, CodexRecord } from './contract.js'
@@ -98,6 +99,7 @@ export function windowsSandboxFrom(configToml: string): WindowsSandbox | undefin
  * helpers that writable mode needs. The older Programs copy lacks them.
  */
 export async function defaultCodexExecutable(env: NodeJS.ProcessEnv): Promise<string> {
+  if (process.platform !== 'win32') return 'codex'
   const home = env.CODEX_HOME || (env.USERPROFILE && join(env.USERPROFILE, '.codex'))
   if (home) {
     const current = join(home, 'packages/standalone/current/bin/codex.exe')
@@ -286,7 +288,7 @@ export class CodexRunner {
     const id = `run_${randomUUID()}`
     return {
       id,
-      at: Date.now(),
+      at: performance.timeOrigin + performance.now(),
       sessionId: input.sessionId,
       mode: input.mode,
       cwd: this.clean(input.cwd),

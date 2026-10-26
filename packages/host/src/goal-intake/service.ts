@@ -223,7 +223,9 @@ export class GoalIntake {
       )
     )
       throw new Error('missing-default-protection')
-    if (form.verifyCommands.some((command) => classifyCommand(command).class === 'forbidden'))
+    if (
+      form.verifyCommands.some((command) => classifyCommand(command, facts.projectRoot).class === 'forbidden')
+    )
       throw new Error('forbidden-verify-command')
     return form
   }

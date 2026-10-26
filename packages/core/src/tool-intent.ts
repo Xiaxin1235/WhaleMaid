@@ -1,7 +1,7 @@
 import { readOnlyCommandPaths } from './read-only-command.js'
 import { z } from 'zod'
 import type { ActionIntent } from './model/action.js'
-import { normalizeWindowsPath } from './windows-path.js'
+import { resolveScopePath } from './scope-path.js'
 
 const text = z.string().min(1)
 const file = { file_path: text }
@@ -56,11 +56,9 @@ export const RESTRICTED_TOOLS = [
   'workflow',
 ] as const
 
-/** Resolve DOS paths without Node dependencies; reject drive-relative, UNC and ambiguous aliases. */
+/** Resolve literal paths without Node dependencies or cross-dialect aliases. */
 export function resolveToolPath(cwd: string, path: string): string | null {
-  if (/^[a-z]:[\\/]/i.test(path)) return normalizeWindowsPath(path)
-  if (/^[\\/]|^[a-z]:/i.test(path)) return null
-  return normalizeWindowsPath(cwd + '\\' + path)
+  return resolveScopePath(cwd, path)
 }
 
 /** Map only verified tool shapes. Unsupported stateful/administrative surfaces fail closed. */

@@ -40,6 +40,13 @@ export class WorktreeManager {
   }
   /** Create or reconcile one external worktree; reject uncertain baselines and boundaries. */
   async prepare(goal: ProjectGoal, expected?: string): Promise<Workspace> {
+    if (
+      !isAbsolute(goal.projectRoot) ||
+      (process.platform === 'win32'
+        ? !/^[a-z]:[\\/]/i.test(goal.projectRoot)
+        : !goal.projectRoot.startsWith('/'))
+    )
+      throw new Error('project-path-platform-mismatch')
     const project = await realpath(goal.projectRoot)
     const storage = await realpath(this.dataDir)
     const outside = (path: string) => {

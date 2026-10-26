@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { normalizeWindowsPath } from '../windows-path.js'
+import { normalizeScopePath } from '../scope-path.js'
 import { redactSecrets } from '../companion/redact.js'
 import type { Locale } from '../i18n/index.js'
 import { memoryCopy } from '../i18n/memory.js'
@@ -27,7 +27,7 @@ export const MemoryTextSchema = z
     if (!result.ok) ctx.addIssue({ code: 'custom', message: result.reason })
   })
 export const ProjectKeySchema = z.string().transform((v, ctx) => {
-  const key = normalizeWindowsPath(v)
+  const key = normalizeScopePath(v)
   if (!key) {
     ctx.addIssue({ code: 'custom', message: 'invalid-project-path' })
     return z.NEVER

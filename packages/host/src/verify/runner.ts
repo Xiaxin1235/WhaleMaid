@@ -1,8 +1,8 @@
-import { execFile } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { join } from 'node:path'
-import { classifyCommand, parseCommandResult } from '@whalemaid/core'
+import { classifyCommand, parseCommandResult, normalizeScopePath } from '@whalemaid/core'
 import type { CommandResult } from '@whalemaid/core'
 import { WorktreeManager } from '../execution/worktree.js'
 
@@ -57,7 +57,9 @@ export class VerificationRunner {
     authorize: () => void,
     signal?: AbortSignal,
   ): Promise<CommandResult[]> {
-    const keys = commands.map((command) => JSON.stringify([project.toLowerCase(), commit, command]))
+    const keys = commands.map((command) =>
+      JSON.stringify([normalizeScopePath(project) ?? project, commit, command]),
+    )
     if (keys.every((key) => this.cache.has(key))) return keys.map((key) => this.cache.get(key)!)
     const parent = join(this.dataDir, 'verification-worktrees')
     await mkdir(parent, { recursive: true })
@@ -85,7 +87,7 @@ export class VerificationRunner {
       }
     }
   }
-  /** Execute the confirmed string through cmd.exe, with bounded output and whole-tree timeout cancellation. */
+  /** Execute the confirmed string through the native shell with bounded output and process-group/tree cancellation. */
   async command(
     cwd: string,
     command: string,
@@ -96,7 +98,7 @@ export class VerificationRunner {
   ): Promise<CommandResult> {
     signal?.throwIfAborted()
     if (!/^run_[\w-]+$/.test(runId) || !/^[\w-]+$/.test(index)) throw new Error('invalid-evidence-identity')
-    if (classifyCommand(command).class === 'forbidden') throw new Error('command-forbidden')
+    if (classifyCommand(command, cwd).class === 'forbidden') throw new Error('command-forbidden')
     const started = Date.now()
     const directory = join(this.dataDir, 'evidence', runId)
     await mkdir(directory, { recursive: true })
@@ -110,14 +112,19 @@ export class VerificationRunner {
       truncated = false,
       timedOut = false
     const env = verificationEnv(process.env)
-    const child = execFile(
+    const child = spawn(
       process.platform === 'win32' ? process.env.ComSpec || 'cmd.exe' : '/bin/sh',
       process.platform === 'win32' ? ['/d', '/s', '/c', `"${command}"`] : ['-c', command],
-      { cwd, env, windowsHide: true, windowsVerbatimArguments: process.platform === 'win32' },
+      {
+        cwd,
+        env,
+        windowsHide: true,
+        windowsVerbatimArguments: process.platform === 'win32',
+        detached: process.platform !== 'win32',
+      },
     )
-    // execFile's optional callback collector is unnecessary: own bounded streaming collectors retain evidence only.
-    child.stdout?.removeAllListeners('data')
-    child.stderr?.removeAllListeners('data')
+    child.stdin?.end()
+    // Own bounded streaming collectors retain evidence without execFile buffering.
     const collect = (chunk: Buffer | string, stream: 'stdout' | 'stderr') => {
       const data = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)
       if (log.length + data.length > MAX_LOG - MARKER.length) truncated = true
@@ -139,7 +146,7 @@ export class VerificationRunner {
           )
         else {
           try {
-            child.kill('SIGKILL')
+            process.kill(-child.pid, 'SIGKILL')
           } catch {
             /* already stopped */
           }

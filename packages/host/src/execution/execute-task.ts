@@ -13,6 +13,7 @@ import {
   deriveRunScope,
   buildTaskPrompt,
   runEndToTaskState,
+  normalizeScopePath,
 } from '@whalemaid/core'
 import type { GoalId, Run, RunId, Locale, Task } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
@@ -93,12 +94,16 @@ export class TaskExecutor {
         this.registry.transition(task, 'READY', 'dependencies-satisfied')
       const inProject = this.store.goals
         .list()
-        .filter((item) => item.projectRoot.toLowerCase() === goal.projectRoot.toLowerCase())
+        .filter(
+          (item) =>
+            (normalizeScopePath(item.projectRoot) ?? item.projectRoot) ===
+            (normalizeScopePath(goal.projectRoot) ?? goal.projectRoot),
+        )
         .flatMap((item) => this.store.tasks.list(item.id))
       const choice = selectNextTask(goal, this.store.tasks.list(goalId), inProject, scope.limits)
       if (!choice.task) return { started: false, reason: choice.reason }
       if (!['analyze', 'research'].includes(choice.task.kind)) {
-        const key = goal.projectRoot.toLowerCase()
+        const key = normalizeScopePath(goal.projectRoot) ?? goal.projectRoot
         if (this.projectLocks.has(key)) return { started: false, reason: 'write-slot-busy' }
         this.projectLocks.add(key)
         projectLock = key

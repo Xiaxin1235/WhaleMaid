@@ -40,7 +40,12 @@ export async function projectPath(root: string, input: string): Promise<string> 
 export async function inspectProject(input: string): Promise<ProjectFacts> {
   const projectRoot = await realpath(input)
   if (!(await stat(projectRoot)).isDirectory()) throw new Error('project-not-directory')
-  if (resolve(input).toLowerCase() !== projectRoot.toLowerCase()) throw new Error('project-symlink-root')
+  if (
+    process.platform === 'win32'
+      ? resolve(input).toLowerCase() !== projectRoot.toLowerCase()
+      : resolve(input) !== projectRoot
+  )
+    throw new Error('project-symlink-root')
   const commands = new Set<string>()
   try {
     const path = await projectPath(projectRoot, 'package.json')
@@ -90,6 +95,9 @@ export async function inspectProject(input: string): Promise<ProjectFacts> {
     isGit,
     clean,
     branch,
-    candidateCommands: [...commands].map((command) => ({ command, ...classifyCommand(command) })),
+    candidateCommands: [...commands].map((command) => ({
+      command,
+      ...classifyCommand(command, projectRoot),
+    })),
   }
 }

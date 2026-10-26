@@ -1,4 +1,4 @@
-import { normalizeWindowsPath } from './windows-path.js'
+import { resolveScopePath } from './scope-path.js'
 
 /** Parse the small, literal read-only shell grammar; ambiguity never confers read permission. */
 export function readOnlyCommandPaths(
@@ -7,6 +7,7 @@ export function readOnlyCommandPaths(
 ): { paths: string[] } | { unparsable: true } {
   const invalid = { unparsable: true } as const
   const line = cmdline.trim()
+  if (cwd.startsWith('/') && /[A-Z]/.test(line.split(/\s/)[0]!)) return invalid
   if (/[;&|<>$`\r\n(){}*?%!^,]/.test(line) || [...line].some((c) => c.charCodeAt(0) < 32 && c !== '\t'))
     return invalid
   if (
@@ -23,11 +24,12 @@ export function readOnlyCommandPaths(
   if (/^-(?:LiteralPath|Path)$/i.test(tokens[0] ?? '')) tokens.shift()
   if (tokens.length > 1 || (!listing && tokens.length !== 1)) return invalid
   const literal = (tokens[0] ?? '.').replace(/^(['"])(.*)\1$/, '$2')
-  if (!literal || /^-/.test(literal)) return invalid
-  const absolute = /^[a-z]:[\\/]/i.test(literal)
-    ? normalizeWindowsPath(literal)
-    : /^[\\/]|^[a-z]:/i.test(literal)
-      ? null
-      : normalizeWindowsPath(cwd + '\\' + literal)
+  if (
+    !literal ||
+    /^-/.test(literal) ||
+    (cwd.startsWith('/') && (/^~/.test(literal) || /[A-Z]/.test(command)))
+  )
+    return invalid
+  const absolute = resolveScopePath(cwd, literal)
   return absolute ? { paths: [absolute] } : invalid
 }

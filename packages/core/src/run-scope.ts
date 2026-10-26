@@ -1,7 +1,7 @@
 import { AuthorizationScopeSchema } from './model/authorization.js'
 import type { AuthorizationScope } from './model/authorization.js'
 import type { TaskKind } from './model/common.js'
-import { normalizeWindowsPath, isWithinPath } from './windows-path.js'
+import { normalizeScopePath, isWithinScopePath } from './scope-path.js'
 export const RunScopeSchema = AuthorizationScopeSchema.safeExtend({
   originScopeId: AuthorizationScopeSchema.shape.id,
   originScopeHash: AuthorizationScopeSchema.shape.hash,
@@ -17,14 +17,15 @@ export function deriveRunScope(
   worktreeRoot: string,
   kind: TaskKind = 'edit',
 ): RunScope {
-  const project = normalizeWindowsPath(projectRoot),
-    worktree = normalizeWindowsPath(worktreeRoot)
-  if (!project || !worktree) throw new Error('invalid-run-root')
+  const project = normalizeScopePath(projectRoot),
+    worktree = normalizeScopePath(worktreeRoot)
+  if (!project || !worktree || project.startsWith('/') !== worktree.startsWith('/'))
+    throw new Error('invalid-run-root')
   const rewrite = (paths: string[]) =>
     paths.flatMap((path) => {
       const wildcard = path.endsWith('\\.env*') || path.endsWith('/.env*')
-      const normalized = normalizeWindowsPath(wildcard ? path.slice(0, -1) : path)
-      return normalized && isWithinPath(normalized, project)
+      const normalized = normalizeScopePath(wildcard ? path.slice(0, -1) : path)
+      return normalized && isWithinScopePath(normalized, project)
         ? [worktree + normalized.slice(project.length) + (wildcard ? '*' : '')]
         : []
     })

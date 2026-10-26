@@ -1,4 +1,4 @@
-import { normalizeWindowsPath } from '../windows-path.js'
+import { normalizeScopePath } from '../scope-path.js'
 import type { AutopilotEvent } from '../autopilot/model.js'
 
 export const COMPANION_ARCHIVE_ACTION = 'archive-companion-session'
@@ -36,16 +36,16 @@ export function isOwnedCompanion(
   workspace: { path: string; sessionIds: readonly string[] } | undefined,
   expectedPath: string,
 ): boolean {
-  const expected = normalizeWindowsPath(expectedPath)
+  const expected = normalizeScopePath(expectedPath)
   return (
     !!expected &&
     owned.includes(id) &&
     identity.agentPreset === 'whaledot-companion' &&
     !identity.origin &&
     !!identity.cwd &&
-    normalizeWindowsPath(identity.cwd) === expected &&
+    normalizeScopePath(identity.cwd) === expected &&
     !!workspace &&
-    normalizeWindowsPath(workspace.path) === expected &&
+    normalizeScopePath(workspace.path) === expected &&
     workspace.sessionIds.includes(id)
   )
 }

@@ -4,7 +4,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { SessionId } from '@deepseek-ai/dsh-session'
 import {
   isOwnedCompanion,
-  normalizeWindowsPath,
+  normalizeScopePath,
   COMPANION_ARCHIVE_ACTION,
   COMPANION_RESTORE_ACTION,
 } from '@whalemaid/core'
@@ -177,7 +177,7 @@ export function dshCompanionArchiveHost(ctx: Context, dataDir: string): Companio
     workspace: () =>
       registry()
         .list()
-        .find((w) => normalizeWindowsPath(w.path) === normalizeWindowsPath(join(dataDir, 'companion'))),
+        .find((w) => normalizeScopePath(w.path) === normalizeScopePath(join(dataDir, 'companion'))),
     archived: () => registry().archivedSessionIds,
     async inspect(id) {
       const controller = ctx.get('sessionController') as Context['sessionController'] | undefined

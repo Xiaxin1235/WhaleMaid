@@ -5,8 +5,9 @@ import {
   AuthorizationScopeSchema,
   classifyCommand,
   checkAction,
-  normalizeWindowsPath,
+  normalizeScopePath,
   resolveToolPath,
+  isWithinScopePath,
   redactSecrets,
 } from '@whalemaid/core'
 import { z } from 'zod'
@@ -23,8 +24,7 @@ const ShellArguments = z.strictObject({
   sandbox_permissions: z.enum(['workspace-write', 'danger-full-access']).optional(),
   justification: z.string().optional(),
 })
-const within = (path: string, root: string) =>
-  path === root || path.startsWith(root.replace(/\\$/, '') + '\\')
+const within = isWithinScopePath
 /** Redact before truncating, so a token crossing the display limit cannot escape masking. */
 export function approvalLogText(value: string, limit: number): string {
   return redactSecrets(
@@ -116,11 +116,11 @@ export class EverydayApprovals {
       )
         return next()
       const args = ShellArguments.safeParse(JSON.parse(call.data.arguments))
-      const root = header.cwd && normalizeWindowsPath(header.cwd)
+      const root = header.cwd && normalizeScopePath(header.cwd)
       if (!args.success || !root) return next()
       const cwd = resolveToolPath(root, args.data.workdir ?? '.')
       if (!cwd || !within(cwd, root)) return next()
-      const actual = normalizeWindowsPath(await realpath(cwd))
+      const actual = normalizeScopePath(await realpath(cwd))
       if (!actual || !within(actual, root)) return next()
       // This is a transient classifier input, never a goal authorization or persistent scope.
       const scope = AuthorizationScopeSchema.parse({

@@ -14,6 +14,7 @@ import {
   draftToRecords,
   fixedClock,
   sequenceIdGen,
+  scopePathSeparator,
 } from '@whalemaid/core'
 import type { ConfirmedGoalForm, GoalDraft, Locale, MessageKey } from '@whalemaid/core'
 import {
@@ -42,7 +43,8 @@ export async function intakeCall(
   if (!reply.ok) throw new Error(reply.error.code)
   return reply.value
 }
-const pathAt = (root: string, leaf: string) => `${root.replace(/[\\/]$/, '')}\\${leaf}`
+const pathAt = (root: string, leaf: string) =>
+  `${root.replace(/[\\/]$/, '')}${scopePathSeparator(root)}${leaf}`
 const lines = (value: string) => value.split('\n')
 const actions: Record<string, MessageKey> = {
   'read-file': 'actionRead',
@@ -122,7 +124,7 @@ export function IntakeView({
         pathAt(next.projectRoot, '.git'),
         pathAt(next.projectRoot, '.env*'),
         ...(draft?.proposedProtectedPaths ?? []).map((path) =>
-          /^[a-z]:[\\/]/i.test(path) ? path : pathAt(next.projectRoot, path),
+          /^[a-z]:[\\/]|^\//i.test(path) ? path : pathAt(next.projectRoot, path),
         ),
       ],
       protectedNames: [...DEFAULT_PROTECTED_NAMES],
@@ -265,7 +267,10 @@ export function IntakeView({
     onCancel()
   }
   const selected = commands
-    .filter((command) => command.selected && classifyCommand(command.text).class !== 'forbidden')
+    .filter(
+      (command) =>
+        command.selected && classifyCommand(command.text, form?.projectRoot ?? root).class !== 'forbidden',
+    )
     .map((command) => command.text)
   const parsed = form && ConfirmedGoalFormSchema.safeParse({ ...form, verifyCommands: selected })
   const preview = parsed?.success
@@ -542,7 +547,7 @@ export function IntakeView({
             'verifyCommands',
             h('p', null, text('commandsUnchecked')),
             ...commands.map((command, index) => {
-              const classification = classifyCommand(command.text)
+              const classification = classifyCommand(command.text, form?.projectRoot ?? root)
               return h(
                 'div',
                 { key: index, className: 'whaledot-command' },

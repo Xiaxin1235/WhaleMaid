@@ -4,8 +4,9 @@ import type { ActionIntent } from './model/action.js'
 import { AuthorizationScopeSchema, ScopeContentSchema, ScopeHashSchema } from './model/authorization.js'
 import type { AuthorizationScope, ScopeContent } from './model/authorization.js'
 import { readOnlyCommandPaths } from './read-only-command.js'
-import { isWithinPath, normalizeWindowsPath } from './windows-path.js'
+import { isWithinScopePath, normalizeScopePath, scopePathSeparator } from './scope-path.js'
 import { inspectTrustedCommand } from './trusted-command.js'
+import { posixCommandReasons } from './posix-command.js'
 
 export type ScopeHashError = { code: 'invalid-scope-content' | 'invalid-scope-path' }
 
@@ -26,10 +27,10 @@ function sortedSet(values: readonly string[]): string[] {
 
 function normalizeProtection(path: string): string | null {
   if (/[\\/]\.env\*$/i.test(path)) {
-    const prefix = normalizeWindowsPath(path.slice(0, -1))
+    const prefix = normalizeScopePath(path.slice(0, -1))
     return prefix === null ? null : prefix + '*'
   }
-  return normalizeWindowsPath(path)
+  return normalizeScopePath(path)
 }
 
 /** Canonicalize scope fields, path aliases and set ordering, excluding the stored hash itself. */
@@ -37,11 +38,13 @@ export function canonicalScopeContent(scope: ScopeContent): Result<string, Scope
   const content = Object.fromEntries(Object.entries(scope).filter(([key]) => key !== 'hash'))
   const parsed = ScopeContentSchema.safeParse(content)
   if (!parsed.success) return { ok: false, error: { code: 'invalid-scope-content' } }
-  const allowedPaths = parsed.data.allowedPaths.map(normalizeWindowsPath)
+  const allowedPaths = parsed.data.allowedPaths.map(normalizeScopePath)
   const protectedPaths = parsed.data.protectedPaths.map(normalizeProtection)
   if (allowedPaths.some((path) => path === null) || protectedPaths.some((path) => path === null)) {
     return { ok: false, error: { code: 'invalid-scope-path' } }
   }
+  if (new Set([...allowedPaths, ...protectedPaths].map((path) => scopePathSeparator(path!))).size > 1)
+    return { ok: false, error: { code: 'invalid-scope-path' } }
   return {
     ok: true,
     value: stableJson({
@@ -72,10 +75,10 @@ export function hashScope(scope: ScopeContent, deps: ScopeHasher): Result<string
   return { ok: true, value: ScopeHashSchema.parse(deps.hash(canonical.value)) }
 }
 
-/** Check a host-resolved absolute Windows path; the host must realpath both policy roots and targets first. */
+/** The host must realpath roots and targets before checking either path dialect. */
 export function isPathAllowed(scope: AuthorizationScope, absPath: string): boolean {
   if (scope.status !== 'active') return false
-  const path = normalizeWindowsPath(absPath)
+  const path = normalizeScopePath(absPath)
   if (path === null) return false
   if (
     scope.protectedNames.some((pattern) => {
@@ -89,23 +92,27 @@ export function isPathAllowed(scope: AuthorizationScope, absPath: string): boole
         'i',
       )
       return path
-        .slice(3)
-        .split('\\')
+        .slice(path.startsWith('/') ? 1 : 3)
+        .split(scopePathSeparator(path))
         .some((part) => expression.test(part))
     })
   )
     return false
-  const allowed = scope.allowedPaths.map(normalizeWindowsPath)
+  const allowed = scope.allowedPaths.map(normalizeScopePath)
   const protectedRoots = scope.protectedPaths.map(normalizeProtection)
   if (allowed.some((root) => root === null) || protectedRoots.some((root) => root === null)) return false
+  if (new Set([...allowed, ...protectedRoots].map((root) => scopePathSeparator(root!))).size > 1) return false
   if (
     protectedRoots.some(
       (root) =>
-        root !== null && (root.endsWith('*') ? path.startsWith(root.slice(0, -1)) : isWithinPath(path, root)),
+        root !== null &&
+        (root.endsWith('*')
+          ? path.toLowerCase().startsWith(root.slice(0, -1).toLowerCase())
+          : isWithinScopePath(path.toLowerCase(), root.toLowerCase())),
     )
   )
     return false
-  return allowed.some((root) => root !== null && isWithinPath(path, root))
+  return allowed.some((root) => root !== null && isWithinScopePath(path, root))
 }
 
 export interface CommandClass {
@@ -148,6 +155,10 @@ export function classifyCommand(cmdline: string, cwd = 'C:/', scope?: Authorizat
   }
   const reasons: string[] = []
   const forbidden: string[] = []
+  if (cwd.startsWith('/')) {
+    for (const reason of posixCommandReasons(line))
+      (reason === 'system-configuration' ? forbidden : reasons).push(reason)
+  }
   if (/\bgit(?:\.exe)?\b[\s\S]*\breset\b[\s\S]*--hard\b/i.test(line)) forbidden.push('git-reset-hard')
   if (
     /\b(?:rm|rmdir)(?:\.exe)?\s+[^;&|\r\n]*(?:-[a-z]*r[a-z]*\b|--recursive\b)/i.test(line) ||
@@ -241,7 +252,13 @@ export function checkAction(scope: AuthorizationScope, action: ActionIntent): Ga
         const { paths, protectedPattern } = inspectTrustedCommand(action.cmdline, action.cwd, scope)
         if (
           protectedPattern ||
-          paths.some((path) => !isPathAllowed({ ...scope, allowedPaths: [path.slice(0, 3)] }, path))
+          paths.some(
+            (path) =>
+              !isPathAllowed(
+                { ...scope, allowedPaths: [path.startsWith('/') ? '/' : path.slice(0, 3)] },
+                path,
+              ),
+          )
         )
           return decision(
             'deny',

@@ -1,10 +1,10 @@
 import type { AuthorizationScope } from './model/authorization.js'
-import { normalizeWindowsPath, isWithinPath } from './windows-path.js'
+import { normalizeScopePath, isWithinScopePath, resolveScopePath, scopePathSeparator } from './scope-path.js'
 import { parseCommandText } from './trusted-command-parser.js'
 import type { CommandWord } from './trusted-command-parser.js'
 
 /** Intersection of simple globs, without consulting the filesystem. */
-function overlap(a: string, b: string): boolean {
+function overlap(a: string, b: string, separator = '\\'): boolean {
   // A single star cannot cross a directory separator; globstar can.
   const left = a.match(/\*\*|./gu) ?? [],
     right = b.match(/\*\*|./gu) ?? []
@@ -12,7 +12,7 @@ function overlap(a: string, b: string): boolean {
   const wildcard = (token: string) => repeat(token) || token === '?'
   const compatible = (x: string, y: string) =>
     (wildcard(x) && wildcard(y)) ||
-    (wildcard(x) ? y !== '\\' || x === '**' : wildcard(y) ? x !== '\\' || y === '**' : x === y)
+    (wildcard(x) ? y !== separator || x === '**' : wildcard(y) ? x !== separator || y === '**' : x === y)
   const queue: [number, number][] = [[0, 0]],
     seen = new Set<string>()
   while (queue.length) {
@@ -23,8 +23,8 @@ function overlap(a: string, b: string): boolean {
     if (i === left.length && j === right.length) return true
     if (repeat(left[i])) queue.push([i + 1, j])
     if (repeat(right[j])) queue.push([i, j + 1])
-    if (left[i] === '**' && left[i + 1] === '\\') queue.push([i + 2, j])
-    if (right[j] === '**' && right[j + 1] === '\\') queue.push([i, j + 2])
+    if (left[i] === '**' && left[i + 1] === separator) queue.push([i + 2, j])
+    if (right[j] === '**' && right[j + 1] === separator) queue.push([i, j + 2])
     if (i < left.length && j < right.length && compatible(left[i]!, right[j]!))
       queue.push([repeat(left[i]) ? i : i + 1, repeat(right[j]) ? j : j + 1])
   }
@@ -48,14 +48,20 @@ function literallyTargets(pattern: string, protection: string): boolean {
 }
 
 function targetsProtectedPath(pattern: string, protection: string): boolean {
-  const parts = pattern.split('\\'),
+  const separator = scopePathSeparator(pattern),
+    parts = pattern.split(separator),
     firstWildcard = parts.findIndex((part) => /[*?]/u.test(part)),
-    prefix = normalizeWindowsPath(parts.slice(0, firstWildcard).join('\\') + '\\')!,
-    root = protection.replaceAll('/', '\\').toLowerCase(),
-    protectedParts = root.split('\\')
+    prefix = normalizeScopePath(parts.slice(0, firstWildcard).join(separator) + separator)!,
+    root = separator === '/' ? protection : protection.replaceAll('/', '\\').toLowerCase(),
+    protectedParts = root.split(separator)
+  if (separator === '/')
+    return (
+      overlap(pattern.toLowerCase(), root.toLowerCase(), '/') ||
+      overlap(pattern.toLowerCase(), `${root.toLowerCase()}/**`, '/')
+    )
   // A literal directory already inside protection, or recursion into a protected descendant.
   if (overlap(prefix, root) || overlap(prefix, `${root}\\**`)) return true
-  if (pattern.includes('**') && isWithinPath(root, prefix)) return true
+  if (pattern.includes('**') && isWithinScopePath(root, prefix)) return true
   return (
     (overlap(pattern, root) || overlap(pattern, `${root}\\**`)) &&
     parts.some(
@@ -92,8 +98,9 @@ function merge(target: Inspection, other: Inspection) {
 }
 function inspectPaths(words: CommandWord[], cwd: string, scope: AuthorizationScope): Inspection {
   const result = empty(),
-    base = normalizeWindowsPath(cwd)!
-  const roots = scope.allowedPaths.map(normalizeWindowsPath)
+    base = normalizeScopePath(cwd)!
+  const posix = base?.startsWith('/') === true
+  const roots = scope.allowedPaths.map(normalizeScopePath)
   const target = words[0]?.value === '&' || words[0]?.value === '.' ? words[1] : words[0]
   const executable = programName(target?.value ?? '')
   const commandOptions =
@@ -103,43 +110,54 @@ function inspectPaths(words: CommandWord[], cwd: string, scope: AuthorizationSco
         ? ['im', 'pid', 'fi']
         : []
   for (const word of words) {
-    const candidate = word.value.replace(/^[-/][\w-]+[=:]/, '')
+    const candidate = word.value.replace(posix ? /^--?[\w-]+[=:]/ : /^[-/][\w-]+[=:]/, '')
+    if (posix && /[\\[\]{}]/.test(candidate)) result.reasons.push('unresolved-command-path')
     if (unresolved(candidate)) {
       result.reasons.push('unresolved-command-path')
       continue
     }
     if (/[*?]/.test(candidate)) {
-      const normalized = normalizeWindowsPath(
-        (/^[a-z]:[\\/]/i.test(candidate) ? candidate : `${cwd}\\${candidate}`)
-          .replaceAll('*', 'whalestarplaceholder')
-          .replaceAll('?', 'whalequestionplaceholder'),
+      const normalized = resolveScopePath(
+        cwd,
+        candidate.replaceAll('*', 'whalestarplaceholder').replaceAll('?', 'whalequestionplaceholder'),
       )
       if (normalized) {
         const pattern = normalized
           .replaceAll('whalestarplaceholder', '*')
           .replaceAll('whalequestionplaceholder', '?')
         result.protectedPattern ||=
-          scope.protectedNames.some((name) => literallyTargets(pattern.split('\\').at(-1)!, name)) ||
-          scope.protectedPaths.some((root) => targetsProtectedPath(pattern, root))
+          scope.protectedNames.some((name) =>
+            posix
+              ? pattern
+                  .split('/')
+                  .slice(1)
+                  .some((part) => overlap(part.toLowerCase(), name.toLowerCase(), '/'))
+              : literallyTargets(pattern.split('\\').at(-1)!, name),
+          ) || scope.protectedPaths.some((root) => targetsProtectedPath(pattern, root))
       }
     }
-    const absolute = /^[a-z]:[\\/]/i.test(candidate) || /^\\\\|^\/\//.test(candidate)
+    const absolute = posix
+      ? candidate.startsWith('/')
+      : /^[a-z]:[\\/]/i.test(candidate) || /^\\\\|^\/\//.test(candidate)
     const relative = /^(?:\.{1,2}[\\/]|\.\.$)/.test(candidate) || /[\\/]\.\.(?:[\\/]|$)/.test(candidate)
-    const path = normalizeWindowsPath(absolute ? candidate : `${cwd}\\${candidate}`)
+    const path = resolveScopePath(cwd, candidate)
     if (path) result.paths.push(path)
     if (
       absolute &&
-      (!path || /^[a-z]:[\\/]*$/i.test(candidate) || !roots.some((root) => root && isWithinPath(path, root)))
+      (!path ||
+        (posix ? candidate === '/' : /^[a-z]:[\\/]*$/i.test(candidate)) ||
+        !roots.some((root) => root && isWithinScopePath(path, root)))
     )
       result.reasons.push('outside-command-path')
-    if (relative && (!path || !isWithinPath(path, base))) result.reasons.push('parent-path-escape')
+    if (relative && (!path || !isWithinScopePath(path, base))) result.reasons.push('parent-path-escape')
     const slashOption =
       /^\/(?:[a-z]|mir|purge|wait|min|max|grant(?::r)?|deny|remove(?::[gd])?|setowner|reset|verify|save|restore)(?::.*)?$/i.test(
         candidate,
       )
     if (
       /^[a-z]:$/i.test(candidate) ||
-      (/^[\\/]/.test(candidate) &&
+      (!posix &&
+        /^[\\/]/.test(candidate) &&
         !absolute &&
         !slashOption &&
         !commandOptions.includes(candidate.slice(1).toLowerCase()))
@@ -389,15 +407,12 @@ export function inspectTrustedCommand(
         if (commandAt >= 0) merge(result, payload(args.slice(commandAt + 1)))
       } else if (fileAt >= 0) {
         const file = args[fileAt + 1]?.value
-        const target =
-          file &&
-          !unresolved(file) &&
-          normalizeWindowsPath(/^[a-z]:[\\/]/i.test(file) ? file : `${cwd}\\${file}`)
+        const target = file && !unresolved(file) && resolveScopePath(cwd, file)
         if (
           !target ||
           !scope.allowedPaths.some((root) => {
-            const path = normalizeWindowsPath(root)
-            return path && isWithinPath(target, path)
+            const path = normalizeScopePath(root)
+            return path && isWithinScopePath(target, path)
           })
         )
           result.reasons.push('dynamic-execution')
@@ -494,16 +509,15 @@ export function inspectTrustedCommand(
     if (['move-item', 'mv', 'move'].includes(executable)) {
       const at = lower.findIndex((word) => word === '-destination' || word === '-dest')
       const destination =
-        at >= 0 ? args[at + 1]?.value : args.filter((word) => !/^[-/]/.test(word.value)).at(-1)?.value
-      const target =
-        destination &&
-        !unresolved(destination) &&
-        normalizeWindowsPath(/^[a-z]:[\\/]/i.test(destination) ? destination : `${cwd}\\${destination}`)
+        at >= 0
+          ? args[at + 1]?.value
+          : args.filter((word) => !(cwd.startsWith('/') ? /^-/ : /^[-/]/).test(word.value)).at(-1)?.value
+      const target = destination && !unresolved(destination) && resolveScopePath(cwd, destination)
       if (
         !target ||
         !scope.allowedPaths.some((root) => {
-          const path = normalizeWindowsPath(root)
-          return path && isWithinPath(target, path)
+          const path = normalizeScopePath(root)
+          return path && isWithinScopePath(target, path)
         })
       )
         result.reasons.push('move-outside-scope')

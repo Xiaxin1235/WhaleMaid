@@ -4,6 +4,7 @@ import {
   parsePlannerResponse,
   mergePlannerTasks,
   GoalIdSchema,
+  normalizeScopePath,
 } from '@whalemaid/core'
 import type {
   GoalId,
@@ -213,7 +214,11 @@ export class AutopilotScheduler {
       },
       projectTasks: this.store.goals
         .list()
-        .filter((g) => g.projectRoot.toLowerCase() === goal.projectRoot.toLowerCase())
+        .filter(
+          (g) =>
+            (normalizeScopePath(g.projectRoot) ?? g.projectRoot) ===
+            (normalizeScopePath(goal.projectRoot) ?? goal.projectRoot),
+        )
         .flatMap((g) => this.store.tasks.list(g.id)),
       plannerComplete: state?.status === 'complete' && state.frontier === this.frontier(goalId),
       latestVerificationPassed:
