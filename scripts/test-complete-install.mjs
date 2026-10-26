@@ -8,7 +8,6 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { createServer } from 'node:net'
 import { createHash } from 'node:crypto'
-import { createRequire } from 'node:module'
 import { chromium } from 'playwright-core'
 
 const root = await realpath(await mkdtemp(join(tmpdir(), 'whalemaid-complete-')))
@@ -101,20 +100,6 @@ try {
     await readFile(join(profile, 'node_modules/dsh-whalemaid/release-source.json'), 'utf8'),
   )
   if (report.sourceCommit) assert.equal(source.sourceCommit, report.sourceCommit)
-  // Intel hosted macOS VMs have no usable hardware WebGL. Launch the same
-  // installed Electron binary with a software renderer in this fixture only.
-  if (process.platform === 'darwin' && process.env.DSH_TEST_SOFTWARE_GL === '1') {
-    const executable = createRequire(join(profile, 'node_modules/@takboo/dsh-coopanion/package.json'))(
-      'electron',
-    )
-    const software = join(root, 'software-electron')
-    const nativeDirectory = join(software, 'Electron.app/Contents/MacOS')
-    await mkdir(nativeDirectory, { recursive: true })
-    const script = `#!/bin/sh\nexec '${executable.replaceAll("'", "'\\''")}' --use-gl=angle --use-angle=swiftshader --enable-unsafe-swiftshader "$@"\n`
-    for (const file of [join(software, 'electron'), join(nativeDirectory, 'Electron')])
-      await writeFile(file, script, { mode: 0o700 })
-    environment.ELECTRON_OVERRIDE_DIST_PATH = software
-  }
   const observer = join(root, 'observer')
   await mkdir(observer)
   await writeFile(
@@ -199,7 +184,6 @@ try {
         nativePet: true,
         uninstalled: true,
         modelCalls: 0,
-        softwareRendering: process.env.DSH_TEST_SOFTWARE_GL === '1',
       },
       null,
       2,

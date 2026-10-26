@@ -32,6 +32,6 @@ jobs:
       - run: pnpm build
       - run: pnpm typecheck
       - run: pnpm lint
-      - run: pnpm test --maxWorkers=2
+      - run: pnpm test --maxWorkers=${{ runner.os == 'Windows' && '1' || '2' }}
       - run: pnpm test:package
       - run: pnpm format:check
