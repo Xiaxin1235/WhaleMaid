@@ -30,9 +30,6 @@ jobs:
           console.log('Test temporary directory:', temp);"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
-      - name: Inspect Windows process probe in the host and filtered environments
-        if: runner.os == 'Windows'
-        run: node scripts/check-windows-process-probe.mjs
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test --maxWorkers=2

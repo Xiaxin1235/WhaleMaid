@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.1.1
+## 1.2.0
 
 - Add a single complete installation package that automatically installs and enables the pinned WhaleMaid Coopanion fork.
 - Include the private MIT core in the host archive; no unpublished workspace package is required.

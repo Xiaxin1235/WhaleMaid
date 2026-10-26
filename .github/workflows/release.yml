@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   checks:
-    if: github.repository == 'Xiaxin1235/WhaleMaid' && startsWith(github.ref, 'refs/tags/v')
+    if: github.repository == 'Xiaxin1235/WhaleMaid'
     uses: ./.github/workflows/ci.yml
   package:
     needs: checks
@@ -26,9 +26,14 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - name: Select and validate the package version
+        run: >-
+          node --input-type=module -e
+          "import { readFileSync, appendFileSync } from 'node:fs';
+          const tag = 'v' + JSON.parse(readFileSync('packages/host/package.json')).version;
+          if (process.env.GITHUB_REF.startsWith('refs/tags/') && process.env.GITHUB_REF_NAME !== tag) throw Error('Tag version mismatch');
+          appendFileSync(process.env.GITHUB_ENV, 'RELEASE_TAG=' + tag + '\n');"
       - name: Verify the tag and the already published companion
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
         run: node scripts/verify-release-inputs.mjs
       - run: pnpm build
       - run: pnpm test:package
@@ -41,8 +46,56 @@ jobs:
             dist/release/verification.json
             dist/release/SHA256SUMS
           if-no-files-found: error
-  publish:
+  install:
     needs: package
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+        dsh: ['0.2.1-rc.2', '0.2.1-rc.3']
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - name: Start managed Linux display
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb openbox x11-utils libxtst6 python3
+          Xvfb :99 -screen 0 1200x800x24 -nolisten tcp > "$RUNNER_TEMP/xvfb.log" 2>&1 &
+          for attempt in {1..100}; do if DISPLAY=:99 xdpyinfo > /dev/null 2>&1; then break; fi; sleep .1; done
+          export DISPLAY=:99
+          xdpyinfo > /dev/null
+          openbox > "$RUNNER_TEMP/openbox.log" 2>&1 &
+          for attempt in {1..100}; do if xprop -root _NET_SUPPORTING_WM_CHECK | grep -q 'window id'; then break; fi; sleep .1; done
+          xprop -root _NET_SUPPORTING_WM_CHECK | grep -q 'window id'
+          echo 'DISPLAY=:99' >> "$GITHUB_ENV"
+      - uses: actions/download-artifact@v4
+        with:
+          name: whalemaid-complete
+          path: dist/release
+      - run: npm install --prefix .dsh-dev/complete-runtime --no-audit --no-fund @deepseek-ai/dsh@${{ matrix.dsh }}
+      - run: node scripts/test-complete-install.mjs
+        env:
+          DSH_TEST_VERSION: ${{ matrix.dsh }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: complete-install-${{ matrix.os }}-${{ matrix.dsh }}
+          path: artifacts/
+  publish:
+    needs: install
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write

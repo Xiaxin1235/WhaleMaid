@@ -1,6 +1,6 @@
 {
   "name": "whalemaid",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -26,6 +26,7 @@
     "@types/node": "24.19.2",
     "eslint": "9.39.4",
     "eslint-config-prettier": "^10.1.8",
+    "playwright-core": "1.61.1",
     "prettier": "3.9.10",
     "typescript": "~5.9.3",
     "typescript-eslint": "8.72.0",

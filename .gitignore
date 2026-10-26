@@ -12,3 +12,4 @@ coverage/
 .dsh-dev/
 .dsh-ref/
 *.tgz
+artifacts/
