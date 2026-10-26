@@ -1,3 +1,4 @@
+import { workTitle } from './work.js'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -307,4 +308,10 @@ describe('companion gate', () => {
   test('the preset id is stable for the pet plugin to recognise', () => {
     expect(COMPANION_PRESET).toBe('whaledot-companion')
   })
+})
+
+test('work conversations are titled as ordinary work, never as WhaleMaid tasks', () => {
+  expect(workTitle('修好测试\n然后写 README', 'zh-CN')).toBe('大肥鱼派的活：修好测试')
+  expect(workTitle('x'.repeat(50), 'en')).toBe(`Work from Da Fei Yu: ${'x'.repeat(40)}…`)
+  expect(workTitle('任务', 'zh-CN').startsWith('[')).toBe(false)
 })

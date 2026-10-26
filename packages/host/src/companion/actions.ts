@@ -14,7 +14,7 @@ import type { CompanionMemory, MemoryExecution } from './memory.js'
 import { memoryReview } from './memory.js'
 import { managementConsent } from './consent.js'
 
-/** Five management proposals. No grant, task execution or decision-routing entry point exists here. */
+/** Management proposals plus handing a task to a new ordinary conversation. No grant or decision routing here. */
 export class CompanionActions {
   private readonly pending = new Map<string, number>()
   private readonly lifetime = new AbortController()
@@ -28,6 +28,8 @@ export class CompanionActions {
       intake: Pick<GoalIntake, 'start' | 'setPaused'>
       autopilot: Pick<AutopilotScheduler, 'setAutopilot'>
       setPaused(paused: boolean): void
+      /** Opens an ordinary conversation in the project and sends it the task. */
+      startWork?(input: { projectRoot: string; task: string }): Promise<{ sessionId: string }>
       now?(): number
     },
   ) {}
@@ -96,6 +98,20 @@ export class CompanionActions {
       if (!this.deps.owns(sessionId) || actionVersion(this.facts(action)) !== proposal.version)
         return { status: 'rejected', message: c.changed }
       confirmedAt = now()
+      if (action.kind === 'start-work') {
+        // Opening a session is asynchronous, so it cannot run inside the store transaction below.
+        if (!this.deps.startWork) throw Error('work-unavailable')
+        const started = await this.deps.startWork({ projectRoot: action.projectRoot, task: action.task })
+        const at = confirmedAt
+        this.store.transaction(() => this.event(action, proposal.proposalId, sessionId, at, 'succeeded'))
+        return {
+          status: 'succeeded',
+          message: c.workStarted,
+          proposalId: proposal.proposalId,
+          confirmedAt,
+          result: started,
+        }
+      }
       const actor = managementConsent(signal),
         confirmationTime = confirmedAt
       const result = this.store.transaction(() => {

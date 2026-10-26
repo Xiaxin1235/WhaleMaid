@@ -40,6 +40,7 @@ import { EverydayApprovals, installEverydayApprovals } from './everyday-approval
 import { ConversationCodex, installConversationCodex } from './codex/service.js'
 import { CodexRunner } from './codex/runner.js'
 import { installCompanionPermission } from './companion/permission.js'
+import { startWork } from './companion/work.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -305,6 +306,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       intake,
       autopilot,
       setPaused: (paused) => store.setPaused(paused),
+      startWork: (input) => startWork(ctx, input, notificationLocale()),
     })
     companion.actions = companionActions
     const proposalInbox = notificationInbox
