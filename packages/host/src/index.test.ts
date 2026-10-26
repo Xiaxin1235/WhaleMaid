@@ -6,6 +6,8 @@ import { Context } from '@deepseek-ai/cordis'
 import { afterEach, expect, test, vi } from 'vitest'
 import { apply, Config, name } from './index.js'
 
+const packageVersion = createRequire(import.meta.url)('../package.json').version as string
+
 const cleanup: (() => Promise<unknown>)[] = []
 afterEach(async () => {
   for (const dispose of cleanup.splice(0).reverse()) await dispose()
@@ -38,7 +40,7 @@ test('loads through real Cordis and writes service availability', async () => {
   await expect
     .poll(async () => JSON.parse(await readFile(join(dir, 'status.json'), 'utf8')))
     .toMatchObject({
-      version: '1.1.0',
+      version: packageVersion,
       services: { gateway: true, commands: true, userQuestions: false },
     })
   expect(ctx.logger.buffer.some((row) => row.name === 'whaledot' && row.args[0] === 'plugin loaded')).toBe(
@@ -60,7 +62,7 @@ test('status updates replace the file inode with a complete snapshot', async () 
   await apply(ctx, { dataDir: dir })
   expect((await stat(path, { bigint: true })).ino).not.toBe(before.ino)
   expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({
-    version: '1.1.0',
+    version: packageVersion,
     services: { gateway: false, commands: false, userQuestions: false },
   })
   expect(await readdir(dir)).toEqual(

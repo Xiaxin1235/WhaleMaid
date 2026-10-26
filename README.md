@@ -4,7 +4,7 @@
 
 WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确认的范围内规划和执行任务，独立验收结果，需要决定时再找你。
 
-**1.1.0** 文档。目标宿主为 DSH Desktop **0.2.1-rc.2 或 0.2.1-rc.3**，Node.js ≥22.19；仍有预览版限制，见[使用说明](docs/usage.md)。
+**1.1.1** 文档。目标宿主为 DSH Desktop **0.2.1-rc.2 或 0.2.1-rc.3**，Node.js ≥22.19；仍有预览版限制，见[使用说明](docs/usage.md)。
 
 ## 当前能做什么
 
@@ -56,72 +56,36 @@ WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确�
 
 在 **Settings → 桌宠 → 回复情绪表情** 中选择 **OpenAI 官方**或 **OpenRouter**，填写对应密钥并保存，再开启“判断回复情绪”。兼容版把密钥保存在本机 Harness 凭据存储中，保存后下次判断即可生效；已有环境变量或 `.env` 来源的密钥需在原处管理。每次只请求所选服务，不混用两者的密钥。
 
-该功能默认关闭，只发送最终回复的开头片段：首段不超过 120 字符时取首段，否则取前 200 字符；不附加用户输入或工具记录，但片段可能复述私人信息。自动任务会话、归档会话和历史回复不发送。低置信度、中性、超时或失败时保持原行为，不自动重试。**这是独立桌宠适配版的能力，不随本 MIT 插件分发，上游基础版不保证包含。** 适配记录见 [C12](docs/coopanion/c12-report.md)，安装版本说明见下文。
+该功能默认关闭，只发送最终回复的开头片段：首段不超过 120 字符时取首段，否则取前 200 字符；不附加用户输入或工具记录，但片段可能复述私人信息。自动任务会话、归档会话和历史回复不发送。低置信度、中性、超时或失败时保持原行为，不自动重试。**这是配套桌宠的能力，完整版会自动安装该 fork；上游基础版不保证包含。** 适配记录见 [C12](docs/coopanion/c12-report.md)，安装版本说明见下文。
 
 ## 安装与前置条件
 
-| 组件                        | 是否需要                           | 准备方式                                                                                                                                                        |
-| --------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DeepSeek Harness Desktop    | 必需                               | 安装并初始化 **0.2.1-rc.2 / rc.3**，在 Harness 中配置能正常聊天的模型。[官方入口](https://github.com/deepseek-ai/deepseek-harness)                              |
-| Node.js、pnpm、Git          | 源码安装需要                       | Node.js ≥22.19，`corepack enable` 启用仓库指定的 pnpm 11，准备 Git。                                                                                            |
-| 鲸鱼桌宠（`dsh-coopanion`） | 桌面角色与信封需要；后台功能可不装 | 推荐 WhaleMaid 配套修改版 [`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion)，见下方第 1 步；原版 `@takboo/dsh-coopanion` 只有基础桌宠。 |
+**只安装一次 WhaleMaid 完整版。** 安装器会自动下载并启用 WhaleMaid 和 [WhaleMaid 配套 Coopanion](https://github.com/Xiaxin1235/dsh-coopanion)，无需分别安装，也无需自行构建源码。
 
-会话、工具、审批等基础服务由受支持的 Harness Desktop 提供，不需要另外逐个安装 SDK 包。WhaleMaid 的聊天与执行使用 Harness 的模型配置；Decisions 表情使用桌宠里单独选择的服务。
+需要已安装并初始化的 DeepSeek Harness Desktop **0.2.1-rc.2 / rc.3**，并在 Harness 中配置可用的聊天模型；首次安装需要联网下载依赖和 Electron。当前验证平台为 Windows。
 
-### 1. 安装桌宠插件（可选）
+在 **插件 → 发现（Discover）→ 管理索引源** 中添加 `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`，即可看到并安装 **WhaleMaid 完整版**。这是自有市场源，社区公共目录另需审核。
 
-推荐安装与 WhaleMaid 配套的修改版 [`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion)（fork 自 [takboo/dsh-coopanion](https://github.com/takboo/dsh-coopanion)，同样采用 AGPL-3.0-or-later）。它在原版之上增加了双击直接和大肥鱼聊天、在桌宠信封里回答审批并显示实际命令、在设置页填写情绪判断密钥等配合功能。需要 Git 和 Node.js ≥22.19。
+也可在 **插件 → 添加插件** 中填写完整安装包地址：
 
-```powershell
-git clone https://github.com/Xiaxin1235/dsh-coopanion.git
-Set-Location dsh-coopanion
-npm ci
-npm run build
+```text
+https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.1.1/dsh-whalemaid-full-1.1.1.tgz
 ```
 
-然后完全退出 Harness，确认终端没有测试用 `DSH_HOME`，并按[安装说明](docs/install.md#4-确认-profile-并备份)备份 profile 后，在这个目录里执行：
+也可完全退出 Harness，在未设置测试 DSH_HOME 的终端里使用桌面版自带 CLI：
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-$dshProfile = 'desktop'
-& $dsh plugin --profile $dshProfile add "link:$((Get-Location).Path)"
+& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.1.1/dsh-whalemaid-full-1.1.1.tgz'
 ```
 
-从开始菜单重新打开 Harness，在 **Settings → 桌宠** 检查状态；首次启动会下载 Electron。这种方式直接链接源码目录，不要删除或移动它。若之前装过原版，先执行 `& $dsh plugin --profile $dshProfile remove @takboo/dsh-coopanion`。更多说明见[桌宠安装说明](docs/install.md#9-可选的鲸鱼桌宠)。
+重新打开 Harness，应同时看到 **WhaleMaid** 面板和 **Settings → 桌宠**。原来分别安装两份源码的用户，请先按[安装说明](docs/install.md#complete-installation)备份和迁移，避免同时启用两份桌宠；目标、记忆和桌宠设置保留。Decisions API 表情仍需在桌宠设置中单独配置，默认关闭。
 
-只想要基础桌宠时，也可以从 npm 安装原版 `@takboo/dsh-coopanion@0.4.14`（支持 Desktop rc.2 / rc.3），但它不含上述配合功能。
-
-### 2. 构建并安装 WhaleMaid
-
-WhaleMaid 尚未发布 npm 包，从 GitHub 源码构建固定副本：
-
-```powershell
-git clone https://github.com/Xiaxin1235/WhaleMaid.git
-Set-Location WhaleMaid
-corepack enable
-pnpm install --frozen-lockfile
-pnpm build
-$fixedCopy = Join-Path (Split-Path (Get-Location).Path -Parent) 'whalemaid-fixed'
-pnpm --filter dsh-whalemaid deploy --legacy --prod "$fixedCopy"
-```
-
-固定副本放在源码仓库外，之后改源码不会直接影响已安装版本。`--legacy` 不能省；首次部署请选择尚不存在的目录。
-
-完全退出 Harness，在**未设置 `DSH_HOME`** 的终端中备份 profile，然后安装：
-
-```powershell
-$dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-$dshProfile = 'desktop'
-& $dsh plugin --profile $dshProfile add "link:$fixedCopy"
-$profileDir = Join-Path $env:USERPROFILE ".dsh\profiles\$dshProfile"
-(Get-Content -LiteralPath (Join-Path $profileDir 'package.json') -Raw | ConvertFrom-Json).dsh.profile.bundles
-```
-
-列表应包含 `dsh-whalemaid`；装了桌宠时还应包含 `@takboo/dsh-coopanion`。从开始菜单启动 Harness，打开 **WhaleMaid** 面板，检查存储和依赖服务可用。只有 Windows 流程经过验证；其他平台未验证。完整备份、旧包迁移、更新和卸载步骤见[安装说明](docs/install.md)。
+源码开发、更新和卸载见[安装说明](docs/install.md)。社区公共目录需要维护者审核；GitHub Release 发布不等于已被社区市场收录。
 
 ## 开始使用
 
-按[安装说明](docs/install.md)获取代码、构建固定副本并安装到 Harness。该说明同时覆盖备份、更新和卸载；不代表已经发布 npm 包。
+按上述完整包入口安装，或查看[安装说明](docs/install.md)中的备份、迁移、更新和卸载步骤。
 
 装好后打开 Harness 的 **WhaleMaid** 面板，从不重要的小项目开始，审查目标草案并确认授权。自动推进还需单独开启。详细操作、默认设置、关闭方法和限制统一见[使用说明](docs/usage.md)。
 
@@ -134,7 +98,7 @@ $profileDir = Join-Path $env:USERPROFILE ".dsh\profiles\$dshProfile"
 
 ## 与鲸鱼桌宠的关系
 
-桌面窗口、角色、动画、声音和信封界面由可选的 [`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion) 提供，独立采用 **AGPL-3.0-or-later**。WhaleMaid 通过 DSH 公开会话、提问、审批等服务协作，不直接依赖或分发该插件的代码、角色包或媒体。
+桌面窗口、角色、动画、声音和信封界面由 [`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion) 提供，独立采用 **AGPL-3.0-or-later**。WhaleMaid 通过 DSH 公开会话、提问、审批等服务协作。完整发行包将配套 fork 声明为固定版本的自动安装依赖，并统一启用两个组件；MIT 源码与 AGPL 桌宠源码保留在各自仓库，WhaleMaid 压缩包内不复制桌宠实现或媒体。
 
 `docs/coopanion/` 是协作过程中的说明、设计草图和验收记录，不是鲸鱼插件的实现或安装包。没有安装桌宠时，目标、执行、通知中心和伙伴会话仍可通过 Harness 使用；桌宠显示效果取决于独立插件版本。
 
@@ -151,8 +115,10 @@ pnpm format:check
 
 使用 `package.json` 指定的 pnpm 11。`packages/core` 是纯 TypeScript 领域层，`packages/host` 是 Cordis 插件和 Web 面板。`pnpm lint` 同时检查许可边界与文档相对链接；完整对照独立鲸鱼仓库的方法见[参与开发](CONTRIBUTING.md)。
 
+后续更新与市场维护见[发布流程](docs/releasing.md)。
+
 继续阅读[文档索引](docs/README.md)、[工程架构](docs/架构与开发路线.md)、[隔离联调](docs/dev-dsh.md)和[变更记录](CHANGELOG.md)。[产品规划](项目规划.txt)含尚未实现的设想，不是功能承诺。
 
 ## 许可证
 
-WhaleMaid 自有代码采用 [MIT](LICENSE)。独立鲸鱼桌宠采用 AGPL-3.0-or-later，其代码、角色包和媒体不随 WhaleMaid 分发。
+WhaleMaid 自有代码采用 [MIT](LICENSE)。配套鲸鱼桌宠采用 AGPL-3.0-or-later，以独立依赖包自动安装；其许可证、对应源码和第三方声明见 fork 仓库及安装包。

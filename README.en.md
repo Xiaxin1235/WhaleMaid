@@ -4,7 +4,7 @@
 
 WhaleMaid is a project autopilot plugin for DeepSeek Harness (DSH): it plans and executes tasks within the scope you confirm, independently verifies results, and asks you when a decision is needed.
 
-Documentation for **1.1.0**. Requires DSH Desktop **0.2.1-rc.2 or 0.2.1-rc.3** and Node.js ≥22.19. Preview limitations still apply; see the [usage guide](docs/usage.en.md).
+Documentation for **1.1.1**. Requires DSH Desktop **0.2.1-rc.2 or 0.2.1-rc.3** and Node.js ≥22.19. Preview limitations still apply; see the [usage guide](docs/usage.en.md).
 
 ## What it can do
 
@@ -56,72 +56,36 @@ With a pet version supporting this extension, a final reply can trigger a Decisi
 
 In **Settings → Desktop pet → Reply emotion reactions**, select **OpenAI direct** or **OpenRouter**, save that service's key, then enable **Choose reply emotions**. The compatible version saves keys in local Harness credential storage; the next decision uses the new value without restarting. Environment-variable or `.env` keys must be managed at their source. Only the selected service is requested, without sharing credentials between services.
 
-This feature is off by default. It sends only the opening of the final reply: the first paragraph if it is at most 120 characters, otherwise the first 200 characters. User input and tool records are not appended, but excerpts may repeat private information. Automatic task conversations, archived conversations and historical replies are excluded. Low confidence, neutral, timeout or failure keeps the existing behavior without automatic retries. **This belongs to the separately adapted pet, not this MIT plugin; the upstream base version does not guarantee it.** See the [C12 integration record, in Chinese](docs/coopanion/c12-report.md) and the version guidance below.
+This feature is off by default. It sends only the opening of the final reply: the first paragraph if it is at most 120 characters, otherwise the first 200 characters. User input and tool records are not appended, but excerpts may repeat private information. Automatic task conversations, archived conversations and historical replies are excluded. Low confidence, neutral, timeout or failure keeps the existing behavior without automatic retries. **The complete distribution installs this adapted pet automatically; the upstream base version does not guarantee this feature.** See the [C12 integration record, in Chinese](docs/coopanion/c12-report.md) and the version guidance below.
 
 ## Installation and prerequisites
 
-| Component                   | Required?                                                             | Preparation                                                                                                                                                                                         |
-| --------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| DeepSeek Harness Desktop    | Yes                                                                   | Install and initialize **0.2.1-rc.2 / rc.3**, then configure a working chat model in Harness. [Official project](https://github.com/deepseek-ai/deepseek-harness)                                   |
-| Node.js, pnpm and Git       | For source installation                                               | Node.js ≥22.19, Git, and the repository's pnpm 11 enabled through `corepack enable`.                                                                                                                |
-| Whale pet (`dsh-coopanion`) | For the desktop character and envelope; optional for backend features | Recommended: the WhaleMaid companion build [`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion), see step 1 below; the original `@takboo/dsh-coopanion` is the basic pet only. |
+**Install WhaleMaid Complete once.** It automatically installs and enables WhaleMaid plus the [WhaleMaid companion fork](https://github.com/Xiaxin1235/dsh-coopanion); no separate pet installation or source build is needed.
 
-Supported Harness Desktop supplies conversation, tool and approval services; you do not install their SDK packages individually. WhaleMaid chat and execution use Harness's model configuration. Decisions expressions use the service selected separately in pet settings.
+Requires DeepSeek Harness Desktop **0.2.1-rc.2 / rc.3**, a working model configured in Harness, and an internet connection for dependencies and the initial Electron download. Windows is the validated platform.
 
-### 1. Install the optional pet
+In **Plugins → Discover → Manage index sources**, add `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`, then install **WhaleMaid Complete**. This is our own index; community catalog review is separate.
 
-We recommend the WhaleMaid companion build [`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion), a fork of [takboo/dsh-coopanion](https://github.com/takboo/dsh-coopanion) under the same AGPL-3.0-or-later license. On top of the original it adds double-click to chat with Da Fei Yu, answering approvals from the pet's envelope with the actual command shown, entering the emotion-reaction key in Settings, and other integrations. It needs Git and Node.js ≥22.19.
+Alternatively, in **Plugins → Add plugin**, enter the complete-package URL:
 
-```powershell
-git clone https://github.com/Xiaxin1235/dsh-coopanion.git
-Set-Location dsh-coopanion
-npm ci
-npm run build
+```text
+https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.1.1/dsh-whalemaid-full-1.1.1.tgz
 ```
 
-Then fully exit Harness, make sure the terminal has no test `DSH_HOME`, [back up the profile](docs/install.en.md#4-confirm-the-profile-and-back-it-up), and run this inside that directory:
+Or, with Harness fully closed and no test DSH_HOME set, use its bundled CLI:
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-$dshProfile = 'desktop'
-& $dsh plugin --profile $dshProfile add "link:$((Get-Location).Path)"
+& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.1.1/dsh-whalemaid-full-1.1.1.tgz'
 ```
 
-Reopen Harness from the Start menu and check **Settings → Desktop pet**; first launch downloads Electron. This links the source directory directly, so do not delete or move it. If the original pet was installed before, first run `& $dsh plugin --profile $dshProfile remove @takboo/dsh-coopanion`. See [pet installation](docs/install.en.md#9-optional-whale-desktop-pet) for more.
+Reopen Harness: the **WhaleMaid** panel and **Settings → Desktop pet** should both be available. Existing users who installed the two source bundles separately should first follow the backup and migration instructions in the [installation guide](docs/install.en.md#complete-installation). Your goals, memories and pet settings are retained. Decisions API expressions are configured separately in pet settings and remain off by default.
 
-If you only want the basic pet, you can install the original `@takboo/dsh-coopanion@0.4.14` from npm (supports Desktop rc.2 / rc.3), but it lacks the integrations above.
-
-### 2. Build and install WhaleMaid
-
-WhaleMaid has not been published to npm; build a fixed copy from the GitHub source:
-
-```powershell
-git clone https://github.com/Xiaxin1235/WhaleMaid.git
-Set-Location WhaleMaid
-corepack enable
-pnpm install --frozen-lockfile
-pnpm build
-$fixedCopy = Join-Path (Split-Path (Get-Location).Path -Parent) 'whalemaid-fixed'
-pnpm --filter dsh-whalemaid deploy --legacy --prod "$fixedCopy"
-```
-
-The fixed copy lives outside the source repository, so later source edits do not directly change the installed plugin. Keep `--legacy`; choose a destination that does not yet exist for the first deployment.
-
-Fully exit Harness. In a terminal **without `DSH_HOME` set**, back up the profile, then install:
-
-```powershell
-$dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-$dshProfile = 'desktop'
-& $dsh plugin --profile $dshProfile add "link:$fixedCopy"
-$profileDir = Join-Path $env:USERPROFILE ".dsh\profiles\$dshProfile"
-(Get-Content -LiteralPath (Join-Path $profileDir 'package.json') -Raw | ConvertFrom-Json).dsh.profile.bundles
-```
-
-The list should contain `dsh-whalemaid`, plus `@takboo/dsh-coopanion` if you installed the pet. Start Harness from the Start menu, open **WhaleMaid**, and check storage and required services. Only Windows installation has been verified; other platforms are unverified. See [installation](docs/install.en.md) for complete backups, legacy-package migration, updates and removal.
+Source builds, update and removal instructions are in the [installation guide](docs/install.en.md). Community catalog inclusion requires a maintainer review; a GitHub Release alone does not mean it is listed.
 
 ## Get started
 
-Follow the [installation guide](docs/install.en.md) to obtain the code, build a fixed copy and install it into Harness. The guide also covers backups, updates and removal; it does not imply an npm package has been published.
+Install the complete package above, or consult the [installation guide](docs/install.en.md) for backups, migration, updates and removal.
 
 After installation, open **WhaleMaid** in Harness. Start with a small, noncritical project, review the draft and confirm its authorization. Autopilot requires a separate opt-in. See the [usage guide](docs/usage.en.md) for operation, defaults, ways to turn features off and limitations.
 
@@ -134,7 +98,7 @@ After installation, open **WhaleMaid** in Harness. Start with a small, noncritic
 
 ## Relationship to the whale desktop pet
 
-The optional [`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion) provides the desktop window, character, animation, sound and envelope UI. It is a separate **AGPL-3.0-or-later** project. WhaleMaid cooperates through public DSH conversation, question and approval services; it neither directly depends on nor distributes that plugin's code, character packs or media.
+[`@takboo/dsh-coopanion`](https://github.com/takboo/dsh-coopanion) provides the desktop window, character, animation, sound and envelope UI. It is a separate **AGPL-3.0-or-later** project. WhaleMaid cooperates through public DSH conversation, question and approval services. The complete distribution automatically installs the pinned companion fork and enables both components. MIT and AGPL sources stay in their own repositories; pet implementation and media are not embedded in the WhaleMaid archive.
 
 `docs/coopanion/` contains collaboration notes, design sketches and acceptance records, not the pet plugin's implementation or installation package. Without the pet, goals, execution, the notification center and companion conversations remain available through Harness. Pet presentation depends on the independently installed version.
 
@@ -151,8 +115,10 @@ pnpm format:check
 
 Use the pnpm 11 version specified in `package.json`. `packages/core` is the pure TypeScript domain layer; `packages/host` contains the Cordis plugin and Web panel. `pnpm lint` also checks license boundaries and relative documentation links. See [contributing](CONTRIBUTING.md#contributing-in-english) for comparison against the independent pet repository.
 
+For later updates, see the [release and market workflow](docs/releasing.md) (Chinese).
+
 Further references: the [documentation index, in Chinese](docs/README.md), [architecture, in Chinese](docs/架构与开发路线.md), [isolated integration setup, in Chinese](docs/dev-dsh.md), and [changelog, in Chinese](CHANGELOG.md). The [product plan, in Chinese](项目规划.txt) includes unimplemented ideas and is not a feature commitment.
 
 ## License
 
-WhaleMaid's own code is licensed under [MIT](LICENSE). The independent whale pet uses AGPL-3.0-or-later; its code, character packs and media are not distributed with WhaleMaid.
+WhaleMaid's own code is licensed under [MIT](LICENSE). The automatically installed companion dependency uses AGPL-3.0-or-later, with its own license, corresponding source and third-party notices.

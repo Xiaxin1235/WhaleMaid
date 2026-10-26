@@ -1,0 +1,67 @@
+name: Release complete WhaleMaid
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: whalemaid-release-${{ github.ref_name }}
+  cancel-in-progress: false
+jobs:
+  checks:
+    if: github.repository == 'Xiaxin1235/WhaleMaid' && startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/ci.yml
+  package:
+    needs: checks
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Verify the tag and the already published companion
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/verify-release-inputs.mjs
+      - run: pnpm build
+      - run: pnpm test:package
+      - run: pnpm pack:release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whalemaid-complete
+          path: |
+            dist/release/dsh-whalemaid-full*.tgz
+            dist/release/verification.json
+            dist/release/SHA256SUMS
+          if-no-files-found: error
+  publish:
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - uses: actions/download-artifact@v4
+        with:
+          name: whalemaid-complete
+          path: dist/release
+      - name: Publish tested files, immutable package branch and native market index
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node scripts/publish-market.mjs

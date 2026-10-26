@@ -2,7 +2,9 @@ name: CI
 
 on:
   push:
+    branches: [master, codex/market-release]
   pull_request:
+  workflow_call:
 
 jobs:
   check:
@@ -28,4 +30,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm lint
       - run: pnpm test --maxWorkers=2
+      - run: pnpm test:package
       - run: pnpm format:check

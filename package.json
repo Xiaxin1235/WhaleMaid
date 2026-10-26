@@ -1,6 +1,6 @@
 {
   "name": "whalemaid",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "type": "module",
   "license": "MIT",
@@ -16,9 +16,12 @@
     "check:links": "node scripts/check-doc-links.mjs",
     "typecheck": "pnpm -r typecheck && tsc -p tsconfig.json",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "pack:release": "node scripts/pack-release.mjs",
+    "test:package": "node --test scripts/release-package.test.mjs"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh-plugin-market-index": "0.2.1-rc.3",
     "@eslint/js": "9.39.4",
     "@types/node": "24.19.2",
     "eslint": "9.39.4",

@@ -2,7 +2,19 @@
 
 中文 | [English](install.en.md)
 
-适用于 WhaleMaid 1.1.0。以下面向首次获取仓库的用户；只有 Windows 安装流程经过验证，macOS / Linux 尚未验证。功能、默认值和权限边界见[使用说明](usage.md)。
+适用于 WhaleMaid 1.1.1。以下面向首次获取仓库的用户；只有 Windows 安装流程经过验证，macOS / Linux 尚未验证。功能、默认值和权限边界见[使用说明](usage.md)。
+
+<a id="complete-installation"></a>
+
+## 完整版安装（推荐）
+
+在 Harness **插件 → 添加插件** 中输入 [WhaleMaid 完整版 1.1.1 安装包](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.1.1/dsh-whalemaid-full-1.1.1.tgz) 的链接。一次安装自动带上适配版 Coopanion，无需另装前置插件，也无需 Git、pnpm 或自行构建。先在 Harness 中配置可用模型。
+
+如果原来分别装过两个插件：完全退出 Harness，按下文备份 profile 配置及数据；使用桌面版自带 CLI，先运行 `dsh plugin --profile desktop remove @takboo/dsh-coopanion` 和 `dsh plugin --profile desktop remove dsh-whalemaid` 取消旧安装，再添加完整包链接。不要删除数据目录。新版由同一个完整包管理两个配置节点，顶层 bundles 只需含 `dsh-whalemaid`，无需另列桌宠依赖。
+
+更新时安装下个完整包版本；卸载 `dsh-whalemaid` 会移除两部分配置，保留存储数据。WhaleMaid 自有代码使用 MIT，自动安装的桌宠依赖继续使用 AGPL-3.0-or-later，其对应源码和第三方声明保持独立。
+
+下面保留源码开发及旧安装方式的操作说明。
 
 ## 1. 准备环境
 

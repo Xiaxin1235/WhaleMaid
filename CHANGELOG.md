@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1
+
+- Add a single complete installation package that automatically installs and enables the pinned WhaleMaid Coopanion fork.
+- Include the private MIT core in the host archive; no unpublished workspace package is required.
+- Preserve separate source repositories, licenses and corresponding source for the AGPL companion.
+- Add reproducible release packaging and package validation.
+
 ## 1.1.0 - 2026-10-25
 
 在 1.0.0 基础上新增两项可选功能，均默认关闭；另含 CI 修正。
