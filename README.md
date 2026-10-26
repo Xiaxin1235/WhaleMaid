@@ -64,7 +64,7 @@ WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确�
 
 需要已安装并初始化的 DeepSeek Harness Desktop **0.2.1-rc.2 / rc.3**，并在 Harness 中配置可用的聊天模型；首次安装需要联网下载依赖和 Electron。当前验证平台为 Windows。
 
-在 **插件 → 发现（Discover）→ 管理索引源** 中添加 `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`，即可看到并安装 **WhaleMaid 完整版**。这是自有市场源，社区公共目录另需审核。
+在 **插件 → 发现（Discover）→ 管理索引源** 中添加 `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`，即可看到并安装 **WhaleMaid 完整版**。这是自有市场源，社区公共目录另需审核。若当前 Harness 配置没有“发现”页，直接使用下方完整包地址。
 
 也可在 **插件 → 添加插件** 中填写完整安装包地址：
 

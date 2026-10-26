@@ -64,7 +64,7 @@ This feature is off by default. It sends only the opening of the final reply: th
 
 Requires DeepSeek Harness Desktop **0.2.1-rc.2 / rc.3**, a working model configured in Harness, and an internet connection for dependencies and the initial Electron download. Windows is the validated platform.
 
-In **Plugins → Discover → Manage index sources**, add `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`, then install **WhaleMaid Complete**. This is our own index; community catalog review is separate.
+In **Plugins → Discover → Manage index sources**, add `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`, then install **WhaleMaid Complete**. This is our own index; community catalog review is separate. If your Harness configuration has no Discover tab, use the complete-package URL below.
 
 Alternatively, in **Plugins → Add plugin**, enter the complete-package URL:
 
