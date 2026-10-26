@@ -1,7 +1,7 @@
 import { spawn, execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdir, writeFile, appendFile, readFile, readdir, rm, lstat, rename } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve, win32 } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { StringDecoder } from 'node:string_decoder'
 import { performance } from 'node:perf_hooks'
@@ -27,27 +27,6 @@ const ENV_NAMES = new Set([
   'LC_ALL',
   'LC_CTYPE',
   'TZ',
-  'OS',
-  'SYSTEMDRIVE',
-  'PROGRAMFILES',
-  'PROGRAMFILES(X86)',
-  'PROGRAMW6432',
-  'COMMONPROGRAMFILES',
-  'COMMONPROGRAMFILES(X86)',
-  'COMMONPROGRAMW6432',
-  'PROGRAMDATA',
-  'ALLUSERSPROFILE',
-  'PUBLIC',
-  'COMPUTERNAME',
-  'USERDOMAIN',
-  'USERNAME',
-  'HOMEDRIVE',
-  'HOMEPATH',
-  'NUMBER_OF_PROCESSORS',
-  'PROCESSOR_ARCHITECTURE',
-  'PROCESSOR_IDENTIFIER',
-  'PROCESSOR_LEVEL',
-  'PROCESSOR_REVISION',
 ])
 export function codexEnvironment(input: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   return Object.fromEntries(
@@ -158,6 +137,41 @@ const alive = (pid: number) => {
   }
 }
 
+/** Only the fixed native probe sees machine-wide PowerShell modules; the model CLI does not. */
+export function nativePowerShellEnvironment(
+  env: NodeJS.ProcessEnv,
+  shell: string,
+  host: NodeJS.ProcessEnv = process.env,
+): NodeJS.ProcessEnv {
+  const value = (name: string) =>
+    Object.entries(host).find(([key]) => key.toUpperCase() === name.toUpperCase())?.[1]
+  const roots = ['SystemRoot', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432']
+    .map(value)
+    .filter((v): v is string => !!v && /^[a-z]:[\\/]/i.test(v))
+  const modules = new Map<string, string>()
+  for (const path of [
+    win32.join(win32.dirname(shell), 'Modules'),
+    ...(value('PSModulePath') ?? '').split(';'),
+  ]) {
+    if (!/^[a-z]:[\\/]/i.test(path)) continue
+    const normalized = win32.normalize(path)
+    const system = normalized.toLowerCase() === win32.join(win32.dirname(shell), 'Modules').toLowerCase()
+    if (
+      !system &&
+      !roots.some((root) => {
+        const relative = win32.relative(root, normalized)
+        return (
+          relative === '' ||
+          (relative !== '..' && !relative.startsWith('..\\') && !win32.isAbsolute(relative))
+        )
+      })
+    )
+      continue
+    modules.set(normalized.toLowerCase(), normalized)
+  }
+  return { ...env, PSModulePath: [...modules.values()].join(';') }
+}
+
 /** Capture only process identities, never command lines, credentials or process environments. */
 async function descendants(pid: number, env: NodeJS.ProcessEnv): Promise<number[]> {
   if (process.platform !== 'win32') return []
@@ -173,9 +187,7 @@ async function descendants(pid: number, env: NodeJS.ProcessEnv): Promise<number[
       shell,
       ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')],
       {
-        // Keep user modules and credentials out. PowerShell otherwise stalls
-        // loading its own cmdlets when PSModulePath is absent on a fresh host.
-        env: { ...env, PSModulePath: join(dirname(shell), 'Modules') },
+        env: nativePowerShellEnvironment(env, shell),
         windowsHide: true,
         timeout: 15000,
         maxBuffer: 1024 * 1024,

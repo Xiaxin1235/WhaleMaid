@@ -7,7 +7,14 @@ import { Context } from '@deepseek-ai/cordis'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
 import { afterEach, expect, test, vi } from 'vitest'
 import { CodexArgumentsSchema, CodexSettingsSchema } from './contract.js'
-import { CodexRunner, codexArguments, codexEnvironment, codexRedactor, windowsSandboxFrom } from './runner.js'
+import {
+  CodexRunner,
+  codexArguments,
+  codexEnvironment,
+  codexRedactor,
+  windowsSandboxFrom,
+  nativePowerShellEnvironment,
+} from './runner.js'
 import { ConversationCodex, installConversationCodex } from './service.js'
 import { WhaleStore } from '../store/index.js'
 const cleanups: (() => unknown | Promise<unknown>)[] = []
@@ -89,6 +96,26 @@ test('environment is an allowlist and does not inherit DSH, provider or arbitrar
       CODEX_THREAD_ID: 'parent',
     }),
   ).toEqual({ PATH: 'path', USERPROFILE: 'home' })
+})
+test('the native Windows probe restores only machine-wide module search paths, without widening the CLI environment', () => {
+  const host = {
+    SystemRoot: 'C:\\Windows',
+    ProgramFiles: 'C:\\Program Files',
+    PSModulePath:
+      'C:\\Users\\person\\Documents\\Modules;C:\\Program Files\\PowerShell\\7\\Modules;C:\\Program Files-evil\\Modules;relative',
+    OPENAI_API_KEY: 'fake-secret',
+  }
+  const env = codexEnvironment(host)
+  expect(env.PSModulePath).toBeUndefined()
+  const probe = nativePowerShellEnvironment(
+    env,
+    'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe',
+    host,
+  )
+  expect(probe.PSModulePath).toBe(
+    'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\Modules;C:\\Program Files\\PowerShell\\7\\Modules',
+  )
+  expect(probe.OPENAI_API_KEY).toBeUndefined()
 })
 test('fake CLI final result, safe full JSON log, hidden env, and 8000-character truncation', async () => {
   const f = await fixture()
