@@ -110,13 +110,31 @@ If an update fails, stop Harness and restore the old fixed copy to the original 
 
 WhaleMaid does not require a desktop pet. Without one, goals, the notification center, companion conversations and long-term memories remain available through Harness. The pet uses **AGPL-3.0-or-later**; its code, character packs and media are outside WhaleMaid's MIT distribution.
 
+### Original vs companion build
+
+WhaleMaid's own features (goals, autopilot, the notification center, Da Fei Yu conversations, memories, the daily brief, everyday auto-approval and calling Codex from conversations) do not depend on which pet you install; both work fully. The differences are on the pet side only. Compared against the original 0.4.14 (2026-10-25).
+
+| Feature                             | Original `@takboo/dsh-coopanion` 0.4.14                                          | Companion build `Xiaxin1235/dsh-coopanion`                                                        |
+| ----------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Double-clicking the pet             | Opens the most recent session                                                    | Opens the dedicated Da Fei Yu conversation by default; can be switched to the most recent session |
+| Dedicated Da Fei Yu session         | Treated as an ordinary session: not pinned, shows the internal working directory | Pinned and shown as "Da Fei Yu"; earlier ones marked as earlier chats; working directory hidden   |
+| Approvals                           | Must be handled in Harness                                                       | "Allow once / Reject" in the envelope, with the redacted actual command and misclick protection   |
+| Questions                           | Must be answered in Harness                                                      | Ordinary single-choice questions can be answered in the envelope                                  |
+| Archived conversations              | Still listed; messages sent to them show as sent but never get a reply           | Not listed; when selected, input is disabled with restore instructions                            |
+| Blank new-session drafts in Harness | Listed                                                                           | Hidden                                                                                            |
+| Session names                       | Directory name or first message                                                  | Follow the Harness session title                                                                  |
+| Quiet mode                          | None                                                                             | New messages only light the envelope, no popups                                                   |
+| Reply emotion reactions             | None                                                                             | Optional, judged by the Decisions API; API key can be entered in **Settings → Desktop pet**       |
+| Reply bubble                        | Shows the start of the reply                                                     | Prefers the first paragraph                                                                       |
+| Fullscreen apps                     | May be covered by fullscreen windows                                             | Stays above fullscreen apps by default                                                            |
+| Dismissed envelope items            | May reappear after a restart                                                     | Stay dismissed after a restart                                                                    |
+| Task errors                         | Tears                                                                            | A brief worried look instead                                                                      |
+| Interface style                     | Original style                                                                   | New apron-header style, with a switch back to the classic style                                   |
+| Harness versions                    | rc.2 / rc.3 and earlier                                                          | Same as the original, including rc.3                                                              |
+
 ### Recommended: the WhaleMaid companion build
 
-[`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion) is a fork of [takboo/dsh-coopanion](https://github.com/takboo/dsh-coopanion) with default branch `whaledot-local`. On top of the original it adds:
-
-- Double-click to chat with Da Fei Yu, hiding blank drafts and archived conversations from the list, session names that follow Harness titles, and quiet mode;
-- Optional reply emotion reactions, with the API key entered directly in **Settings → Desktop pet**;
-- Answering approvals from the pet's envelope through Harness's own approval card, with only "Allow once / Reject" and the redacted actual command shown.
+[`Xiaxin1235/dsh-coopanion`](https://github.com/Xiaxin1235/dsh-coopanion) is a fork of [takboo/dsh-coopanion](https://github.com/takboo/dsh-coopanion) with default branch `whaledot-local`. See the table above for what it adds over the original.
 
 Build from source (needs Git and Node.js ≥22.19):
 
