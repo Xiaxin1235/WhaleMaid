@@ -51,10 +51,13 @@ import {
 import type { PanelMethod } from './contract.js'
 import type { PanelStatus } from './contract.js'
 import type { EverydayApprovals } from '../everyday-approval/service.js'
+import type { ConversationCodex } from '../codex/service.js'
+import { CodexPanelSchema, CodexSettingsSchema } from '../codex/contract.js'
 import { EverydayApprovalPanelSchema, EverydayApprovalSettingsSchema } from '../everyday-approval/contract.js'
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
+  codex?: ConversationCodex
   everydayApprovals?: EverydayApprovals
   brief?: CompanionDailyBrief
   setDailyBrief?: (enabled: boolean) => Promise<void>
@@ -96,6 +99,13 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'codex':
+          z.strictObject({}).parse(input)
+          result = CodexPanelSchema.parse(await runtime.codex!.panel())
+          break
+        case 'codex-settings':
+          result = CodexPanelSchema.parse(await runtime.codex!.settings(CodexSettingsSchema.parse(input)))
+          break
         case 'everyday-approvals':
           z.strictObject({}).parse(input)
           result = EverydayApprovalPanelSchema.parse(runtime.everydayApprovals!.panel())
@@ -404,6 +414,7 @@ export function installPanelApi(
     | 'archives'
     | 'brief'
     | 'everydayApprovals'
+    | 'codex'
   >,
 ): void {
   ctx.inject(['connection'], (child) => {

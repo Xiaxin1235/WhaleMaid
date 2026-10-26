@@ -38,31 +38,32 @@
 
 ### WhaleMaid
 
-| 报告                                | 主题                                     |
-| ----------------------------------- | ---------------------------------------- |
-| [p02-report](p02-report.md)         | P02 实现与验收回报                       |
-| [p03-report](p03-report.md)         | P03 WhaleMaid 面板骨架验收回报           |
-| [p04-p05-report](p04-p05-report.md) | P04/P05 通知投递与智能选项               |
-| [p06-report](p06-report.md)         | P06 存储、授权范围与全局暂停验收回报     |
-| [p07-report](p07-report.md)         | P07 目标录入与确认授权验收回报           |
-| [p08-report](p08-report.md)         | P08 实现与验收记录                       |
-| [p09-report](p09-report.md)         | P09：独立验收、范围守卫与决策            |
-| [p10-report](p10-report.md)         | P10：调度器与三阶段闭环                  |
-| [p11-report](p11-report.md)         | P11：伙伴 agent“大肥鱼”                  |
-| [p12-report](p12-report.md)         | P12：大肥鱼的长期记忆                    |
-| [p12f-report](p12f-report.md)       | P12F：项目经验可跳过、整理限制来源数     |
-| [p13-report](p13-report.md)         | P13：大肥鱼提议项目管理动作              |
-| [p13b-report](p13b-report.md)       | P13B：用户决策卡的放弃与改方向           |
-| [p14-report](p14-report.md)         | P14：高权限执行模式                      |
-| [p14f-report](p14f-report.md)       | P14F：高权限命令识别审查修正             |
-| [p14g-report](p14g-report.md)       | P14G：高权限模式剩余漏判修正             |
-| [p14h-report](p14h-report.md)       | P14H：通配符只在字面指向保护项时拒绝     |
-| [p14i-report](p14i-report.md)       | P14I：危险审批的可读原因                 |
-| [p15-report](p15-report.md)         | P15：大肥鱼的对话回顾与经历              |
-| [p16-report](p16-report.md)         | P16：以往的大肥鱼对话轮换归档            |
-| [p17-report](p17-report.md)         | P17：大肥鱼的每日简报                    |
-| [p18-report](p18-report.md)         | 发布准备、许可边界、包清单和待确认项     |
-| [p18b-report](p18b-report.md)       | 中英文首页、安装和使用说明；隔离安装演练 |
+| 报告                                | 主题                                                  |
+| ----------------------------------- | ----------------------------------------------------- |
+| [p02-report](p02-report.md)         | P02 实现与验收回报                                    |
+| [p03-report](p03-report.md)         | P03 WhaleMaid 面板骨架验收回报                        |
+| [p04-p05-report](p04-p05-report.md) | P04/P05 通知投递与智能选项                            |
+| [p06-report](p06-report.md)         | P06 存储、授权范围与全局暂停验收回报                  |
+| [p07-report](p07-report.md)         | P07 目标录入与确认授权验收回报                        |
+| [p08-report](p08-report.md)         | P08 实现与验收记录                                    |
+| [p09-report](p09-report.md)         | P09：独立验收、范围守卫与决策                         |
+| [p10-report](p10-report.md)         | P10：调度器与三阶段闭环                               |
+| [p11-report](p11-report.md)         | P11：伙伴 agent“大肥鱼”                               |
+| [p12-report](p12-report.md)         | P12：大肥鱼的长期记忆                                 |
+| [p12f-report](p12f-report.md)       | P12F：项目经验可跳过、整理限制来源数                  |
+| [p13-report](p13-report.md)         | P13：大肥鱼提议项目管理动作                           |
+| [p13b-report](p13b-report.md)       | P13B：用户决策卡的放弃与改方向                        |
+| [p14-report](p14-report.md)         | P14：高权限执行模式                                   |
+| [p14f-report](p14f-report.md)       | P14F：高权限命令识别审查修正                          |
+| [p14g-report](p14g-report.md)       | P14G：高权限模式剩余漏判修正                          |
+| [p14h-report](p14h-report.md)       | P14H：通配符只在字面指向保护项时拒绝                  |
+| [p14i-report](p14i-report.md)       | P14I：危险审批的可读原因                              |
+| [p15-report](p15-report.md)         | P15：大肥鱼的对话回顾与经历                           |
+| [p16-report](p16-report.md)         | P16：以往的大肥鱼对话轮换归档                         |
+| [p17-report](p17-report.md)         | P17：大肥鱼的每日简报                                 |
+| [p18-report](p18-report.md)         | 发布准备、许可边界、包清单和待确认项                  |
+| [p18b-report](p18b-report.md)       | 中英文首页、安装和使用说明；隔离安装演练              |
+| [p20-report](p20-report.md)         | 对话调用 Codex、逐次审批、进程取消与 Windows 沙箱限制 |
 
 ### 独立鲸鱼插件的协作记录
 

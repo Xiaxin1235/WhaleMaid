@@ -37,6 +37,8 @@ import { CompanionDailyBrief } from './companion/daily-brief.js'
 import { CompanionArchives, dshCompanionArchiveHost } from './companion/archive.js'
 import { GoalDecisions } from './notify/goal-decisions.js'
 import { EverydayApprovals, installEverydayApprovals } from './everyday-approval/service.js'
+import { ConversationCodex, installConversationCodex } from './codex/service.js'
+import { CodexRunner } from './codex/runner.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -184,6 +186,8 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     )
     const everydayApprovals = new EverydayApprovals(ctx, store, execution.registry)
     installEverydayApprovals(ctx, everydayApprovals)
+    const codex = new ConversationCodex(ctx, store, execution.registry, new CodexRunner(dataDir))
+    installConversationCodex(ctx, codex)
     const autopilot = new AutopilotScheduler(
       store,
       scopes,
@@ -392,6 +396,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         archives,
         brief,
         everydayApprovals,
+        codex,
       },
     )
     const clock = { now: () => Date.now() }

@@ -53,6 +53,7 @@ import { MIGRATIONS } from './migrations.js'
 import type { Migration } from './migrations.js'
 import { EverydayApprovalPanelSchema, EverydayApprovalRecordSchema } from '../everyday-approval/contract.js'
 import type { EverydayApprovalRecord } from '../everyday-approval/contract.js'
+import { CodexSettingsSchema } from '../codex/contract.js'
 
 export const productionClock: Clock = { now: () => Date.now() }
 export const productionIdGen: IdGen = { next: (prefix) => `${prefix}_${randomUUID()}` }
@@ -551,6 +552,20 @@ export class WhaleStore {
     if (result.changes !== 1) throw new Error('scope-inactive')
   }
 
+  codexSettings(): ReturnType<typeof CodexSettingsSchema.parse> {
+    const value =
+      this.one('kv_settings', 'codex.settings', CodexSettingsSchema) ?? CodexSettingsSchema.parse({})
+    return { ...value, enabled: this.state === 'ok' && value.enabled }
+  }
+  setCodexSettings(input: unknown): void {
+    const value = CodexSettingsSchema.parse(input)
+    this.writer()
+      .prepare(
+        "INSERT INTO kv_settings(id,data) VALUES('codex.settings',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+      )
+      .run(JSON.stringify(value))
+    this.changed()
+  }
   everydayApprovalState(): ReturnType<typeof EverydayApprovalPanelSchema.parse> {
     const value = this.one('kv_settings', 'everyday-approval', EverydayApprovalPanelSchema)
     return { enabled: this.state === 'ok' && (value?.enabled ?? false), records: value?.records ?? [] }

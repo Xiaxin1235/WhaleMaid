@@ -156,6 +156,20 @@ Waiting for approval occupies the current run slot and counts toward its duratio
 
 For existing goals, **Review and replace authorization** restores individually confirmed commands. Authorization cannot be changed during execution; replacement turns autopilot off, requiring another explicit confirmation to enable it. Do not ask Da Fei Yu to enable trusted mode through chat.
 
+## Calling Codex from ordinary conversations
+
+Enable **Settings → WhaleMaid → Allow conversations to call Codex**; it is off by default. The timeout defaults to 15 minutes and accepts 1–60 minutes. Install and sign in to Codex CLI yourself. This installation uses Desktop’s `codex.exe` and its existing login; do not enter ChatGPT or API credentials in WhaleMaid.
+
+Ask “Use Codex to list and summarize this repository” or “Use Codex to append a line to README.” The tool accepts only `task` and `mode`: `read-only` by default, or `workspace-write`. Its directory is fixed to the current session project and must exist. Companion, automatic task and archived sessions are excluded. Autopilot execution is unchanged.
+
+WhaleMaid ignores your Codex config file except for `[windows] sandbox` (`elevated` or `unelevated`): on Windows, the writable mode needs that sandbox backend to write inside the directory. Without it, Codex blocks every write and only read-only use works; complete the Windows sandbox setup in Codex Desktop first.
+
+**Every call needs native one-time approval**, including read-only calls. The card shows mode, directory and the first 300 task characters. Rejection, timeout or absence of an answer never starts Codex. Everyday auto-approval does not grant `codex` requests. Windows write-isolation boundaries are not fully verified and the card says so. This machine also rejected editing under `workspace-write` as read-only; selecting writable mode does not guarantee editing or prove filesystem isolation.
+
+Only one call, including approval waiting, is admitted at a time. Cancelling the turn, timing out or unloading the plugin terminates the owned process tree. Results include up to 8000 characters of the final message, exit code, duration and the before/after porcelain-status difference in writable mode, without file contents. Status alone cannot attribute another edit to an already-dirty file when its status stays the same. Exit code zero does not establish task success. Codex output is data, not new user instructions or authorization.
+
+Recent summaries appear in the panel and settings. Redacted JSON logs and records live in the WhaleMaid data directory’s `codex-runs/`, retaining the latest 100 calls. The child does not inherit DSH/provider API keys and no environment snapshot is logged. Harness shows the pending tool; the public tool interface has no portable live conversation-progress stream, so the plugin does not forge assistant messages or forward reasoning. See the [P20 report](p20-report.md) for evidence and limitations.
+
 ## Data, model calls and removal
 
 The default data directory is whaledot under DSH_HOME, containing the database, execution copies and evidence. A customized dataDir takes precedence. Stop the host before backing up the complete directory. Memories, recollections and exports may contain private project content; keep them secure.

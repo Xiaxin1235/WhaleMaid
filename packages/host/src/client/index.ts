@@ -31,6 +31,7 @@ import { CompanionActionsView } from './companion-actions.js'
 import { CompanionArchivesView } from './companion-archives.js'
 import { DailyBriefView } from './daily-brief.js'
 import { EverydayApprovalsView } from './everyday-approvals.js'
+import { CodexView } from './codex.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
@@ -407,6 +408,7 @@ function Panel({ ctx, connection }: Face) {
         : h('p', { className: 'whaledot-empty' }, text('emptyGoals')),
     ),
     h(EverydayApprovalsView, { connection, locale, history: true }),
+    h(CodexView, { connection, locale }),
     h(
       'section',
       { 'aria-label': text('globalSwitch') },
@@ -515,6 +517,7 @@ function LanguageSettings({ ctx, connection }: Face) {
     ),
     saving && h('p', { role: 'status' }, t(locale, 'saving')),
     h(EverydayApprovalsView, { connection, locale }),
+    h(CodexView, { connection, locale }),
   )
 }
 
