@@ -149,7 +149,14 @@ try {
   await page.screenshot({ path: 'artifacts/complete-host.png' })
   petBrowser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
   const petPage = petBrowser.contexts()[0].pages()[0]
-  await petPage.waitForSelector('#pet[data-host-ready=true]')
+  await petPage.waitForSelector('#pet[data-host-ready=true][data-character=whale][data-mode]')
+  assert.ok(
+    await petPage.locator('#pet').evaluate((element) => {
+      const rect = element.getBoundingClientRect()
+      return rect.width > 20 && rect.height > 20
+    }),
+    'the installed character has rendered geometry',
+  )
   await petPage.screenshot({ path: 'artifacts/complete-pet.png' })
   assert.deepEqual(errors, [])
   await browser.close()
