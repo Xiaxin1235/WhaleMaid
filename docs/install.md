@@ -182,4 +182,4 @@ npm run build
 | 面板里看不到 WhaleMaid | 检查目标 profile 的 bundles 是否含 `dsh-whalemaid`，确认构建产物存在，再完全重启 Harness。 |
 | 宿主版本不兼容         | 仅支持 Desktop 0.2.1-rc.2 / rc.3，不通过放宽声明或版本豁免套用其他版本。                   |
 
-本次安装演练使用 Windows、干净的本地克隆、独立 `DSH_HOME` 和临时 Web profile，验证了冻结依赖安装、构建、固定副本、CLI 安装、宿主加载及卸载；详见 [P18B 报告](p18b-report.md)。默认位置的 Corepack 启用、从 GitHub 克隆、Release 下载、日常 profile 备份与安装、从开始菜单启动、实际更新和配置回退未在本次演练执行。macOS / Linux 未验证。
+此前 P18B 的源码安装演练使用 Windows、干净的本地克隆、独立 `DSH_HOME` 和临时 Web profile，验证了冻结依赖安装、构建、固定副本、CLI 安装、宿主加载及卸载；详见 [P18B 报告](p18b-report.md)。默认位置的 Corepack 启用、从 GitHub 克隆、Release 下载、日常 profile 备份与安装、从开始菜单启动、实际更新和配置回退未在该次演练执行，macOS / Linux 当时也未验证。本次完整包的三平台证据单独记录在[市场发布报告](market-release-report.md)。

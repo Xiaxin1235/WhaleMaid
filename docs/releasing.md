@@ -6,10 +6,12 @@
 
 1. 如果桌宠也有改动，先按 [fork 发布流程](https://github.com/Xiaxin1235/dsh-coopanion/blob/whaledot-local/docs/releasing.md)发布其新版本，等待 GitHub Release 成功。更新本仓库 `market/companion.json` 中的版本、完整提交及固定下载地址；无桌宠改动时沿用原值。
 2. 同步提升根目录、`packages/core` 和 `packages/host` 的版本，更新 `CHANGELOG.md`，运行 `pnpm install --lockfile-only` 并提交。完成 build、test、test:package、typecheck、lint 和 format:check。
-3. 推送 master 后，新建并推送对应稳定标签，例如 `git tag v1.1.2`、`git push origin v1.1.2`。版本仅为示例，应使用实际版本。不要移动已发布标签。
+3. 推送 master 后，新建并推送对应稳定标签，例如 `git tag v1.2.1`、`git push origin v1.2.1`。版本仅为示例，应使用实际版本。不要移动已发布标签。
 4. **Release complete WhaleMaid** 自动重跑检查，验证配套 Release 的版本、源码提交及下载摘要，再生成完整安装包。通过后发布 GitHub Release、同字节的固定下载别名、校验文件，以及供原生 Discover 安装的不可变 Git 包分支，并更新 `market/index.json`。无 npm 上传步骤。
 
 流程失败时查看 Actions 的具体步骤；未成功发布前不宣称完成。修复已打标签的候选时使用新版本和新标签，保留旧失败记录。发布步骤可对同一标签手动重跑；已存在的包树或附件必须与本轮一致，不覆盖不同内容。
+
+完整包发布前还会在 Windows、macOS、Linux/X11 分别安装 DSH rc.2 和 rc.3，共六组；主面板、状态服务、原生桌宠和卸载必须全部通过。也可在 master 手动运行工作流做候选验收，这种分支运行不会发布；只有稳定标签运行能够进入发布步骤。
 
 ## 用户入口
 
