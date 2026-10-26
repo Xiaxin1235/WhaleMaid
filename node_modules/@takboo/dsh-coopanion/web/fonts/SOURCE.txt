@@ -1,0 +1,4 @@
+Nunito latin variable font, weights 400 through 800.
+CSS source: https://fonts.googleapis.com/css2?family=Nunito:wght@400..800&display=swap
+Font: https://fonts.gstatic.com/s/nunito/v32/XRXV3I6Li01BKofINeaB.woff2
+License: https://github.com/google/fonts/blob/main/ofl/nunito/OFL.txt

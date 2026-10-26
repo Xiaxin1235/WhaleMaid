@@ -1,0 +1,11 @@
+{
+  "sourceCommit": "41c288bbbbf9527e834675803d09ae0c18e4b90f",
+  "version": "1.2.1",
+  "companion": {
+    "name": "@takboo/dsh-coopanion",
+    "version": "0.5.6",
+    "sourceCommit": "6871c1ad684dad86a258dbff9b3dea88c64378c5",
+    "license": "AGPL-3.0-or-later",
+    "tarball": "https://github.com/Xiaxin1235/dsh-coopanion/releases/download/v0.5.6/dsh-coopanion-0.5.6.tgz"
+  }
+}

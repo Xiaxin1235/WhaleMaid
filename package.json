@@ -1,0 +1,91 @@
+{
+  "name": "dsh-whalemaid",
+  "version": "1.2.1",
+  "description": "Authorized project autopilot, independent verification and companion conversations for DeepSeek Harness",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Xiaxin1235/WhaleMaid.git",
+    "directory": "packages/host"
+  },
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22.19",
+    "dsh": "0.2.1-rc.2 || 0.2.1-rc.3"
+  },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json",
+    "./companion": {
+      "types": "./lib/types/companion/agent.d.ts",
+      "default": "./lib/companion/agent.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    }
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ]
+    }
+  },
+  "keywords": [
+    "dsh-plugin",
+    "deepseek-harness",
+    "project-autopilot"
+  ],
+  "files": [
+    "lib/**/*.js",
+    "lib/types/**/*.d.ts",
+    "companion/*.md",
+    "cordis.patch.yml",
+    "LICENSE",
+    "vendor/core/lib/**/*.js",
+    "vendor/core/lib/types/**/*.d.ts",
+    "vendor/core/LICENSE",
+    "DISTRIBUTION.md",
+    "release-source.json"
+  ],
+  "dependencies": {
+    "@deepseek-ai/dsh-atomic-write": "^0.2.1-rc.2",
+    "@deepseek-ai/dsh-home-paths": "^0.2.1-rc.2",
+    "@deepseek-ai/schemastery": "^3.18.4",
+    "zod": "4.6.7",
+    "@takboo/dsh-coopanion": "0.5.6"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.4"
+  },
+  "author": "Xiaxin1235",
+  "homepage": "https://github.com/Xiaxin1235/WhaleMaid#readme",
+  "bugs": {
+    "url": "https://github.com/Xiaxin1235/WhaleMaid/issues"
+  },
+  "bundledDependencies": [
+    "@takboo/dsh-coopanion"
+  ],
+  "imports": {
+    "#whalemaid/core": {
+      "types": "./vendor/core/lib/types/index.d.ts",
+      "default": "./vendor/core/lib/index.js"
+    }
+  }
+}
