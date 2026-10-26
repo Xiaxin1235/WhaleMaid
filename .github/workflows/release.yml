@@ -51,7 +51,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest, macos-14]
+        os: [windows-latest, ubuntu-latest]
         dsh: ['0.2.1-rc.2', '0.2.1-rc.3']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
@@ -102,8 +102,49 @@ jobs:
         with:
           name: complete-install-${{ matrix.os }}-${{ matrix.dsh }}
           path: artifacts/
+  install_macos:
+    # Acquire one scarce GPU-capable ARM runner for both host versions.
+    # The two installations still consume the identical canonical archive.
+    needs: package
+    runs-on: macos-14
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright-core install --with-deps chromium
+      - uses: actions/download-artifact@v4
+        with:
+          name: whalemaid-complete
+          path: dist/release
+      - run: npm install --prefix .dsh-dev/complete-runtime --no-audit --no-fund @deepseek-ai/dsh@0.2.1-rc.2
+      - id: rc2
+        run: node scripts/test-complete-install.mjs
+        env:
+          DSH_TEST_VERSION: '0.2.1-rc.2'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: complete-install-macos-14-0.2.1-rc.2
+          path: artifacts/
+      - run: npm install --prefix .dsh-dev/complete-runtime --no-audit --no-fund @deepseek-ai/dsh@0.2.1-rc.3
+      - id: rc3
+        run: node scripts/test-complete-install.mjs
+        env:
+          DSH_TEST_VERSION: '0.2.1-rc.3'
+      - uses: actions/upload-artifact@v4
+        if: always() && (steps.rc3.outcome == 'success' || steps.rc3.outcome == 'failure')
+        with:
+          name: complete-install-macos-14-0.2.1-rc.3
+          path: artifacts/
   publish:
-    needs: install
+    needs: [install, install_macos]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
