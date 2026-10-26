@@ -1,7 +1,7 @@
 import { spawn, execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import { mkdir, writeFile, appendFile, readFile, readdir, rm, lstat, rename } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { StringDecoder } from 'node:string_decoder'
 import { redactSecrets } from '@whalemaid/core'
@@ -145,7 +145,14 @@ async function descendants(pid: number, env: NodeJS.ProcessEnv): Promise<number[
     const child = execFile(
       shell,
       ['-NoProfile', '-NonInteractive', '-EncodedCommand', Buffer.from(script, 'utf16le').toString('base64')],
-      { env, windowsHide: true, timeout: 15000, maxBuffer: 1024 * 1024 },
+      {
+        // Keep user modules and credentials out. PowerShell otherwise stalls
+        // loading its own cmdlets when PSModulePath is absent on a fresh host.
+        env: { ...env, PSModulePath: join(dirname(shell), 'Modules') },
+        windowsHide: true,
+        timeout: 15000,
+        maxBuffer: 1024 * 1024,
+      },
       (error, output) => (error ? reject(error) : resolve(output)),
     )
     child.stdin?.end()

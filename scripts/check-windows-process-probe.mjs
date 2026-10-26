@@ -1,7 +1,7 @@
 import { execFile } from 'node:child_process'
 import { Buffer } from 'node:buffer'
 import process from 'node:process'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { codexEnvironment } from '../packages/host/lib/codex/runner.js'
 
 if (process.platform === 'win32') {
@@ -11,7 +11,7 @@ if (process.platform === 'win32') {
   )
   for (const [kind, env] of [
     ['host', process.env],
-    ['filtered', codexEnvironment(process.env)],
+    ['filtered', { ...codexEnvironment(process.env), PSModulePath: join(dirname(shell), 'Modules') }],
   ]) {
     const started = Date.now()
     await new Promise((resolve) => {
