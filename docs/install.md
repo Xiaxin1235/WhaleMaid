@@ -2,7 +2,7 @@
 
 中文 | [English](install.en.md)
 
-适用于 WhaleMaid 1.0.0。以下面向首次获取仓库的用户；只有 Windows 安装流程经过验证，macOS / Linux 尚未验证。功能、默认值和权限边界见[使用说明](usage.md)。
+适用于 WhaleMaid 1.1.0。以下面向首次获取仓库的用户；只有 Windows 安装流程经过验证，macOS / Linux 尚未验证。功能、默认值和权限边界见[使用说明](usage.md)。
 
 ## 1. 准备环境
 

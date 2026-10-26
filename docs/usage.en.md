@@ -2,7 +2,7 @@
 
 [中文](usage.md) | English
 
-For WhaleMaid 1.0.0 and DSH Desktop 0.2.1-rc.2 / rc.3. See [installation](install.en.md) for setup, fixed-copy updates and removal, and the [documentation index, in Chinese](README.md) for implementation evidence. This guide distinguishes WhaleMaid features from those of the independent whale desktop pet.
+For WhaleMaid 1.1.0 and DSH Desktop 0.2.1-rc.2 / rc.3. See [installation](install.en.md) for setup, fixed-copy updates and removal, and the [documentation index, in Chinese](README.md) for implementation evidence. This guide distinguishes WhaleMaid features from those of the independent whale desktop pet.
 
 ## Goal entry and authorization
 

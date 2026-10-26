@@ -1,6 +1,6 @@
 {
   "name": "dsh-whalemaid",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Authorized project autopilot, independent verification and companion conversations for DeepSeek Harness",
   "repository": {
     "type": "git",

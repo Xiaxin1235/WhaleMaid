@@ -2,7 +2,7 @@
 
 [中文](install.md) | English
 
-For WhaleMaid 1.0.0. This guide is for someone obtaining the repository for the first time. Only the Windows installation workflow has been verified; macOS and Linux are unverified. See the [usage guide](usage.en.md) for features, defaults and permission boundaries.
+For WhaleMaid 1.1.0. This guide is for someone obtaining the repository for the first time. Only the Windows installation workflow has been verified; macOS and Linux are unverified. See the [usage guide](usage.en.md) for features, defaults and permission boundaries.
 
 ## 1. Prerequisites
 

@@ -38,7 +38,7 @@ test('loads through real Cordis and writes service availability', async () => {
   await expect
     .poll(async () => JSON.parse(await readFile(join(dir, 'status.json'), 'utf8')))
     .toMatchObject({
-      version: '1.0.0',
+      version: '1.1.0',
       services: { gateway: true, commands: true, userQuestions: false },
     })
   expect(ctx.logger.buffer.some((row) => row.name === 'whaledot' && row.args[0] === 'plugin loaded')).toBe(
@@ -60,7 +60,7 @@ test('status updates replace the file inode with a complete snapshot', async () 
   await apply(ctx, { dataDir: dir })
   expect((await stat(path, { bigint: true })).ino).not.toBe(before.ino)
   expect(JSON.parse(await readFile(path, 'utf8'))).toMatchObject({
-    version: '1.0.0',
+    version: '1.1.0',
     services: { gateway: false, commands: false, userQuestions: false },
   })
   expect(await readdir(dir)).toEqual(

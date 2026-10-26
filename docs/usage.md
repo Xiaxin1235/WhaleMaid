@@ -2,7 +2,7 @@
 
 中文 | [English](usage.en.md)
 
-适用于 WhaleMaid 1.0.0、DSH Desktop 0.2.1-rc.2 / rc.3。安装、固定副本更新与卸载见[安装说明](install.md)，实现证据见[文档索引](README.md)。以下区分 WhaleMaid 功能与独立鲸鱼桌宠功能。
+适用于 WhaleMaid 1.1.0、DSH Desktop 0.2.1-rc.2 / rc.3。安装、固定副本更新与卸载见[安装说明](install.md)，实现证据见[文档索引](README.md)。以下区分 WhaleMaid 功能与独立鲸鱼桌宠功能。
 
 ## 目标录入与授权
 

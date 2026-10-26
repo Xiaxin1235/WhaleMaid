@@ -4,17 +4,19 @@
 
 WhaleMaid is a project autopilot plugin for DeepSeek Harness (DSH): it plans and executes tasks within the scope you confirm, independently verifies results, and asks you when a decision is needed.
 
-Documentation for **1.0.0**. Requires DSH Desktop **0.2.1-rc.2 or 0.2.1-rc.3** and Node.js ≥22.19. Preview limitations still apply; see the [usage guide](docs/usage.en.md).
+Documentation for **1.1.0**. Requires DSH Desktop **0.2.1-rc.2 or 0.2.1-rc.3** and Node.js ≥22.19. Preview limitations still apply; see the [usage guide](docs/usage.en.md).
 
 ## What it can do
 
-| Capability                             | How it works                                                                                                                                                                                                                   |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Goals and authorization                | Draft a goal in natural language, then review the project directory, protected items, actions, exact verification commands and budgets in the panel.                                                                           |
-| Autopilot and independent verification | Execute dependent tasks in a separate Git worktree. The host independently runs confirmed verification commands and uses the evidence to continue, stop or request a decision.                                                 |
-| Notifications and decisions            | Use the notification center and native DSH questions for pending decisions, with quiet hours, muting, rate limits, retries, pausing, and owner-operated abandonment or changes of direction.                                   |
-| Da Fei Yu                              | A dedicated companion conversation, confirmed long-term memories, conversation recaps and experiences, management proposals requiring your confirmation, and a progress brief on the first chat of the day.                    |
-| Trusted command execution              | Separately confirm this mode for writable goals to allow ordinary commands. Recognized dangerous commands still require live, one-time approval. Command text cannot fully constrain what an arbitrary script does internally. |
+| Capability                             | How it works                                                                                                                                                                                                                                                                                    |
+| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Goals and authorization                | Draft a goal in natural language, then review the project directory, protected items, actions, exact verification commands and budgets in the panel.                                                                                                                                            |
+| Autopilot and independent verification | Execute dependent tasks in a separate Git worktree. The host independently runs confirmed verification commands and uses the evidence to continue, stop or request a decision.                                                                                                                  |
+| Notifications and decisions            | Use the notification center and native DSH questions for pending decisions, with quiet hours, muting, rate limits, retries, pausing, and owner-operated abandonment or changes of direction.                                                                                                    |
+| Da Fei Yu                              | A dedicated companion conversation, confirmed long-term memories, conversation recaps and experiences, management proposals requiring your confirmation, and a progress brief on the first chat of the day.                                                                                     |
+| Trusted command execution              | Separately confirm this mode for writable goals to allow ordinary commands. Recognized dangerous commands still require live, one-time approval. Command text cannot fully constrain what an arbitrary script does internally.                                                                  |
+| Everyday auto-approval                 | Off by default. When on, commands in ordinary sessions recognized as ordinary are allowed once automatically; deletion, publishing, installs and other dangerous operations still go to you. Goal task sessions are unaffected. See the [usage guide](docs/usage.en.md#everyday-auto-approval). |
+| Calling Codex from conversations       | Off by default. Lets DeepSeek call your local Codex in an ordinary session, in the current directory with a read-only or workspace-write sandbox; every call needs native approval. See the [usage guide](docs/usage.en.md#calling-codex-from-ordinary-conversations).                          |
 
 ### Context-aware replies
 
