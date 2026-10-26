@@ -22,14 +22,7 @@
         "directory": "packages/host"
       },
       "metadata": {
-        "keywords": [
-          "whalemaid",
-          "companion",
-          "memory",
-          "autopilot",
-          "桌宠",
-          "大肥鱼"
-        ]
+        "keywords": ["whalemaid", "companion", "memory", "autopilot", "桌宠", "大肥鱼"]
       },
       "versions": [
         {

@@ -8,7 +8,7 @@ For WhaleMaid 1.2.1. Core authorization and execution support Windows, macOS and
 
 ## Complete installation (recommended)
 
-Install the prebuilt [WhaleMaid Complete 1.2.1 package](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.2.1/dsh-whalemaid-full-1.2.1.tgz) through Harness **Plugins → Add plugin**. It installs WhaleMaid and its compatible Coopanion fork in one operation. No Git, pnpm or source build is needed for this route. Configure a model in Harness first.
+Install the prebuilt [WhaleMaid Complete 1.2.1 package](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.2.1/dsh-whalemaid-full-1.2.1.tgz) through Harness **Plugins → Add plugin**. It installs WhaleMaid and its compatible Coopanion fork in one operation; choose **Enable now** when prompted. No Git, pnpm or source build is needed for this route. Configure a model in Harness first.
 
 Before upgrading from separate installations, fully exit Harness and back up the profile and data as described below. Remove the old top-level pet bundle with `dsh plugin --profile desktop remove @takboo/dsh-coopanion` and the old WhaleMaid bundle with `dsh plugin --profile desktop remove dsh-whalemaid`, then add the complete-package URL. Use Harness's bundled CLI, not an old global CLI. Do not delete data directories. The complete package owns both configuration nodes; only `dsh-whalemaid` needs to appear as a top-level bundle.
 

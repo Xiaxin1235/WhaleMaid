@@ -8,6 +8,7 @@ import { dirname, join, resolve } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { parseMarketIndex } from '@deepseek-ai/dsh-plugin-market-index'
+import { format, resolveConfig } from 'prettier'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 assert.equal(process.env.GITHUB_ACTIONS, 'true', 'Run the release workflow in GitHub Actions')
@@ -133,7 +134,12 @@ parseMarketIndex(index, `https://raw.githubusercontent.com/${repo}/master/market
 const body = {
   message: `chore: update WhaleMaid market to ${version}`,
   branch: 'master',
-  content: Buffer.from(JSON.stringify(index, null, 2) + '\n').toString('base64'),
+  content: Buffer.from(
+    await format(JSON.stringify(index), {
+      ...(await resolveConfig(join(root, 'market/index.json'))),
+      parser: 'json',
+    }),
+  ).toString('base64'),
   ...(previous ? { sha: previous.sha } : {}),
 }
 const payload = join(work, 'index-update.json')

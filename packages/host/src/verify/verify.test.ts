@@ -313,7 +313,12 @@ test('environment allowlist, bounded logs, command classification and process-tr
     expect(timeout.status).toBe('timeout')
     const pid = Number(/CHILD=(\d+)/.exec(timeout.tail ?? '')?.[1])
     expect(pid).toBeGreaterThan(0)
-    expect(() => process.kill(pid, 0)).toThrow()
+    // The process-group kill is asynchronous to the OS reaping the descendant.
+    // Keep the PID-gone assertion, with a bounded wait for that final cleanup.
+    await vi.waitFor(() => expect(() => process.kill(pid, 0)).toThrow(), {
+      timeout: 3000,
+      interval: 25,
+    })
   } finally {
     if (previous === undefined) delete process.env.FAKE_API_KEY
     else process.env.FAKE_API_KEY = previous

@@ -7,7 +7,7 @@ import { test } from 'node:test'
 import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-test('complete distribution loads without an unpublished workspace core and activates both components', () => {
+test('staged complete manifest loads the private core and declares both components', () => {
   const stage = execFileSync(process.execPath, ['scripts/pack-release.mjs', '--stage-only'], {
     cwd: root,
     encoding: 'utf8',

@@ -1,33 +1,38 @@
 # WhaleMaid 完整版市场发布验收
 
-本轮按用户确认，将 Windows、macOS、Linux 的核心授权与执行纳入支持范围；完整发行还需要配套桌宠通过三平台验收，再提交市场。工作在独立的 `codex/market-release` 工作区进行，未替换日常 profile，也未调用真实模型 API。
+本轮完成 Windows、macOS、Linux 的核心授权与执行移植，并发布 WhaleMaid 1.2.1 完整版，内置配套 Coopanion 0.5.6。工作在独立的 `codex/market-release` 工作区进行；真实模型 API 调用为 0，测试 profile 与日常安装分开。
 
 ## 本轮门禁与产物
 
-当前桌宠已发布；WhaleMaid 1.2.0 在整包安装阶段被 pnpm 的 URL 子依赖保护拦下，未发布完整包或索引。新候选 1.2.1 改用标准 bundled dependencies，保留独立组件许可证和对应源码，待重新执行完整门禁。
+[WhaleMaid Complete 1.2.1](https://github.com/Xiaxin1235/WhaleMaid/releases/tag/v1.2.1) 已发布，自有 Discover 源已完成真实安装、启用和卸载验收。社区公共目录 [PR #9681](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/9681) 已提交，等待维护者审核；未将投稿写成已经被公共市场收录。
 
-| 项目                                   | 状态与证据                                                                                                                                                               |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| WhaleMaid 正式标签三平台全量检查       | 通过，[40363360148](https://github.com/Xiaxin1235/WhaleMaid/actions/runs/40363360148)，源码 `cecefd6e33bd2cf89305770052326c063a21a3e7`                                   |
-| 桌宠三平台全套                         | 通过，[40330572335](https://github.com/Xiaxin1235/dsh-coopanion/actions/runs/40330572335) 的三项 Test 均成功；后续未取得运行器的安装任务取消，不算通过                   |
-| 桌宠五个 DSH 版本 × 三平台             | 15/15 同包安装通过；逐项成功作业、源码和摘要见 [verification-matrix.json](https://github.com/Xiaxin1235/dsh-coopanion/releases/download/v0.5.6/verification-matrix.json) |
-| 桌宠公开 Release                       | [0.5.6](https://github.com/Xiaxin1235/dsh-coopanion/releases/tag/v0.5.6)，版本包、固定别名及报告已公开；WhaleMaid 发布输入校验器匿名下载并核对通过                       |
-| 完整包六组安装                         | 进行中，发布必须等待 Windows／Linux 各两组及 macOS 的两个顺序安装全部成功                                                                                                |
-| 完整包公开下载、固定 Git 包和 Discover | 待完成                                                                                                                                                                   |
-| 社区公共市场投稿                       | 待完成，收录需维护者审核                                                                                                                                                 |
+| 项目                             | 结果与证据                                                                                                                                                                       |
+| -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| WhaleMaid 正式标签三平台全量检查 | 通过，[40367350637](https://github.com/Xiaxin1235/WhaleMaid/actions/runs/40367350637)，源码 `41c288bbbbf9527e834675803d09ae0c18e4b90f`                                           |
+| 桌宠三平台全套                   | [40330572335](https://github.com/Xiaxin1235/dsh-coopanion/actions/runs/40330572335) 的三项 Test 均成功；未取得运行器的安装任务取消，不计通过                                     |
+| 桌宠五个 DSH 版本 × 三平台       | 15/15 同包安装通过；逐项作业、源码和摘要见 [桌宠矩阵](https://github.com/Xiaxin1235/dsh-coopanion/releases/download/v0.5.6/verification-matrix.json)                             |
+| 完整包 rc.2 / rc.3 × 三平台      | 6/6 通过，含真实主面板、原生鲸鱼、一个顶层 bundle、卸载与 0 模型调用；见 [完整包矩阵](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.2.1/verification-matrix.json) |
+| 公开下载身份                     | 匿名下载版本包与固定别名，均与经过六组安装的规范包 SHA-256 一致                                                                                                                  |
+| 自有 Discover 真实界面           | 一个“WhaleMaid 完整版”入口；通过固定 Git 提交安装并点击“立即启用”，1.2.1 状态服务正常、Coopanion 被检测到、鲸鱼实际渲染为 127 × 145，页面错误 0                                  |
+| 清理                             | 六组云端安装均正常卸载；本地测试浏览器已关闭，核对归属后停止市场测试宿主及其子进程，移除测试 bundle 并删除临时认证 URL 文件；保留验收记录                                        |
+| 社区公共收录                     | PR #9681 待维护者审核，当前可使用自有索引或完整包地址                                                                                                                            |
 
-| 组件             | 版本  | 源码提交                                   | SHA-256                                                                                         |
-| ---------------- | ----- | ------------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| WhaleMaid 完整包 | 1.2.0 | `cecefd6e33bd2cf89305770052326c063a21a3e7` | `c579aa83f6023106b5079554ea609f4a418428bac3cbca42db6b6fb0933a303d`（失败的 1.2.0 候选，未发布） |
-| 配套 Coopanion   | 0.5.6 | `6871c1ad684dad86a258dbff9b3dea88c64378c5` | `370c79a5b255c27bd018b8390d60224fdd27020c812bb77ef6b1966817321a37`                              |
+| 组件             | 版本  | 源码提交                                   | SHA-256                                                            |
+| ---------------- | ----- | ------------------------------------------ | ------------------------------------------------------------------ |
+| WhaleMaid 完整包 | 1.2.1 | `41c288bbbbf9527e834675803d09ae0c18e4b90f` | `7a081119ded6cfe2ba6c04ac4a269e023e7ba931851b06177efe6a70bae789be` |
+| 配套 Coopanion   | 0.5.6 | `6871c1ad684dad86a258dbff9b3dea88c64378c5` | `370c79a5b255c27bd018b8390d60224fdd27020c812bb77ef6b1966817321a37` |
 
-WhaleMaid 核心在 Windows x64、Linux x64 和 macOS 的 ARM／Intel 运行器完成检查；桌宠的 macOS 原生证据来自 ARM。桌宠安装矩阵的 13 项来自主运行，macOS rc.1 来自 [macOS 15 补验](https://github.com/Xiaxin1235/dsh-coopanion/actions/runs/40335590873)，macOS alpha.1 来自 [macOS 14 补验](https://github.com/Xiaxin1235/dsh-coopanion/actions/runs/40361437707)。逐个核对成功状态、上述源码和同一规范包摘要后，使用原始规范包创建 Release；没有重打包、移动标签或拼接不同候选。
+WhaleMaid 核心检查覆盖 Windows x64、Linux x64、macOS ARM／Intel；桌宠的 macOS 原生证据来自 ARM。桌宠安装矩阵中 13 项来自主运行，macOS rc.1 来自 [macOS 15 补验](https://github.com/Xiaxin1235/dsh-coopanion/actions/runs/40335590873)，macOS alpha.1 来自 [macOS 14 补验](https://github.com/Xiaxin1235/dsh-coopanion/actions/runs/40361437707)。逐项核对成功状态、相同源码和规范包摘要后发布原始规范包，没有拼接不同候选。完整包六组安装使用一个规范归档；两个 macOS 版本在同一原生运行器顺序执行，各自单独保存报告。
+
+自有索引为 `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`。索引固定的 Git 包提交为 `e217d15c842bc969657503cbb4d594b6dfa2785b`，对应已验证归档的文件树；其 `release-source.json` 与公开归档源码一致。真实市场安装后的 profile 只有一个顶层 `dsh-whalemaid` bundle，没有另一个顶层桌宠 bundle。
+
+本地市场截图、公开下载复核及逐项报告保留在原工作区的 `.dsh-dev/market-release-evidence`。云端截图见上述工作流的六个安装附件；长期包身份和矩阵同时作为 Release 附件保存。
 
 ## 已完成的核心检查
 
 | 项目                                                                       | 当前证据                                                                                                    |
 | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| Windows / macOS / Linux 全量 build、typecheck、lint、test、package、format | [正式标签 40363360148](https://github.com/Xiaxin1235/WhaleMaid/actions/runs/40363360148) 的三项检查全部通过 |
+| Windows / macOS / Linux 全量 build、typecheck、lint、test、package、format | [正式标签 40367350637](https://github.com/Xiaxin1235/WhaleMaid/actions/runs/40367350637) 的三项检查全部通过 |
 | 单平台测试量                                                               | 1,305 项，授权范围分支覆盖率 98.05%                                                                         |
 | Windows 旧授权兼容                                                         | 冻结原实现的 scope hash，移植后保持一致                                                                     |
 | POSIX 路径                                                                 | 大小写、相邻目录边界、父目录越界、混合路径、保护文件、工作区授权映射均有用例                                |
@@ -54,9 +59,17 @@ WhaleMaid 核心在 Windows x64、Linux x64 和 macOS 的 ARM／Intel 运行器�
 
 本地复核发现 Windows `tar` 输出 CRLF 导致校验器将文件名末尾的 CR 误认为文件缺失；仅修正校验器的换行解析后，对原始规范包复核 667 个文件、提交和摘要全部通过。校验工具改进没有改变已固定的 0.5.6 产品标签或压缩包字节。
 
-发布链固定两个独立仓库及许可证：WhaleMaid 的 MIT core 放入自有 host；AGPL Coopanion 作为固定 GitHub Release 依赖安装，保留 fork、上游署名、对应源码和第三方声明，不复制到 MIT 源码中，也不发布到上游 npm 账户。
+发布链保留两个项目的源码与许可证：WhaleMaid 的 MIT core 放入自有 host；经过校验的 AGPL Coopanion 及其运行依赖以标准 npm bundled dependency 放入独立的发行树，保留 fork、上游署名、对应源码和第三方声明。完整版按各组件许可证分发，MIT 实现不导入桌宠代码，不发布到上游 npm 账户。
 
 自有 Discover 索引和社区公共收录是两个入口：前者需要部署启用官方市场模块并添加本项目索引，且安装固定 Git 包需要 Git；直接完整包链接不需要 Git。后者受[官方贡献规则](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md)的仓库满 24 小时与维护者审核约束。完整 Release、索引发布或投稿均不等于已被公共市场收录。
+
+## 完整包问题与收尾修正
+
+1.2.0 的三平台核心检查成功，但整包安装被 pnpm 11 默认的 `blockExoticSubdeps` 拦下：URL 形式的传递依赖不被允许。未关闭该保护，也未发布失败包；保留 v1.2.0 标签和失败记录。1.2.1 从公开桌宠 Release 核对源提交及摘要后组装标准 bundled dependency，并通过六组默认保护开启的真实安装。归档包含独立依赖的许可证与对应源码，不包含构建机器的 Electron 平台二进制，也未内置一套重复的 Harness SDK。安装后由同一个 bundle 启用两部分。
+
+1.2.1 首轮 Linux 检查在子进程 PID 的即时消失断言上失败；同一提交复测成功，记录保留在工作流首轮。后续主分支将原 PID 消失断言改为最多 3 秒的有界等待，给系统进程回收留出时间；实际进程组终止实现未修改，相关 17 项测试通过。打包单元用例名称也改为说明“组装清单与加载私有 core”，实际双组件启用以六组安装和真实市场 UI 为依据。
+
+发布器生成的索引原先不符合仓库 Prettier 格式；已格式化当前索引，并让后续发布按同一项目配置输出，避免下一次提交的格式检查因生成文件失败。后续更新按 [发布流程](releasing.md) 推送新版本标签即可自动检查、发布完整包并更新固定下载链接和自有索引；社区条目无需逐版本重投。
 
 ## 平台边界
 
