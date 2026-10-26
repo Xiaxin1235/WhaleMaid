@@ -28,7 +28,10 @@ export function confirmed(projectRoot = 'C:\\proj'): ConfirmedGoalForm {
     initialTasks: structuredClone(draft.initialTasks),
     projectRoot,
     allowedPaths: [projectRoot],
-    protectedPaths: [projectRoot + '\\.git', projectRoot + '\\.env*'],
+    protectedPaths: [
+      projectRoot + (projectRoot.startsWith('/') ? '/.git' : '\\.git'),
+      projectRoot + (projectRoot.startsWith('/') ? '/.env*' : '\\.env*'),
+    ],
     protectedNames: [...DEFAULT_PROTECTED_NAMES],
     allowedActions: [...DEFAULT_INTAKE_ACTIONS],
     permissionPreset: 'read-only',

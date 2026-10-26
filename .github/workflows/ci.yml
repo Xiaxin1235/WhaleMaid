@@ -26,7 +26,7 @@ jobs:
           node --input-type=module -e
           "import { realpathSync, appendFileSync } from 'node:fs';
           const temp = realpathSync(process.env.RUNNER_TEMP);
-          appendFileSync(process.env.GITHUB_ENV, 'TEMP=' + temp + '\nTMP=' + temp + '\n');
+          appendFileSync(process.env.GITHUB_ENV, 'TEMP=' + temp + '\nTMP=' + temp + '\nTMPDIR=' + temp + '\n');
           console.log('Test temporary directory:', temp);"
       - run: pnpm install --frozen-lockfile
       - run: pnpm build

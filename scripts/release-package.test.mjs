@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { readFileSync, readdirSync, symlinkSync } from 'node:fs'
+import { mkdirSync, readFileSync, readdirSync, symlinkSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import process from 'node:process'
 import { test } from 'node:test'
@@ -27,7 +27,24 @@ test('complete distribution loads without an unpublished workspace core and acti
   assert.ok(!readdirSync(stage).includes('desktop'))
   // Resolve against the installed development dependencies only for this load
   // check. node_modules is never part of the generated archive or Git package.
-  symlinkSync(join(root, 'packages/host/node_modules'), join(stage, 'node_modules'), 'junction')
+  mkdirSync(join(stage, 'node_modules'), { recursive: true })
+  for (const packageDir of ['host', 'core']) {
+    const modules = join(root, 'packages', packageDir, 'node_modules')
+    for (const name of readdirSync(modules).filter((name) => name !== '.bin' && name !== '@whalemaid')) {
+      const names = name.startsWith('@')
+        ? readdirSync(join(modules, name)).map((child) => name + '/' + child)
+        : [name]
+      for (const dep of names) {
+        const target = join(stage, 'node_modules', dep)
+        mkdirSync(dirname(target), { recursive: true })
+        try {
+          symlinkSync(join(modules, dep), target, 'junction')
+        } catch (error) {
+          if (error.code !== 'EEXIST') throw error
+        }
+      }
+    }
+  }
   execFileSync(
     process.execPath,
     [

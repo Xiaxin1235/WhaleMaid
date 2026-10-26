@@ -53,7 +53,7 @@ export function posixCommandReasons(line: string): string[] {
       (executable === 'flatpak' && operation === 'override') ||
       (executable === 'brew' &&
         operation === 'services' &&
-        !args.some((word) => ['list', 'info'].includes(word)))
+        !['list', 'info'].includes(args[args.indexOf('services') + 1] ?? ''))
     )
       reasons.push('system-configuration')
     if (

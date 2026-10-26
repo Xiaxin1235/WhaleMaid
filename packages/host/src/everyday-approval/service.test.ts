@@ -201,7 +201,9 @@ test('safe nested workdir is bounded by the session root and recorded accurately
   f.events[3]!.data.arguments = JSON.stringify({ command: 'pnpm test', description: 'Test', workdir: 'src' })
   expect(await f.service.answer(f.req, f.next)).toBe('allowed-once')
   expect(f.service.panel().records[0]?.cwd.replaceAll('\\', '/')).toBe(
-    join(f.dir, 'src').replaceAll('\\', '/').toLowerCase(),
+    process.platform === 'win32'
+      ? join(f.dir, 'src').replaceAll('\\', '/').toLowerCase()
+      : join(f.dir, 'src'),
   )
 })
 test('history keeps the most recent 1000 and sanitizes secrets and environment assignments before truncation', async () => {

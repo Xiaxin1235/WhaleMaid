@@ -111,6 +111,7 @@ function inspectPaths(words: CommandWord[], cwd: string, scope: AuthorizationSco
         : []
   for (const word of words) {
     const candidate = word.value.replace(posix ? /^--?[\w-]+[=:]/ : /^[-/][\w-]+[=:]/, '')
+    if (posix && /^[a-z]:/i.test(candidate)) result.reasons.push('ambiguous-command-path')
     if (posix && /[\\[\]{}]/.test(candidate)) result.reasons.push('unresolved-command-path')
     if (unresolved(candidate)) {
       result.reasons.push('unresolved-command-path')

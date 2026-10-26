@@ -72,6 +72,7 @@ test.each([
   ['pnpm test', 'allow'],
   ['rm generated.txt', 'ask'],
   ['cat /etc/passwd', 'ask'],
+  ['type C:/Windows/win.ini', 'ask'],
   ['cat secrets/file.txt', 'deny'],
   ['cat *.key', 'deny'],
   ['cat */README.md', 'deny'],
@@ -86,6 +87,7 @@ test.each([
   ['command rm generated.txt', 'ask'],
   ['sudo echo hello', 'deny'],
   ['systemctl stop status', 'deny'],
+  ['brew services start list', 'deny'],
   ['crontab -l -r', 'deny'],
   ['chmod 777 README.md', 'deny'],
 ] as const)('POSIX trusted command %s -> %s', (cmdline, decision) => {
