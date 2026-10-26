@@ -27,6 +27,8 @@
 
 本地完整包安装预演在 DSH rc.3 通过主面板、状态服务、原生桌宠及卸载检查；使用的是本地配套依赖，仅为预演，不能代替公开 URL 和六组正式安装验收。
 
+40328191998 的 Linux 全套通过，但 Windows 再次在键盘辅助进程的 15 秒期限失败，因而未发布。独立[Windows 初始化探针 40329970668](https://github.com/Xiaxin1235/dsh-coopanion/actions/runs/40329970668)测得冷启动首响应 4,350ms、后两次 923ms／938ms，不能据此确定完整回归中的慢阶段。产品改为允许 Windows 初始化最多 60 秒，期间始终 unknown；就绪后 2.5 秒失联、停用清理、失败不自动重启均保留，并新增延迟就绪与最终超时用例。新候选 0.5.6（`6871c1ad684dad86a258dbff9b3dea88c64378c5`）在本地完成类型、单元和元数据检查，重新进入三平台及 15 组安装门禁；0.5.5 标签和失败记录保留。
+
 发布链固定两个独立仓库及许可证：WhaleMaid 的 MIT core 放入自有 host；AGPL Coopanion 作为固定 GitHub Release 依赖安装，保留 fork、上游署名、对应源码和第三方声明，不复制到 MIT 源码中，也不发布到上游 npm 账户。
 
 自有 Discover 索引和社区公共收录是两个入口：前者需要部署启用官方市场模块并添加本项目索引，且安装固定 Git 包需要 Git；直接完整包链接不需要 Git。后者受[官方贡献规则](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/blob/main/contributing.md)的仓库满 24 小时与维护者审核约束。完整 Release、索引发布或投稿均不等于已被公共市场收录。
