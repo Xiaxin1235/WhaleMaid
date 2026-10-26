@@ -216,7 +216,6 @@ describe('companion session lifecycle', () => {
         existing.add(id)
         return id
       }),
-      pinReadOnly: vi.fn(),
     }
     return { host, existing }
   }
@@ -283,7 +282,7 @@ describe('companion session lifecycle', () => {
 })
 
 describe('companion gate', () => {
-  test('only read-only WhaleMaid tools and ask_user_question run in the companion session', async () => {
+  test('her session passes every tool to DSH policy; WhaleMaid-only tools stay hers', async () => {
     const f = await setup()
     f.store.setCompanionSession({ sessionId: 's_companion', createdAt: 1, previous: ['s_old'] })
     const gate = new ToolGate(new RunRegistry(f.store), () => 'en')
@@ -298,11 +297,11 @@ describe('companion gate', () => {
     ])
       expect(await call(name, 's_companion')).toEqual({ kind: 'allow' })
     for (const name of ['read', 'write', 'bash', 'pwsh', 'web_fetch', 'subagent'])
-      expect(await call(name, 's_companion')).toMatchObject({ kind: 'deny' })
-    expect(await call('write', 's_old')).toMatchObject({ kind: 'deny' })
+      expect(await call(name, 's_companion')).toEqual({ kind: 'allow' })
+    expect(await call('write', 's_old')).toEqual({ kind: 'allow' })
     expect(await call('write', 's_unrelated')).toEqual({ kind: 'allow' })
     expect(await call('whaledot_recall_search', 's_unrelated')).toMatchObject({ kind: 'deny' })
-    expect(next).toHaveBeenCalledTimes(5)
+    expect(next).toHaveBeenCalledTimes(12)
   })
 
   test('the preset id is stable for the pet plugin to recognise', () => {

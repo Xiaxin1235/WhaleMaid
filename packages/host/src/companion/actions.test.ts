@@ -242,7 +242,7 @@ test('draft uses P07 start, remains a draft and cannot use a companion capabilit
     'Authenticated owner required',
   )
 })
-test('enabled setting, 3 pending cap, exact tool ownership and gate retain file/command denial', async () => {
+test('enabled setting, 3 pending cap, exact tool ownership; her file and command tools go to DSH policy', async () => {
   const f = fixture(async () => new Promise(() => {}))
   const pending = Array.from({ length: 3 }, () => f.actions.propose(pause, f.actor))
   expect(await f.actions.propose(pause, f.actor)).toMatchObject({
@@ -274,16 +274,10 @@ test('enabled setting, 3 pending cap, exact tool ownership and gate retain file/
         kind: 'deny',
       })
   }
-  for (const name of [
-    'read',
-    'write',
-    'pwsh',
-    'whaledot_propose_abandon',
-    'whaledot_propose_change_direction',
-  ])
+  for (const name of ['read', 'write', 'pwsh'])
     expect(
       await gate.check({ name, arguments: {}, agent: { session: { id: 'companion' } } }, next),
-    ).toMatchObject({ kind: 'deny' })
+    ).toMatchObject({ kind: 'allow' })
 })
 test('v8 preserves old event bytes and can read goal-less companion audit rows after reopening', () => {
   const dir = mkdtempSync(join(tmpdir(), 'p13-v8-'))

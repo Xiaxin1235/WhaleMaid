@@ -20,7 +20,6 @@ export type CompanionState =
 export interface CompanionHost {
   exists(id: string): Promise<boolean>
   create(id: string, cwd: string, title: string): Promise<string>
-  pinReadOnly(id: string): void
   /** Archived in Harness: the pet locks its input, so it can no longer be her current session. */
   archived?(id: string): boolean
 }
@@ -84,7 +83,6 @@ export class CompanionSessionManager {
         !this.host.archived?.(record.sessionId) &&
         (await this.host.exists(record.sessionId))
       ) {
-        this.host.pinReadOnly(record.sessionId)
         return await this.ready(record.sessionId, record.sessionId, fresh)
       }
       const cwd = join(this.options.dataDir, 'companion')
@@ -95,10 +93,11 @@ export class CompanionSessionManager {
         sessionId: id,
         createdAt: Date.now(),
         previous: record ? [record.sessionId, ...record.previous].slice(0, 20) : [],
+        // A new session starts on the user's default preset; nothing to move off read-only.
+        writable: true,
       })
       const created = await this.host.create(id, cwd, this.options.title())
       if (created !== id) throw new Error('companion-identity-mismatch')
-      this.host.pinReadOnly(id)
       return await this.ready(id, record?.sessionId, fresh)
     } catch (error) {
       this.options.log('companion session unavailable', error)
@@ -164,13 +163,6 @@ export function dshCompanionHost(ctx: Context): CompanionHost {
       const registry = ctx.get('workspaceRegistry') as
         { readonly archivedSessionIds?: readonly string[] } | undefined
       return registry?.archivedSessionIds?.includes(id) ?? false
-    },
-    pinReadOnly(id) {
-      const agent = (ctx.get('agents') as Context['agents'] | undefined)?.get(id as SessionId)
-      const presets = ctx.get('permissionPresets') as Context['permissionPresets'] | undefined
-      // A cold session has no agent yet; DSH applies the stored preset when it resumes.
-      if (!agent || !presets) return
-      if (presets.current(agent.session) !== 'read-only') presets.set(agent.session, 'read-only')
     },
   }
 }

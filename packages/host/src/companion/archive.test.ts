@@ -64,7 +64,6 @@ async function setup() {
         identities[id] = { agentPreset: 'whaledot-companion', cwd }
         return id
       },
-      pinReadOnly: () => {},
     },
     { dataDir: dir, enabled: () => true, title: () => '', log: vi.fn() },
   )
@@ -183,7 +182,6 @@ it('unavailable/failed archive APIs never turn a successfully created new compan
         s.identities[id] = { agentPreset: 'whaledot-companion', cwd: join(s.dir, 'companion') }
         return id
       },
-      pinReadOnly: () => {},
     },
     {
       dataDir: s.dir,

@@ -47,6 +47,8 @@ export const CompanionSessionRecordSchema = z.strictObject({
   sessionId: z.string().min(1).max(200),
   createdAt: z.number().int().nonnegative(),
   previous: z.array(z.string().min(1).max(200)).max(20).default([]),
+  /** Set once her session has been moved off the old read-only pin; after that the user owns the preset. */
+  writable: z.boolean().optional(),
 })
 export type CompanionSessionRecord = z.infer<typeof CompanionSessionRecordSchema>
 import { MIGRATIONS } from './migrations.js'
