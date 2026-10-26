@@ -93,7 +93,7 @@ $dshProfile = 'desktop'
 
 ### 2. 构建并安装 WhaleMaid
 
-当前仓库为私有，需要访问权限；WhaleMaid 尚未发布 npm 包，使用源码构建固定副本：
+WhaleMaid 尚未发布 npm 包，从 GitHub 源码构建固定副本：
 
 ```powershell
 git clone https://github.com/Xiaxin1235/WhaleMaid.git

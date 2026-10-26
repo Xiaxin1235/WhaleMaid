@@ -93,7 +93,7 @@ If you only want the basic pet, you can install the original `@takboo/dsh-coopan
 
 ### 2. Build and install WhaleMaid
 
-The repository is private and requires access. WhaleMaid has not been published to npm; build a fixed copy from source:
+WhaleMaid has not been published to npm; build a fixed copy from the GitHub source:
 
 ```powershell
 git clone https://github.com/Xiaxin1235/WhaleMaid.git

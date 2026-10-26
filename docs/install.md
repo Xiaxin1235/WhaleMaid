@@ -8,7 +8,7 @@
 
 - 已安装并能正常使用 DeepSeek Harness Desktop **0.2.1-rc.2 或 0.2.1-rc.3**；不支持其他版本。
 - Node.js **≥22.19**、Git，以及 `package.json` 指定版本的 pnpm。先运行 `corepack enable` 启用 pnpm；首次使用时 Corepack 可能需要下载该版本。
-- 对 GitHub 仓库 `Xiaxin1235/WhaleMaid` 有访问权限（仓库目前为私有）。
+- 源码位于公开的 GitHub 仓库 [`Xiaxin1235/WhaleMaid`](https://github.com/Xiaxin1235/WhaleMaid)。
 
 下面的示例使用 PowerShell。在日常安装或更新前，完全退出 Harness，并备份目标 profile 的配置。不要把密钥、凭据文件或带登录 token 的网址发给别人。
 
@@ -152,4 +152,4 @@ npm run build
 | 面板里看不到 WhaleMaid | 检查目标 profile 的 bundles 是否含 `dsh-whalemaid`，确认构建产物存在，再完全重启 Harness。 |
 | 宿主版本不兼容         | 仅支持 Desktop 0.2.1-rc.2 / rc.3，不通过放宽声明或版本豁免套用其他版本。                   |
 
-本次安装演练使用 Windows、干净的本地克隆、独立 `DSH_HOME` 和临时 Web profile，验证了冻结依赖安装、构建、固定副本、CLI 安装、宿主加载及卸载；详见 [P18B 报告](p18b-report.md)。默认位置的 Corepack 启用、私有 GitHub 认证、Release 下载、日常 profile 备份与安装、从开始菜单启动、实际更新和配置回退未在本次演练执行。macOS / Linux 未验证。
+本次安装演练使用 Windows、干净的本地克隆、独立 `DSH_HOME` 和临时 Web profile，验证了冻结依赖安装、构建、固定副本、CLI 安装、宿主加载及卸载；详见 [P18B 报告](p18b-report.md)。默认位置的 Corepack 启用、从 GitHub 克隆、Release 下载、日常 profile 备份与安装、从开始菜单启动、实际更新和配置回退未在本次演练执行。macOS / Linux 未验证。

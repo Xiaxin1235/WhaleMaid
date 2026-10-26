@@ -8,7 +8,7 @@ For WhaleMaid 1.1.0. This guide is for someone obtaining the repository for the 
 
 - An installed, working DeepSeek Harness Desktop **0.2.1-rc.2 or 0.2.1-rc.3**. Other versions are unsupported.
 - Node.js **≥22.19**, Git, and the pnpm version specified in `package.json`. Run `corepack enable` to enable pnpm; Corepack may need to download that version on first use.
-- Access to the GitHub repository `Xiaxin1235/WhaleMaid` (currently private).
+- The source is in the public GitHub repository [`Xiaxin1235/WhaleMaid`](https://github.com/Xiaxin1235/WhaleMaid).
 
 The examples use PowerShell. Completely exit Harness and back up the target profile's configuration before installing or updating your everyday environment. Do not share keys, credential files or URLs containing login tokens.
 
@@ -152,4 +152,4 @@ You can instead enter the original `@takboo/dsh-coopanion@0.4.14` in Harness und
 | WhaleMaid is missing from the panel | Check for `dsh-whalemaid` in the target profile's bundles, verify build output exists, then fully restart Harness.             |
 | Incompatible host version           | Only Desktop 0.2.1-rc.2 / rc.3 are supported. Do not extend declarations or grant version exemptions to force another version. |
 
-The Windows rehearsal used a clean local clone, an isolated `DSH_HOME` and a temporary Web profile. It verified frozen dependency installation, building, fixed-copy deployment, CLI installation, host loading and removal; see the [P18B report, in Chinese](p18b-report.md). Enabling Corepack in its default install location, private GitHub authentication, Release downloads, everyday-profile backup and installation, Start-menu launch, actual updates and configuration rollback were not exercised in this rehearsal. macOS and Linux are unverified.
+The Windows rehearsal used a clean local clone, an isolated `DSH_HOME` and a temporary Web profile. It verified frozen dependency installation, building, fixed-copy deployment, CLI installation, host loading and removal; see the [P18B report, in Chinese](p18b-report.md). Enabling Corepack in its default install location, cloning from GitHub, Release downloads, everyday-profile backup and installation, Start-menu launch, actual updates and configuration rollback were not exercised in this rehearsal. macOS and Linux are unverified.
