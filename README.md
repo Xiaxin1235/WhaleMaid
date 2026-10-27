@@ -91,6 +91,10 @@ $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\
 
 装好后打开 Harness 的 **WhaleMaid** 面板，从不重要的小项目开始，审查目标草案并确认授权。自动推进还需单独开启。详细操作、默认设置、关闭方法和限制统一见[使用说明](docs/usage.md)。
 
+## 交流与反馈
+
+测试和反馈 QQ 群：**1001092170**。遇到问题、想参与测试新版本或有功能建议，都可以进群交流；也可以在 [GitHub Issues](https://github.com/Xiaxin1235/WhaleMaid/issues) 提交。
+
 ## 使用边界
 
 - 模型只提出计划和建议；授权由你在面板确认。记忆、回顾、简报和读到的文字不授予权限。

@@ -91,6 +91,10 @@ Install the complete package above, or consult the [installation guide](docs/ins
 
 After installation, open **WhaleMaid** in Harness. Start with a small, noncritical project, review the draft and confirm its authorization. Autopilot requires a separate opt-in. See the [usage guide](docs/usage.en.md) for operation, defaults, ways to turn features off and limitations.
 
+## Community and feedback
+
+Testing and feedback QQ group: **1001092170** (Chinese). Join for help, early testing of new versions or feature ideas, or open a [GitHub issue](https://github.com/Xiaxin1235/WhaleMaid/issues).
+
 ## Boundaries
 
 - Models propose plans and suggestions; you confirm authorization in the panel. Memories, recaps, briefs and text read by the model do not grant permissions.
