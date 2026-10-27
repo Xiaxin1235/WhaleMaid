@@ -8,7 +8,11 @@
 
 ## 完整版安装（推荐）
 
-在 Harness **插件 → 添加插件** 中输入 [WhaleMaid 完整版 1.2.1 安装包](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.2.1/dsh-whalemaid-full-1.2.1.tgz) 的链接。安装后按提示点击“立即启用”。一次安装自动带上适配版 Coopanion，无需另装前置插件，也无需 Git、pnpm 或自行构建。先在 Harness 中配置可用模型。
+最方便的是在 Harness 插件市场（[dsh-market](https://github.com/dsh-market/dsh-market#readme)）中搜索 **WhaleMaid** 一键安装；还没有插件市场时，先在 **插件 → 添加插件** 中填入 `dshmarket` 安装它。
+
+**不要再单独安装任何版本的 Coopanion**（包括原版 `@takboo/dsh-coopanion`）：完整版已自带配套桌宠，两份桌宠同时启用会冲突。
+
+也可以在 Harness **插件 → 添加插件** 中输入 [WhaleMaid 完整版 1.2.1 安装包](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.2.1/dsh-whalemaid-full-1.2.1.tgz) 的链接。安装后按提示点击“立即启用”。一次安装自动带上适配版 Coopanion，无需另装前置插件，也无需 Git、pnpm 或自行构建。先在 Harness 中配置可用模型。
 
 如果原来分别装过两个插件：完全退出 Harness，按下文备份 profile 配置及数据；使用桌面版自带 CLI，先运行 `dsh plugin --profile desktop remove @takboo/dsh-coopanion` 和 `dsh plugin --profile desktop remove dsh-whalemaid` 取消旧安装，再添加完整包链接。不要删除数据目录。新版由同一个完整包管理两个配置节点，顶层 bundles 只需含 `dsh-whalemaid`，无需另列桌宠依赖。
 
@@ -119,6 +123,8 @@ if ($LASTEXITCODE -ne 0) { throw 'WhaleMaid 卸载失败，请检查 CLI 输出�
 更新失败时，停止 Harness 后恢复旧固定副本到原链接路径；配置异常时可恢复第 4 步备份。恢复前核对文件和路径，再从开始菜单启动。
 
 ## 9. 可选的鲸鱼桌宠
+
+> 本节只适用于从源码单独安装 WhaleMaid 的情况。使用[完整版](#complete-installation)时桌宠已经自动安装，不要再按本节另装任何版本的 Coopanion。
 
 WhaleMaid 不依赖桌宠。没有桌宠时，仍可通过 Harness 使用目标、通知中心、伙伴对话和长期记忆。桌宠采用 **AGPL-3.0-or-later**，代码、角色包和媒体不属于 WhaleMaid 的 MIT 分发内容。
 

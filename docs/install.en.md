@@ -8,7 +8,11 @@ For WhaleMaid 1.2.1. Core authorization and execution support Windows, macOS and
 
 ## Complete installation (recommended)
 
-Install the prebuilt [WhaleMaid Complete 1.2.1 package](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.2.1/dsh-whalemaid-full-1.2.1.tgz) through Harness **Plugins → Add plugin**. It installs WhaleMaid and its compatible Coopanion fork in one operation; choose **Enable now** when prompted. No Git, pnpm or source build is needed for this route. Configure a model in Harness first.
+The easiest route is the Harness plugin market ([dsh-market](https://github.com/dsh-market/dsh-market#readme)): search for **WhaleMaid** and install it in one click. If you don't have the market yet, enter `dshmarket` under **Plugins → Add plugin** first.
+
+**Do not install any other Coopanion build alongside it** (including the original `@takboo/dsh-coopanion`): the complete package already includes the companion pet, and two pets enabled at once conflict.
+
+You can also install the prebuilt [WhaleMaid Complete 1.2.1 package](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.2.1/dsh-whalemaid-full-1.2.1.tgz) through Harness **Plugins → Add plugin**. It installs WhaleMaid and its compatible Coopanion fork in one operation; choose **Enable now** when prompted. No Git, pnpm or source build is needed for this route. Configure a model in Harness first.
 
 Before upgrading from separate installations, fully exit Harness and back up the profile and data as described below. Remove the old top-level pet bundle with `dsh plugin --profile desktop remove @takboo/dsh-coopanion` and the old WhaleMaid bundle with `dsh plugin --profile desktop remove dsh-whalemaid`, then add the complete-package URL. Use Harness's bundled CLI, not an old global CLI. Do not delete data directories. The complete package owns both configuration nodes; only `dsh-whalemaid` needs to appear as a top-level bundle.
 
@@ -119,6 +123,8 @@ The list should no longer contain `dsh-whalemaid`. Removal does not automaticall
 If an update fails, stop Harness and restore the old fixed copy to the original linked path. For configuration problems, restore the step-4 backup. Verify files and paths before restoring, then launch from the Start menu.
 
 ## 9. Optional whale desktop pet
+
+> This section only applies when WhaleMaid itself is installed from source. With the [complete package](#complete-installation) the pet is already installed; do not add any other Coopanion build from this section.
 
 WhaleMaid does not require a desktop pet. Without one, goals, the notification center, companion conversations and long-term memories remain available through Harness. The pet uses **AGPL-3.0-or-later**; its code, character packs and media are outside WhaleMaid's MIT distribution.
 

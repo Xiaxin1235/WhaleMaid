@@ -60,11 +60,13 @@ This feature is off by default. It sends only the opening of the final reply: th
 
 ## Installation and prerequisites
 
-**Install WhaleMaid Complete once.** It automatically installs and enables WhaleMaid plus the [WhaleMaid companion fork](https://github.com/Xiaxin1235/dsh-coopanion); no separate pet installation or source build is needed.
+**Install WhaleMaid Complete once.** It automatically installs and enables WhaleMaid plus the [WhaleMaid companion fork](https://github.com/Xiaxin1235/dsh-coopanion); no separate pet installation or source build is needed. **Do not install any other Coopanion build alongside it** (including the original `@takboo/dsh-coopanion`): two pets enabled at once conflict.
 
 Requires DeepSeek Harness Desktop **0.2.1-rc.2 / rc.3**, a working model configured in Harness, and an internet connection for dependencies and the initial Electron download. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](docs/market-release-report.md) for platform evidence.
 
-In **Plugins → Discover → Manage index sources**, add `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`, then install **WhaleMaid Complete**. After installation, choose **Enable now** to activate both components. This is our own index using pinned Git commits, so Git must be installed; community catalog review is separate. Without Git or a Discover tab, use the complete-package URL below.
+**Easiest: one-click install from the plugin market.** WhaleMaid is listed in the community catalog [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin). Search for **WhaleMaid** in the Harness plugin market ([dsh-market](https://github.com/dsh-market/dsh-market#readme)) and install it in one click. If you don't have the market yet, enter `dshmarket` under **Plugins → Add plugin** first, then search in the **Plugin Market** tab of the **Plugins** page. After installation, choose **Enable now** to activate both components.
+
+You can also add our own index `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json` under **Plugins → Discover → Manage index sources** and install **WhaleMaid Complete** from there. It uses pinned Git commits, so Git must be installed.
 
 Alternatively, in **Plugins → Add plugin**, enter the complete-package URL:
 
@@ -81,7 +83,7 @@ $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\
 
 Reopen Harness: the **WhaleMaid** panel and **Settings → Desktop pet** should both be available. Existing users who installed the two source bundles separately should first follow the backup and migration instructions in the [installation guide](docs/install.en.md#complete-installation). Your goals, memories and pet settings are retained. Decisions API expressions are configured separately in pet settings and remain off by default.
 
-Source builds, update and removal instructions are in the [installation guide](docs/install.en.md). Community catalog inclusion requires a maintainer review; a GitHub Release alone does not mean it is listed.
+Source builds, update and removal instructions are in the [installation guide](docs/install.en.md).
 
 ## Get started
 

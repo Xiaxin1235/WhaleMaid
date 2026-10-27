@@ -60,11 +60,13 @@ WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确�
 
 ## 安装与前置条件
 
-**只安装一次 WhaleMaid 完整版。** 安装包自带并统一启用 WhaleMaid 和 [WhaleMaid 配套 Coopanion](https://github.com/Xiaxin1235/dsh-coopanion)，无需分别安装，也无需自行构建源码。
+**只安装一次 WhaleMaid 完整版。** 安装包自带并统一启用 WhaleMaid 和 [WhaleMaid 配套 Coopanion](https://github.com/Xiaxin1235/dsh-coopanion)，无需分别安装，也无需自行构建源码。**不要再单独安装任何版本的 Coopanion**（包括原版 `@takboo/dsh-coopanion`），两份桌宠同时启用会冲突。
 
 需要已安装并初始化的 DeepSeek Harness Desktop **0.2.1-rc.2 / rc.3**，并在 Harness 中配置可用的聊天模型；首次安装需要联网下载依赖和 Electron。核心授权与执行支持 Windows、macOS、Linux；Linux 桌宠使用 X11，需要 `/usr/bin/python3` 与 libX11，Wayland 桌宠未声明支持。平台验收见[市场发布报告](docs/market-release-report.md)。
 
-在 **插件 → 发现（Discover）→ 管理索引源** 中添加 `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`，即可看到并安装 **WhaleMaid 完整版**。安装完成后，按提示点击“立即启用”，两部分会一起生效。这是使用固定 Git 提交的自有市场源，需要安装 Git；社区公共目录另需审核。没有 Git 或“发现”页时，直接使用下方完整包地址。
+**最方便：在插件市场一键安装。** WhaleMaid 已收录进社区插件目录 [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)。在 Harness 的插件市场（[dsh-market](https://github.com/dsh-market/dsh-market#readme)）中搜索 **WhaleMaid** 即可一键安装；还没有插件市场时，先在 **插件 → 添加插件** 中填入 `dshmarket` 安装它，之后在 **插件** 页的 **插件市场** 标签中搜索。安装完成后，按提示点击“立即启用”，两部分会一起生效。
+
+也可在 **插件 → 发现（Discover）→ 管理索引源** 中添加自有索引 `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json`，再安装 **WhaleMaid 完整版**。它使用固定 Git 提交，需要安装 Git。
 
 也可在 **插件 → 添加插件** 中填写完整安装包地址：
 
@@ -81,7 +83,7 @@ $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\
 
 重新打开 Harness，应同时看到 **WhaleMaid** 面板和 **Settings → 桌宠**。原来分别安装两份源码的用户，请先按[安装说明](docs/install.md#complete-installation)备份和迁移，避免同时启用两份桌宠；目标、记忆和桌宠设置保留。Decisions API 表情仍需在桌宠设置中单独配置，默认关闭。
 
-源码开发、更新和卸载见[安装说明](docs/install.md)。社区公共目录需要维护者审核；GitHub Release 发布不等于已被社区市场收录。
+源码开发、更新和卸载见[安装说明](docs/install.md)。
 
 ## 开始使用
 
