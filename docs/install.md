@@ -43,12 +43,12 @@ pnpm build
 
 ```powershell
 $fixedCopy = Join-Path (Split-Path (Get-Location).Path -Parent) 'whalemaid-fixed'
-pnpm --filter dsh-whalemaid deploy --legacy --prod "$fixedCopy"
+pnpm --filter dsh-whalemaid deploy --legacy --prod --config.package-import-method=copy "$fixedCopy"
 ```
 
-示例把固定副本放在仓库的同级目录。也可换成其他**仓库外的绝对路径**。`--legacy` 不能省，pnpm 11 的默认 deploy 模式会拒绝本项目当前的工作区配置。
+示例把固定副本放在仓库的同级目录。也可换成其他**仓库外的绝对路径**。`--legacy` 不能省，pnpm 11 的默认 deploy 模式会拒绝本项目当前的工作区配置。`--config.package-import-method=copy` 也不能省：pnpm 默认用硬链接导入工作区包，副本里的 `@whalemaid/core` 会和仓库的构建输出共用同一批文件，之后在仓库里重新构建就会原地改写正在使用的插件，新增的文件却不会出现在副本里，导致插件无法加载。
 
-Harness 将链接这份固定副本。以后在源码仓库中修改代码或重新构建，不会直接改变正在使用的插件；更新时再有意替换副本。第一次部署应使用尚不存在的目标目录。
+Harness 将链接这份固定副本。按上面的命令复制后，以后在源码仓库中修改代码或重新构建，不会改变正在使用的插件；更新时再有意替换副本。第一次部署应使用尚不存在的目标目录。
 
 ## 4. 确认 profile 并备份
 

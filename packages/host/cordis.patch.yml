@@ -8,6 +8,10 @@
       name: '@deepseek-ai/dsh-agent-preset'
       config:
         id: whaledot-companion
+        # Shown in Settings → Agent presets and the composer's preset menu. WhaleMaid opens 大肥鱼's
+        # conversation with this preset itself, so the description says not to pick it by hand.
+        name: '大肥鱼 (WhaleMaid)'
+        description: 'WhaleMaid 伙伴“大肥鱼”的专属对话：人设、记忆与伙伴工具。由 WhaleMaid 自动使用，无需手动选择。 / Companion preset for WhaleMaid; used automatically.'
         order: 50
         plugins:
           - id: persona

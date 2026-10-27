@@ -43,12 +43,12 @@ Alternatively, download a source archive from the repository's Releases page, ex
 
 ```powershell
 $fixedCopy = Join-Path (Split-Path (Get-Location).Path -Parent) 'whalemaid-fixed'
-pnpm --filter dsh-whalemaid deploy --legacy --prod "$fixedCopy"
+pnpm --filter dsh-whalemaid deploy --legacy --prod --config.package-import-method=copy "$fixedCopy"
 ```
 
-This creates a sibling of the source repository. You can choose another **absolute path outside the repository**. Do not omit `--legacy`: pnpm 11's default deploy mode rejects the project's current workspace configuration.
+This creates a sibling of the source repository. You can choose another **absolute path outside the repository**. Do not omit `--legacy`: pnpm 11's default deploy mode rejects the project's current workspace configuration. Do not omit `--config.package-import-method=copy` either: by default pnpm imports workspace packages as hard links, so the copy's `@whalemaid/core` shares files with the repository's build output. A later build in the repository then rewrites the plugin in use in place, without adding any new files to the copy, and the plugin fails to load.
 
-Harness will link to this fixed copy. Later source edits or builds will not directly change the plugin in use; replace the copy deliberately when updating. For the first deployment, choose a destination that does not yet exist.
+Harness will link to this fixed copy. With the command above, later source edits or builds will not change the plugin in use; replace the copy deliberately when updating. For the first deployment, choose a destination that does not yet exist.
 
 ## 4. Confirm the profile and back it up
 

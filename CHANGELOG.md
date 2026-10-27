@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Give the 大肥鱼 agent preset a name and description in Settings → Agent presets, so it no longer shows only its id.
+- Source installs: deploy the fixed copy with `--config.package-import-method=copy`. pnpm's default hard links let a later repository build rewrite the copy in use, leaving it unloadable (the main plugin failed to import and the 大肥鱼 preset showed "never started").
+
 ## 1.2.1
 
 - Ship the verified companion and its runtime dependencies using standard npm bundled dependencies, preserving component licenses and corresponding source. Installation works with pnpm blockExoticSubdeps enabled.
