@@ -2,6 +2,8 @@
 
 本轮完成 Windows、macOS、Linux 的核心授权与执行移植，并发布 WhaleMaid 1.2.1 完整版，内置配套 Coopanion 0.5.6。工作在独立的 `codex/market-release` 工作区进行；真实模型 API 调用为 0，测试 profile 与日常安装分开。
 
+后续 1.2.2 完整包已包含预设命名、固定副本部署和审批可读性修复；本页保留 1.2.1 的原始记录，最新验收见[1.2.2 修复发布报告](patch-release-report.md)。
+
 ## 本轮门禁与产物
 
 [WhaleMaid Complete 1.2.1](https://github.com/Xiaxin1235/WhaleMaid/releases/tag/v1.2.1) 已发布，自有 Discover 源已完成真实安装、启用和卸载验收。社区公共目录 [PR #9681](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin/pull/9681) 已于 2026-10-26 合并。后续名称与宿主要求修正见文末记录。
