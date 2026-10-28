@@ -1,6 +1,6 @@
 {
   "name": "@whalemaid/core",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "description": "Pure TypeScript domain models and policies for WhaleMaid project autopilot",
   "repository": {
     "type": "git",

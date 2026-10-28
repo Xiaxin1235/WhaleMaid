@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.2.2
+
+- Include the companion approval fix so ordinary PowerShell variable values remain readable while secret formats stay redacted.
 
 - Give the 大肥鱼 agent preset a name and description in Settings → Agent presets, so it no longer shows only its id.
 - Source installs: deploy the fixed copy with `--config.package-import-method=copy`. pnpm's default hard links let a later repository build rewrite the copy in use, leaving it unloadable (the main plugin failed to import and the 大肥鱼 preset showed "never started").
