@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.3
+
+- Fix PTC sessions failing before a message is sent with `tool "codex" parameters must be lossless JSON before schema projection`. Remove Zod’s non-JSON metadata from Codex and companion tool parameter schemas while preserving fields, constraints, defaults and runtime validation.
+- Keep native tool mode and existing execution and approval requirements unchanged. The complete package continues to include the compatible Coopanion 0.5.7 fork.
+
 ## 1.2.2
 
 - Include the companion approval fix so ordinary PowerShell variable values remain readable while secret formats stay redacted.
