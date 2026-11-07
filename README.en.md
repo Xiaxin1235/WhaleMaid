@@ -2,6 +2,8 @@
 
 [中文](README.md) | English
 
+<p align="center"><img src="packages/host/welcome/dafeiyu.gif" width="180" alt="Da Fei Yu making a heart"></p>
+
 WhaleMaid is a project autopilot plugin for DeepSeek Harness (DSH): it plans and executes tasks within the scope you confirm, independently verifies results, and asks you when a decision is needed.
 
 Documentation for **1.3.1**. Requires DSH Desktop **0.2.x from 0.2.1-rc.2**. Source builds require Node.js ≥22.19. Preview limitations still apply; see the [usage guide](docs/usage.en.md).
@@ -12,7 +14,8 @@ Documentation for **1.3.1**. Requires DSH Desktop **0.2.x from 0.2.1-rc.2**. Sou
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Goals and authorization                | Draft a goal in natural language, then review the project directory, protected items, actions, exact verification commands and budgets in the panel.                                                                                                                                            |
 | Autopilot and independent verification | Execute dependent tasks in a separate Git worktree. The host independently runs confirmed verification commands and uses the evidence to continue, stop or request a decision.                                                                                                                  |
-| Notifications and decisions            | Use the notification center and native DSH questions for pending decisions, with quiet hours, muting, rate limits, retries, pausing, and owner-operated abandonment or changes of direction.                                                                                                    |
+| Notifications and decisions            | Use the notification center and native DSH questions for pending decisions, with quiet hours, muting, rate limits, pausing, and owner-operated abandonment or changes of direction. Failed deliveries retry automatically, and interrupted questions return after a restart or unmute.          |
+| Initiative                             | Rule-based findings for repeated failures, looming stalls, budgets running low, decisions left waiting and more, shown in the panel and your daily brief; no notifications and no model calls. See the [usage guide](docs/usage.en.md#initiative).                                              |
 | Da Fei Yu                              | A dedicated companion conversation, confirmed long-term memories, conversation recaps and experiences, management proposals requiring your confirmation, and a progress brief on the first chat of the day.                                                                                     |
 | Trusted command execution              | Separately confirm this mode for writable goals to allow ordinary commands. Recognized dangerous commands still require live, one-time approval. Command text cannot fully constrain what an arbitrary script does internally.                                                                  |
 | Everyday auto-approval                 | Off by default. When on, commands in ordinary sessions recognized as ordinary are allowed once automatically; deletion, publishing, installs and other dangerous operations still go to you. Goal task sessions are unaffected. See the [usage guide](docs/usage.en.md#everyday-auto-approval). |
@@ -46,7 +49,7 @@ The panel supports **viewing, editing, archiving, restoring, deleting and export
 
 Goals can contain dependent tasks that advance within budget, protected-path and concurrency limits. Git projects use separate worktrees with checkpoints, changes and trace records. The host runs the verification commands you confirmed and decides whether to continue, repair or wait for you, rather than accepting a model's completion claim as success.
 
-When work fails, its outcome is unknown or a choice is needed, notification cards offer actions appropriate to the current state. Successful choices for similar problems influence their order. Depending on task state and authorization, you can inspect changes, retry verification, pause or defer. Simultaneous answers in the panel and a compatible pet settle only once; expired options cannot execute. See [verification](docs/usage.en.md#autopilot-and-independent-verification) and [notifications](docs/usage.en.md#notifications-and-owner-decisions).
+When work fails, its outcome is unknown or a choice is needed, notification cards offer two to four actions appropriate to the current state. Decisions after verification always include accept and retry, plus rollback when available, and successful choices for similar problems influence their order. Failed deliveries retry with backoff; questions interrupted by a restart, mute or quiet hours are asked again once eligible, while a question you close without answering is not repeated. The notification center shows each decision’s delivery history and next ask time. Simultaneous answers in the panel and a compatible pet settle only once; expired options cannot execute. See [verification](docs/usage.en.md#autopilot-and-independent-verification) and [notifications](docs/usage.en.md#notifications-and-owner-decisions).
 
 The first chat of the day can also begin with a short progress brief. Earlier companion conversations can be archived and restored without deleting their content. See [daily briefs](docs/usage.en.md#daily-brief) and [earlier conversations](docs/usage.en.md#earlier-companion-conversations).
 
@@ -64,7 +67,7 @@ This feature is off by default. It sends only the opening of the final reply: th
 
 Requires DeepSeek Harness Desktop **0.2.x from 0.2.1-rc.2**, a working model configured in Harness, and an internet connection for dependencies and the initial Electron download. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](docs/market-release-report.md) for platform evidence.
 
-**Easiest: one-click install from the plugin market.** WhaleMaid is listed in the community catalog [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin). Search for **WhaleMaid** in the Harness plugin market ([dsh-market](https://github.com/dsh-market/dsh-market#readme)) and install it in one click. If you don't have the market yet, enter `dshmarket` under **Plugins → Add plugin** first, then search in the **Plugin Market** tab of the **Plugins** page. After installation, choose **Enable now** to activate both components.
+**Easiest: one-click install and updates from the plugin market.** WhaleMaid is listed in the community catalog [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin). Search for **WhaleMaid** in the Harness plugin market ([dsh-market](https://github.com/dsh-market/dsh-market#readme)) and install it in one click. If you don't have the market yet, enter `dshmarket` under **Plugins → Add plugin** first, then search in the **Plugin Market** tab of the **Plugins** page. After installation, choose **Enable now** to activate both components. New versions also update in one click from the market.
 
 You can also add our own index `https://raw.githubusercontent.com/Xiaxin1235/WhaleMaid/master/market/index.json` under **Plugins → Discover → Manage index sources** and install **WhaleMaid Complete** from there. It uses pinned Git commits, so Git must be installed.
 
@@ -89,11 +92,13 @@ Source builds, update and removal instructions are in the [installation guide](d
 
 Install the complete package above, or consult the [installation guide](docs/install.en.md) for backups, migration, updates and removal.
 
+The first time you open Harness, a welcome page introduces the basics; each release with notable changes shows it once more with what’s new. Reopen it from **Settings → WhaleMaid → Help & feedback**.
+
 After installation, open **WhaleMaid** in Harness. Start with a small, noncritical project, review the draft and confirm its authorization. Autopilot requires a separate opt-in. See the [usage guide](docs/usage.en.md) for operation, defaults, ways to turn features off and limitations.
 
 ## Community and feedback
 
-Testing and feedback QQ group: **1001092170** (Chinese). Join for help, early testing of new versions or feature ideas, or open a [GitHub issue](https://github.com/Xiaxin1235/WhaleMaid/issues).
+Testing and feedback QQ group: **1001092170** (Chinese). Join for help, early testing of new versions or feature ideas, or open a [GitHub issue](https://github.com/Xiaxin1235/WhaleMaid/issues). If WhaleMaid is useful to you, a ⭐ on the repository helps more people find her.
 
 ## Boundaries
 
