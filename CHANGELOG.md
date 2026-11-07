@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased (planned 1.3.0)
+## 1.3.0
 
 - **Initiative (phase 1).** Rule-based findings for repeated failures with the same cause, looming stalls, missing acceptance evidence, budgets running low, decisions left waiting, idle goals and leftovers after completion. The WhaleMaid panel lists them with evidence links, per-detector switches and maximum levels, and a seven-day count. The daily brief includes up to three findings, and Da Fei Yu can look them up read-only. Findings never send notifications, call a model or change any state. Repeated verification timeouts also count as the same failure.
 - **Reliable decision questions.** Failed deliveries retry after 1, 5 and 30 minutes, then every 2 hours, within the hourly limit. Questions interrupted by a restart, mute or quiet hours are asked again once eligible; a question you close without answering waits in the panel until you ask for a reminder. Decisions still needed after 24 hours stay open, superseded options stop working, and the panel and pet can never both act on one decision. Verification questions always include accept and retry, plus rollback when available. The notification center shows each decision’s delivery history and next ask time.
