@@ -144,6 +144,17 @@ try {
   const errors = []
   page.on('pageerror', (error) => errors.push(error.message))
   await page.goto(url)
+  // A fresh install shows the modal welcome once; it must load its artwork on demand and close cleanly.
+  const welcome = page.locator('dialog.whalemaid-welcome[open]')
+  await welcome.waitFor({ timeout: 60000 })
+  await page.waitForFunction(() => {
+    const image = document.querySelector('dialog.whalemaid-welcome img.whalemaid-welcome-art')
+    return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0
+  })
+  await mkdir('artifacts', { recursive: true })
+  await page.screenshot({ path: 'artifacts/complete-welcome.png' })
+  await welcome.getByRole('button', { name: /^(Get started|开始使用)$/ }).click()
+  await welcome.waitFor({ state: 'detached' })
   await page.getByRole('button', { name: 'WhaleMaid', exact: true }).click()
   await page.getByRole('heading', { name: 'WhaleMaid', exact: true }).waitFor()
   await page.getByText(report.version, { exact: true }).waitFor()
