@@ -162,6 +162,11 @@ export class InitiativeService {
       try {
         this.detectGoal(id, kind, now, day, deadline)
       } catch (error) {
+        // A timed-out goal stays queued for the next batch instead of waiting for its next change.
+        if (error instanceof Error && error.message === 'initiative-scan-timeout') {
+          if (!this.pending.has(id)) this.pending.set(id, kind)
+          throw error
+        }
         this.deps.log('initiative goal scan failed', error)
       }
     }

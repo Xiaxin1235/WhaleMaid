@@ -160,6 +160,20 @@ test('coalesces committed changes for 30 seconds and reads only the affected goa
   expect(f.initiative.panel().counts.repeatedFailure).toBe(1)
 })
 
+test('a goal interrupted by the scan time limit stays queued for the next batch', async () => {
+  const f = setup()
+  for (const id of ['r1', 'r2', 'r3']) f.addFailure(id)
+  const read = vi.spyOn(f.store.verifications, 'forGoal').mockImplementationOnce(() => {
+    throw Error('initiative-scan-timeout')
+  })
+  await f.initiative.scan()
+  expect(f.initiative.panel().findings).toEqual([])
+  expect(f.log).not.toHaveBeenCalledWith('initiative goal scan failed', expect.anything())
+  await f.initiative.scan()
+  expect(read).toHaveBeenCalledTimes(2)
+  expect(f.initiative.panel().counts.repeatedFailure).toBe(1)
+})
+
 test('disabling a detector retains existing records, and reserved channels never promote findings', async () => {
   const f = setup()
   for (const id of ['r1', 'r2', 'r3']) f.addFailure(id)

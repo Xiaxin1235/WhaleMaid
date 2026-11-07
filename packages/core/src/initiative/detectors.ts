@@ -69,6 +69,11 @@ export function normalizeFailureText(text: string): string {
     .trim()
 }
 export function failureSignature(result: CommandResult, hash: (value: string) => string): string | undefined {
+  // A command killed by the time limit has no exit code or reliable tail; the command itself is the cause.
+  if (result.status === 'timeout')
+    return result.command.trim()
+      ? hash(JSON.stringify([normalizeFailureText(result.command), 'timeout']))
+      : undefined
   if (
     result.status !== 'failed' ||
     result.exitCode === null ||
@@ -94,7 +99,8 @@ export function repeatedFailure(
   const tasks = new Set(f.tasks?.map((task) => task.id))
   const groups = new Map<string, Map<string, OpportunityEvidence>>()
   for (const v of f.verifications ?? []) {
-    if (!tasks.has(v.taskId) || v.createdAt > now || v.judgment.verdict !== 'FAIL') continue
+    if (!tasks.has(v.taskId) || v.createdAt > now || !['FAIL', 'UNKNOWN'].includes(v.judgment.verdict))
+      continue
     for (const [index, command] of v.current.entries()) {
       const signature = failureSignature(command, hash)
       if (!signature) continue

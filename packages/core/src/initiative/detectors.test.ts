@@ -165,6 +165,26 @@ test('same failure hashes alike across paths, temporary directories, timestamps,
   expect(failureSignature({ ...failure, tail: '' }, hash)).toBeUndefined()
 })
 
+test('commands repeatedly killed by the time limit count as the same failure', () => {
+  const timeout = (path: string): CommandResult => ({
+    command: 'node ' + path + 'verify.mjs',
+    exitCode: null,
+    status: 'timeout',
+  })
+  const a = timeout('C:\\one\\tmp-1\\'),
+    b = timeout('/two/temp-2/')
+  expect(failureSignature(a, hash)).toBe(failureSignature(b, hash))
+  expect(failureSignature(a, hash)).not.toBe(failureSignature({ ...failure, command: a.command }, hash))
+  const unknown = ['r1', 'r2', 'r3'].map((id, i) => ({
+    ...verification(id, task.id, 'UNKNOWN'),
+    current: [i % 2 ? a : b],
+  }))
+  expect(repeatedFailure({ goal, tasks: [task], verifications: unknown }, NOW, hash)).toMatchObject([
+    { detector: 'repeatedFailure' },
+  ])
+  expect(repeatedFailure({ goal, tasks: [task], verifications: unknown.slice(0, 2) }, NOW, hash)).toEqual([])
+})
+
 test('repeated occurrences in a single run do not count as separate attempts', () => {
   const sameRun = { ...reports[0]!, current: [failure, failure, failure] }
   expect(repeatedFailure({ goal, tasks: [task], verifications: [sameRun] }, NOW, hash)).toEqual([])
