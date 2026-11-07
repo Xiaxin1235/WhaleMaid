@@ -1,6 +1,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, symlinkSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { PeerScope } from '@deepseek-ai/dsh-client-connection'
@@ -13,6 +14,7 @@ import { inspectProject, projectPath } from './project.js'
 import { dshDraftModel } from './model.js'
 import type { Context } from '@deepseek-ai/cordis'
 import { createPanelHandler } from '../panel-api/index.js'
+import { welcomeArt } from '../welcome-art.js'
 import { PANEL_METHODS } from '../panel-api/contract.js'
 import { snapshot } from '../../tests/panel-fixture.js'
 const peer = { principal: { kind: 'owner' }, signal: new AbortController().signal } as PeerScope
@@ -206,6 +208,39 @@ test('welcome routes report the owner state and keep a failed dismissal eligible
   expect(await read()).toMatchObject({ value: { show: true } })
   expect(await mark()).toMatchObject({ ok: true })
   expect(await read()).toMatchObject({ value: { show: false } })
+})
+
+test('welcome artwork is served on demand from the packaged files', async () => {
+  const handler = createPanelHandler({
+    snapshot: () => snapshot,
+    setLanguage: vi.fn(),
+    goals: () => [],
+    setPaused: vi.fn(),
+    revokeScope: vi.fn(),
+    takeoverStore: vi.fn(),
+  })
+  const art = (kind: string) => handler('welcome-art', { kind }, peer.signal, peer)
+  expect(await art('motion')).toMatchObject({
+    ok: true,
+    value: { src: expect.stringMatching(/^data:image\/gif;base64,/) },
+  })
+  expect(await art('still')).toMatchObject({
+    ok: true,
+    value: { src: expect.stringMatching(/^data:image\/png;base64,/) },
+  })
+  expect(await art('other')).toMatchObject({ ok: false })
+  const empty = mkdtempSync(join(tmpdir(), 'whalemaid-welcome-'))
+  try {
+    const root = pathToFileURL(empty + '/')
+    expect(await welcomeArt('motion', root)).toBeUndefined()
+    writeFileSync(join(empty, 'dafeiyu.gif'), 'gif')
+    writeFileSync(join(empty, 'dafeiyu.webp'), 'webp')
+    expect(await welcomeArt('motion', root)).toBe(
+      'data:image/webp;base64,' + Buffer.from('webp').toString('base64'),
+    )
+  } finally {
+    rmSync(empty, { recursive: true, force: true })
+  }
 })
 
 test('all new routes deny unauthenticated callers before dispatch', async () => {

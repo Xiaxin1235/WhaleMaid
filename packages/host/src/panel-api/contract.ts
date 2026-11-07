@@ -130,10 +130,13 @@ export const RouteResultSchema = z.strictObject({
 })
 export const ReminderSchema = z.strictObject({ notificationId: z.string().min(1) })
 export const WelcomeStatusSchema = z.strictObject({ show: z.boolean(), language: LanguageSchema })
+export const WelcomeArtRequestSchema = z.strictObject({ kind: z.enum(['motion', 'still']) })
+export const WelcomeArtSchema = z.strictObject({ src: z.string().startsWith('data:image/').optional() })
 
 export const PANEL_METHODS = [
   'welcome-status',
   'welcome-seen',
+  'welcome-art',
   'codex',
   'codex-settings',
   'everyday-approvals',

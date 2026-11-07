@@ -1,19 +1,11 @@
 import { build } from 'esbuild'
-import { readFileSync, statSync } from 'node:fs'
+import { statSync } from 'node:fs'
 import { URL } from 'node:url'
 
-const welcomeArt = {}
-for (const [key, file, mime] of [
-  ['webp', 'dafeiyu.webp', 'image/webp'],
-  ['gif', 'dafeiyu.gif', 'image/gif'],
-  ['still', 'dafeiyu-still.png', 'image/png'],
-]) {
-  const source = new URL('./welcome/' + file, import.meta.url)
-  const stat = statSync(source, { throwIfNoEntry: false })
-  if (!stat) continue
-  if (stat.size > 600_000) throw Error('Welcome artwork welcome/' + file + ' exceeds 600 KB')
-  const bytes = readFileSync(source)
-  welcomeArt[key] = 'data:' + mime + ';base64,' + bytes.toString('base64')
+// Welcome artwork ships as separate files read by the host on demand; it is not bundled here.
+for (const file of ['dafeiyu.webp', 'dafeiyu.gif', 'dafeiyu-still.png']) {
+  const stat = statSync(new URL('./welcome/' + file, import.meta.url), { throwIfNoEntry: false })
+  if (stat && stat.size > 600_000) throw Error('Welcome artwork welcome/' + file + ' exceeds 600 KB')
 }
 await build({
   entryPoints: ['src/client/index.ts'],
@@ -23,7 +15,6 @@ await build({
   platform: 'browser',
   target: 'es2022',
   external: ['react'],
-  define: { __WHALEMAID_WELCOME_ART__: JSON.stringify(welcomeArt) },
   loader: { '.css': 'text' },
   sourcemap: false,
   banner: {

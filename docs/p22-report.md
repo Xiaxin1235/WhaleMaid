@@ -17,7 +17,9 @@
 | `dafeiyu-still.png` | 减少动态效果及动图加载失败时显示 |  64,535 字节 |
 | `dafeiyu.webp`      | 可选动图，存在时优先使用         |            — |
 
-[客户端构建](../packages/host/build-client.mjs)将存在的文件内嵌到 `lib/client.js`，逐个检查 600 KB 上限。没有素材时不渲染图片。包检查核对客户端中素材的原始字节和随包的[署名](../packages/host/THIRD_PARTY_NOTICES.md)。
+素材作为独立文件随包分发（`welcome/*`），不打进 `lib/client.js`。弹窗打开时，客户端才通过面板 API `welcome-art` 向宿主请求动图或静止图，宿主按需读取并在内存中缓存，页面内也只请求一次。[客户端构建](../packages/host/build-client.mjs)仍逐个检查 600 KB 上限。没有素材时不渲染图片。包检查核对随包素材的原始字节、客户端中没有内嵌图片，以及随包的[署名](../packages/host/THIRD_PARTY_NOTICES.md)。
+
+> 审查修正：最初版本把两张图以 base64 内嵌进 `lib/client.js`（约 1.75 MB），每次打开 Harness 都会加载。改为按需加载后，`lib/client.js` 约 1.07 MB，看过欢迎页的用户不再下载图片。
 
 ## 验证
 

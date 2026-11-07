@@ -28,6 +28,7 @@ test('staged complete manifest loads the private core and declares both componen
   assert.ok(!readdirSync(stage).includes('desktop'))
   assert.ok(pkg.files.includes('lib/**/*.js'))
   assert.ok(pkg.files.includes('THIRD_PARTY_NOTICES.md'))
+  assert.ok(pkg.files.includes('welcome/*'))
   assert.match(readFileSync(join(stage, 'THIRD_PARTY_NOTICES.md'), 'utf8'), /ZipZipPipe/)
   const client = readFileSync(join(stage, 'lib/client.js'), 'utf8')
   for (const [name, mime] of [
@@ -39,9 +40,10 @@ test('staged complete manifest loads the private core and declares both componen
     if (!existsSync(source)) continue
     const bytes = readFileSync(source)
     assert.ok(bytes.length <= 600_000, name + ' exceeds 600 KB')
+    assert.ok(readFileSync(join(stage, 'welcome', name)).equals(bytes), name + ' is missing from the package')
     assert.ok(
-      client.includes('data:' + mime + ';base64,' + bytes.toString('base64')),
-      name + ' is missing from the client bundle',
+      !client.includes('data:' + mime + ';base64,'),
+      name + ' must load on demand, not with the client',
     )
   }
   // Resolve against the installed development dependencies only for this load

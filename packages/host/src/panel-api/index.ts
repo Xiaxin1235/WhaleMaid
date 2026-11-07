@@ -1,4 +1,5 @@
 import type { WhaleStore } from '../store/index.js'
+import { welcomeArt } from '../welcome-art.js'
 import type { NotificationDeliverer } from '../notify/deliverer.js'
 import type { CompanionMemory } from '../companion/memory.js'
 import type { MemoryDrafts } from '../companion/drafts.js'
@@ -46,6 +47,8 @@ import {
   CompanionRebuildSchema,
   PANEL_METHODS,
   WelcomeStatusSchema,
+  WelcomeArtRequestSchema,
+  WelcomeArtSchema,
   DraftStartedSchema,
   DraftStatusSchema,
   ProjectFactsSchema,
@@ -120,6 +123,11 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
             language: runtime.snapshot().language,
           })
           break
+        case 'welcome-art': {
+          const src = await welcomeArt(WelcomeArtRequestSchema.parse(input).kind)
+          result = WelcomeArtSchema.parse(src ? { src } : {})
+          break
+        }
         case 'welcome-seen':
           z.strictObject({}).parse(input)
           runtime.welcome?.markWelcomeSeen()

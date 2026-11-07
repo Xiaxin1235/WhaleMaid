@@ -4,9 +4,29 @@ import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import { resolveLocale, t } from '@whalemaid/core'
 import type { LanguageSetting, Locale } from '@whalemaid/core'
-import { PANEL_CHANNEL, PANEL_PREFIX, WelcomeStatusSchema } from '../panel-api/contract.js'
+import { PANEL_CHANNEL, PANEL_PREFIX, WelcomeArtSchema, WelcomeStatusSchema } from '../panel-api/contract.js'
 
-declare const __WHALEMAID_WELCOME_ART__: { webp?: string; gif?: string; still?: string }
+type ArtKind = 'motion' | 'still'
+type LoadArt = (kind: ArtKind) => Promise<string | undefined>
+// Artwork is fetched from the host only when a dialog opens, then kept for this page.
+const artCache = new Map<ArtKind, Promise<string | undefined>>()
+function artLoader(connection: ConnectionHandle): LoadArt {
+  return (kind) => {
+    let pending = artCache.get(kind)
+    if (!pending) {
+      pending = connection.rpc
+        .call(PANEL_CHANNEL, PANEL_PREFIX + '/welcome-art', { kind })
+        .then((result) => (result.ok ? WelcomeArtSchema.parse(result.value).src : undefined))
+        .catch(() => undefined)
+      // A failed or empty load may succeed after reconnecting.
+      void pending.then((src) => {
+        if (!src) artCache.delete(kind)
+      })
+      artCache.set(kind, pending)
+    }
+    return pending
+  }
+}
 const openEvent = 'whalemaid-open-welcome'
 const group = '1001092170'
 const repository = 'https://github.com/Xiaxin1235/WhaleMaid'
@@ -36,6 +56,7 @@ export function WelcomeOverlay({ ctx, connection }: { ctx: Context; connection: 
   )
   const [welcome, setWelcome] = useState<Welcome>()
   const suppressAutomatic = useRef(false)
+  const [loadArt] = useState(() => artLoader(connection))
 
   useEffect(() => {
     const open = (event: Event) => {
@@ -94,10 +115,11 @@ export function WelcomeOverlay({ ctx, connection }: { ctx: Context; connection: 
   return h(WelcomeDialog, {
     locale: welcome.mode === 'manual' ? welcome.locale : resolveLocale(welcome.language, hostLocale.active),
     dismiss,
+    loadArt,
   })
 }
 
-function WelcomeArtwork({ alt }: { alt: string }) {
+function WelcomeArtwork({ alt, loadArt }: { alt: string; loadArt: LoadArt }) {
   const [motion] = useState(() => window.matchMedia('(prefers-reduced-motion: reduce)'))
   const reduce = useSyncExternalStore(
     (changed) => {
@@ -106,20 +128,46 @@ function WelcomeArtwork({ alt }: { alt: string }) {
     },
     () => motion.matches,
   )
-  const art = __WHALEMAID_WELCOME_ART__
-  const sources = (reduce ? [art.still] : [art.webp, art.gif, art.still]).filter(Boolean) as string[]
-  return h(WelcomeImage, { key: String(reduce), sources, alt })
+  return h(WelcomeImage, {
+    key: String(reduce),
+    kinds: reduce ? ['still'] : ['motion', 'still'],
+    alt,
+    loadArt,
+  })
 }
 
-function WelcomeImage({ sources, alt }: { sources: string[]; alt: string }) {
+function WelcomeImage({ kinds, alt, loadArt }: { kinds: ArtKind[]; alt: string; loadArt: LoadArt }) {
   const [index, setIndex] = useState(0)
-  const src = sources[index]
-  return src
-    ? h('img', { className: 'whalemaid-welcome-art', src, alt, onError: () => setIndex(index + 1) })
-    : null
+  const [src, setSrc] = useState<string>()
+  const kind = kinds[index]
+  useEffect(() => {
+    let live = true
+    setSrc(undefined)
+    if (!kind) return
+    void loadArt(kind).then((value) => {
+      if (!live) return
+      if (value) setSrc(value)
+      else setIndex((i) => i + 1)
+    })
+    return () => {
+      live = false
+    }
+  }, [kind, loadArt])
+  if (src)
+    return h('img', { className: 'whalemaid-welcome-art', src, alt, onError: () => setIndex(index + 1) })
+  // Keep the slot while loading so the dialog does not jump; render nothing once no artwork exists.
+  return kind ? h('span', { className: 'whalemaid-welcome-art', 'aria-hidden': true }) : null
 }
 
-function WelcomeDialog({ locale, dismiss }: { locale: Locale; dismiss: () => void }) {
+function WelcomeDialog({
+  locale,
+  dismiss,
+  loadArt,
+}: {
+  locale: Locale
+  dismiss: () => void
+  loadArt: LoadArt
+}) {
   const dialog = useRef<HTMLDialogElement>(null)
   const start = useRef<HTMLButtonElement>(null)
   const pointerOnBackdrop = useRef(false)
@@ -204,7 +252,7 @@ function WelcomeDialog({ locale, dismiss }: { locale: Locale; dismiss: () => voi
     h(
       'header',
       { className: 'whalemaid-welcome-header' },
-      h(WelcomeArtwork, { alt: text('welcomeArt') }),
+      h(WelcomeArtwork, { alt: text('welcomeArt'), loadArt }),
       h(
         'div',
         null,
