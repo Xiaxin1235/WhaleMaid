@@ -281,6 +281,14 @@ function WelcomeDialog({
       ),
       copyState === 'manual' && h('span', { role: 'status' }, text('welcomeCopyManual')),
     ),
+    h(
+      'p',
+      { className: 'whalemaid-welcome-star' },
+      '⭐ ',
+      text('welcomeStar'),
+      ' ',
+      h('a', { href: repository, target: '_blank', rel: 'noopener noreferrer' }, text('welcomeStarLink')),
+    ),
     h('p', { className: 'whalemaid-welcome-pet' }, text('welcomePet')),
     h(
       'footer',
@@ -299,6 +307,50 @@ function WelcomeDialog({
         { type: 'button', ref: start, className: 'whalemaid-welcome-start', onClick: dismiss },
         text('welcomeStart'),
       ),
+    ),
+  )
+}
+
+/** Settings entry: reopen the welcome without changing its record, and reach feedback channels. */
+export function AboutSettings({ locale }: { locale: Locale }) {
+  const [copyState, setCopyState] = useState<'copied' | 'manual'>()
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  useEffect(() => () => clearTimeout(timer.current), [])
+  const text = (key: Parameters<typeof t>[1]) => t(locale, key)
+  const copy = async () => {
+    clearTimeout(timer.current)
+    try {
+      await navigator.clipboard.writeText(group)
+      setCopyState('copied')
+      timer.current = setTimeout(() => setCopyState(undefined), 1800)
+    } catch {
+      setCopyState('manual')
+    }
+  }
+  return h(
+    'section',
+    { className: 'whalemaid-about' },
+    h('h3', null, text('aboutFeedback')),
+    h(
+      'div',
+      { className: 'whalemaid-about-row' },
+      h('button', { type: 'button', onClick: () => openWelcome(locale) }, text('welcomeAbout')),
+      h(
+        'a',
+        { href: repository + '/issues/new', target: '_blank', rel: 'noopener noreferrer' },
+        text('reportIssue'),
+      ),
+    ),
+    h(
+      'div',
+      { className: 'whalemaid-about-row' },
+      h('span', null, text('welcomeGroup'), ' ', h('code', null, group)),
+      h(
+        'button',
+        { type: 'button', onClick: () => void copy() },
+        text(copyState === 'copied' ? 'welcomeCopied' : 'welcomeCopy'),
+      ),
+      copyState === 'manual' && h('span', { role: 'status' }, text('welcomeCopyManual')),
     ),
   )
 }

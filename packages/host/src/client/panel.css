@@ -330,9 +330,16 @@
   font-size: 22px;
   line-height: 1;
 }
+.whalemaid-welcome-star {
+  margin: 14px 0 0;
+}
+.whalemaid-welcome-star a {
+  color: inherit;
+  text-decoration: underline;
+}
 .whalemaid-welcome-pet {
   color: var(--dsw-alias-label-secondary, CanvasText);
-  margin: 14px 0;
+  margin: 8px 0 14px;
 }
 .whalemaid-welcome footer {
   justify-content: flex-end;
@@ -374,4 +381,34 @@
     height: 140px;
     margin: 0 auto 12px;
   }
+}
+
+.whalemaid-about {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px solid var(--dsw-alias-separator-primary);
+}
+.whalemaid-about h3 {
+  margin: 0 0 12px;
+  font-size: 15px;
+}
+.whalemaid-about-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 10px;
+}
+.whalemaid-about button {
+  font: inherit;
+  color: inherit;
+  background: var(--dsw-alias-bg-base);
+  border: 1px solid var(--dsw-alias-separator-primary);
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.whalemaid-about a {
+  color: inherit;
+  text-decoration: underline;
 }

@@ -33,7 +33,7 @@ import { DailyBriefView } from './daily-brief.js'
 import { InitiativeView } from './initiative.js'
 import { EverydayApprovalsView } from './everyday-approvals.js'
 import { CodexView } from './codex.js'
-import { openWelcome, WelcomeOverlay } from './welcome.js'
+import { AboutSettings, openWelcome, WelcomeOverlay } from './welcome.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
@@ -531,6 +531,7 @@ function LanguageSettings({ ctx, connection }: Face) {
     saving && h('p', { role: 'status' }, t(locale, 'saving')),
     h(EverydayApprovalsView, { connection, locale }),
     h(CodexView, { connection, locale }),
+    h(AboutSettings, { locale }),
   )
 }
 
