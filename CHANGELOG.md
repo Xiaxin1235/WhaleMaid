@@ -1,12 +1,16 @@
 # Changelog
 
-## Unreleased
+## Unreleased (planned 1.3.0)
 
-- Show a bilingual welcome dialog once per WhaleMaid data directory, with Da Fei Yu artwork, a quick feature tour, and a panel shortcut to reopen it.
+- **Initiative (phase 1).** Rule-based findings for repeated failures with the same cause, looming stalls, missing acceptance evidence, budgets running low, decisions left waiting, idle goals and leftovers after completion. The WhaleMaid panel lists them with evidence links, per-detector switches and maximum levels, and a seven-day count. The daily brief includes up to three findings, and Da Fei Yu can look them up read-only. Findings never send notifications, call a model or change any state. Repeated verification timeouts also count as the same failure.
+- **Reliable decision questions.** Failed deliveries retry after 1, 5 and 30 minutes, then every 2 hours, within the hourly limit. Questions interrupted by a restart, mute or quiet hours are asked again once eligible; a question you close without answering waits in the panel until you ask for a reminder. Decisions still needed after 24 hours stay open, superseded options stop working, and the panel and pet can never both act on one decision. Verification questions always include accept and retry, plus rollback when available. The notification center shows each decision’s delivery history and next ask time.
+- **Welcome and release guide.** A bilingual welcome dialog with Da Fei Yu artwork introduces the main features and the QQ feedback group. It appears once after installation and once more for each release with notable changes, leading with what’s new. The artwork loads only when the dialog opens. Reopen it from **WhaleMaid → Welcome & about** or **Settings → WhaleMaid → Help & feedback**, which also links to GitHub issues.
 
-- Retry failed decision questions with backoff, resume interrupted asks when eligible, and show delivery history in the notification center. Keep valid pending decisions open and reserve option slots for manual acceptance, retry, and other essential choices.
+### 中文
 
-- Add rule-based initiative findings to the WhaleMaid panel, with evidence links, per-detector settings, and a seven-day count. The daily brief can include three findings and Da Fei Yu can look up recent findings on request.
+- **主动性（第一阶段）**：用规则发现同一原因反复失败、即将停滞、验收依据不足、预算将尽、决定积压、目标长期闲置和完成后的遗留。WhaleMaid 面板列出这些发现，可展开证据，每类发现有独立开关和最高分级，并显示近 7 天统计。每日简报最多收录三条，大肥鱼也可以只读查询。发现不会发通知、不调用模型、不改任何状态。验收命令反复超时也算同一原因失败。
+- **决策提问更可靠**：投递失败后按 1 分钟、5 分钟、30 分钟、之后每 2 小时重试，受每小时上限约束。因重启、静音或免打扰被中断的提问，条件允许时会重新问你；你关掉没答的提问留在面板，点「稍后提醒」才会再问。超过 24 小时仍需处理的决策保持可处理，过时的选项会失效，面板和桌宠不会对同一决策执行两次。验收提问一定包含「确认完成」和「再试一次」，可以撤销时还有「撤销后再试」。通知中心可以查看每条决策的投递经过和下次提问时间。
+- **欢迎页与更新指引**：中英文欢迎弹窗配大肥鱼形象，介绍主要功能和 QQ 交流群。安装后显示一次，之后每次有明显变化的更新再显示一次，先列出更新内容。形象图只在弹窗打开时加载。可从 **WhaleMaid → 欢迎与介绍** 或 **设置 → WhaleMaid → 帮助与反馈** 再次打开，后者也有提交 GitHub 问题的入口。
 
 ## 1.2.3
 

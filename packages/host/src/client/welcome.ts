@@ -2,7 +2,7 @@ import { createElement as h, useEffect, useRef, useState, useSyncExternalStore }
 import type { KeyboardEvent, MouseEvent, PointerEvent, SyntheticEvent } from 'react'
 import type { Context } from '@deepseek-ai/cordis'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
-import { resolveLocale, t } from '@whalemaid/core'
+import { resolveLocale, t, WELCOME_NOTES, WELCOME_RELEASE } from '@whalemaid/core'
 import type { LanguageSetting, Locale } from '@whalemaid/core'
 import { PANEL_CHANNEL, PANEL_PREFIX, WelcomeArtSchema, WelcomeStatusSchema } from '../panel-api/contract.js'
 
@@ -42,7 +42,8 @@ export function openWelcome(locale: Locale): void {
   window.dispatchEvent(new CustomEvent(openEvent, { detail: locale }))
 }
 
-type Welcome = { mode: 'automatic'; language: LanguageSetting } | { mode: 'manual'; locale: Locale }
+type Welcome =
+  { mode: 'automatic'; language: LanguageSetting; firstRun: boolean } | { mode: 'manual'; locale: Locale }
 
 /** The shell overlay stays mounted independently of the selected Harness panel. */
 export function WelcomeOverlay({ ctx, connection }: { ctx: Context; connection: ConnectionHandle }) {
@@ -91,7 +92,7 @@ export function WelcomeOverlay({ ctx, connection }: { ctx: Context; connection: 
           hideAutomatic()
           return
         }
-        setWelcome({ mode: 'automatic', language: status.language })
+        setWelcome({ mode: 'automatic', language: status.language, firstRun: status.firstRun })
         // Only a pending dialog polls for a dismissal from another client.
         timer = setTimeout(() => void check(), 2000)
       } catch {
@@ -116,6 +117,8 @@ export function WelcomeOverlay({ ctx, connection }: { ctx: Context; connection: 
     locale: welcome.mode === 'manual' ? welcome.locale : resolveLocale(welcome.language, hostLocale.active),
     dismiss,
     loadArt,
+    // First installs get the plain welcome; upgrades lead with what changed; a manual reopen shows both.
+    view: welcome.mode === 'manual' ? 'both' : welcome.firstRun ? 'welcome' : 'update',
   })
 }
 
@@ -163,10 +166,12 @@ function WelcomeDialog({
   locale,
   dismiss,
   loadArt,
+  view,
 }: {
   locale: Locale
   dismiss: () => void
   loadArt: LoadArt
+  view: 'welcome' | 'update' | 'both'
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const start = useRef<HTMLButtonElement>(null)
@@ -256,10 +261,24 @@ function WelcomeDialog({
       h(
         'div',
         null,
-        h('h1', { id: 'whalemaid-welcome-title' }, text('welcomeTitle')),
-        h('p', null, text('welcomeIntro')),
+        h(
+          'h1',
+          { id: 'whalemaid-welcome-title' },
+          view === 'update'
+            ? t(locale, 'welcomeUpdatedTitle', { version: WELCOME_RELEASE })
+            : text('welcomeTitle'),
+        ),
+        h('p', null, text(view === 'update' ? 'welcomeUpdatedIntro' : 'welcomeIntro')),
       ),
     ),
+    view !== 'welcome' &&
+      h(
+        'section',
+        { className: 'whalemaid-welcome-news' },
+        h('h2', null, t(locale, 'welcomeWhatsNew', { version: WELCOME_RELEASE })),
+        h('ul', null, ...WELCOME_NOTES[locale].map((note) => h('li', { key: note }, note))),
+      ),
+    view !== 'welcome' && h('h2', { className: 'whalemaid-welcome-subhead' }, text('welcomeBasics')),
     h(
       'ul',
       { className: 'whalemaid-welcome-features' },

@@ -7,7 +7,7 @@ import type { CompanionRecall } from '../companion/recall.js'
 import type { CompanionDailyBrief } from '../companion/daily-brief.js'
 import type { CompanionArchives } from '../companion/archive.js'
 import type { InitiativeService } from '../initiative/service.js'
-import { defaultInitiativeSettings, InitiativeSettingsSchema } from '@whalemaid/core'
+import { defaultInitiativeSettings, InitiativeSettingsSchema, WELCOME_RELEASE } from '@whalemaid/core'
 import { MemoryTextSchema, MemoryScopeSchema } from '@whalemaid/core'
 import type { NotificationRouter } from '../notify/router.js'
 import { NotificationPreferencesSchema } from '@whalemaid/core'
@@ -69,7 +69,7 @@ import { EverydayApprovalPanelSchema, EverydayApprovalSettingsSchema } from '../
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
-  welcome?: Pick<WhaleStore, 'welcomePending' | 'markWelcomeSeen'>
+  welcome?: Pick<WhaleStore, 'welcomeStatus' | 'markWelcomeSeen'>
   codex?: ConversationCodex
   everydayApprovals?: EverydayApprovals
   brief?: CompanionDailyBrief
@@ -119,7 +119,8 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
         case 'welcome-status':
           z.strictObject({}).parse(input)
           result = WelcomeStatusSchema.parse({
-            show: runtime.welcome?.welcomePending() ?? false,
+            ...(runtime.welcome?.welcomeStatus(WELCOME_RELEASE) ?? { show: false, firstRun: false }),
+            release: WELCOME_RELEASE,
             language: runtime.snapshot().language,
           })
           break
@@ -130,7 +131,7 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
         }
         case 'welcome-seen':
           z.strictObject({}).parse(input)
-          runtime.welcome?.markWelcomeSeen()
+          runtime.welcome?.markWelcomeSeen(WELCOME_RELEASE)
           result = { ok: true }
           break
         case 'codex':

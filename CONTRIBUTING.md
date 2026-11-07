@@ -17,6 +17,10 @@
 - 提交前执行 `pnpm -r build`、`pnpm -r test`、`pnpm lint`、`pnpm typecheck` 和 `pnpm format:check`。
 - DSH 联调仅使用[独立测试环境](docs/dev-dsh.md)，不改用户的 desktop/web profile。
 
+## 发布时更新欢迎页
+
+欢迎弹窗兼作每次更新的简短指引：每个数据目录对每个公布的版本只自动显示一次。发布有明显变化的版本时，在 [`packages/core/src/welcome.ts`](packages/core/src/welcome.ts) 中把 `WELCOME_RELEASE` 改为新版本号，并把 `WELCOME_NOTES` 换成这次的 3–5 条中英文要点（与 `CHANGELOG.md` 对应，只写已实现的功能）。只修小问题、不需要打扰用户的版本，保持 `WELCOME_RELEASE` 不变即可。功能速览（`welcomeGoals` 等文案）随功能变化一并更新。
+
 ## 第三方内容
 
 不要提交第三方代码或素材；不要复制 AGPL 代码。
@@ -36,4 +40,4 @@ pnpm check:license --reference D:/dsh_plugins/dsh-coopanion
 
 ## Contributing in English
 
-Use the pnpm version specified in `package.json`. Run `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm format:check` before submitting. Keep changes focused and use an isolated DSH profile for integration work. `pnpm lint` includes the license-boundary and local documentation-link checks; `pnpm check:license --reference <independent-coopanion-repository>` adds a read-only comparison with that repository. WhaleMaid is MIT-licensed; do not copy AGPL code or third-party character assets into it. See the [English README](README.en.md) for project entry points.
+Use the pnpm version specified in `package.json`. Run `pnpm install --frozen-lockfile`, `pnpm build`, `pnpm test`, `pnpm typecheck`, `pnpm lint` and `pnpm format:check` before submitting. Keep changes focused and use an isolated DSH profile for integration work. `pnpm lint` includes the license-boundary and local documentation-link checks; `pnpm check:license --reference <independent-coopanion-repository>` adds a read-only comparison with that repository. WhaleMaid is MIT-licensed; do not copy AGPL code or third-party character assets into it. When a release has notable changes, bump `WELCOME_RELEASE` and replace `WELCOME_NOTES` in `packages/core/src/welcome.ts` so the welcome dialog shows the release once to every user; leave it unchanged for quiet patch releases. See the [English README](README.en.md) for project entry points.

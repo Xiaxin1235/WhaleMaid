@@ -850,13 +850,29 @@ export class WhaleStore {
       )
       .run(id, JSON.stringify(input))
   }
-  welcomePending(): boolean {
-    return this.state === 'ok' && !this.db!.prepare("SELECT 1 FROM kv_settings WHERE id='welcome'").get()
+  /** Pending once per announced release; `firstRun` means no welcome was ever dismissed here. */
+  welcomeStatus(release: string): { show: boolean; firstRun: boolean } {
+    if (this.state !== 'ok') return { show: false, firstRun: false }
+    const row = this.db!.prepare("SELECT data FROM kv_settings WHERE id='welcome'").get()
+    if (!row) return { show: true, firstRun: true }
+    const seen = z.object({ release: z.string().optional() }).safeParse(JSON.parse(String(row.data)))
+    return { show: !seen.success || seen.data.release !== release, firstRun: false }
   }
-  markWelcomeSeen(): void {
-    this.writer()
-      .prepare("INSERT OR IGNORE INTO kv_settings(id,data) VALUES('welcome',?)")
-      .run(JSON.stringify({ seenAt: this.clock.now(), version: 1 }))
+  markWelcomeSeen(release: string): void {
+    const now = this.clock.now()
+    const writer = this.writer()
+    const row = writer.prepare("SELECT data FROM kv_settings WHERE id='welcome'").get()
+    const old = row
+      ? z
+          .object({ firstSeenAt: z.number().optional(), seenAt: z.number().optional() })
+          .safeParse(JSON.parse(String(row.data)))
+      : undefined
+    const firstSeenAt = old?.success ? (old.data.firstSeenAt ?? old.data.seenAt ?? now) : now
+    writer
+      .prepare(
+        "INSERT INTO kv_settings(id,data) VALUES('welcome',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+      )
+      .run(JSON.stringify({ firstSeenAt, seenAt: now, release }))
   }
   setMemoryMeta(input: ReturnType<WhaleStore['memoryMeta']>): void {
     this.writer()

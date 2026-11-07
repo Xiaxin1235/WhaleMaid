@@ -153,24 +153,44 @@ test('close/reopen preserves goals, tasks, runs, transitions and global pause', 
   expect(reopened.paused()).toBe(true)
 })
 
-test('the welcome record is written once and survives another store instance', () => {
+test('the welcome shows once per announced release and survives another store instance', () => {
   const { store, dir } = open()
-  expect(store.welcomePending()).toBe(true)
+  expect(store.welcomeStatus('1.3.0')).toEqual({ show: true, firstRun: true })
   const reader = open(dir).store
   expect(reader.status().state).toBe('read-only')
-  expect(reader.welcomePending()).toBe(false)
-  expect(() => reader.markWelcomeSeen()).toThrow('store-unavailable')
+  expect(reader.welcomeStatus('1.3.0')).toEqual({ show: false, firstRun: false })
+  expect(() => reader.markWelcomeSeen('1.3.0')).toThrow('store-unavailable')
   reader.close()
-  store.markWelcomeSeen()
-  expect(store.welcomePending()).toBe(false)
+  store.markWelcomeSeen('1.3.0')
+  expect(store.welcomeStatus('1.3.0')).toEqual({ show: false, firstRun: false })
   store.close()
   const next = new WhaleStore(dir, { clock: fixedClock(2000), log: vi.fn() })
   cleanups.push(() => next.close())
-  expect(next.welcomePending()).toBe(false)
-  next.markWelcomeSeen()
+  expect(next.welcomeStatus('1.3.0').show).toBe(false)
+  expect(next.welcomeStatus('1.4.0')).toEqual({ show: true, firstRun: false })
+  next.markWelcomeSeen('1.4.0')
+  expect(next.welcomeStatus('1.4.0').show).toBe(false)
   sql(dir, (db) => {
     const row = db.prepare("SELECT data FROM kv_settings WHERE id='welcome'").get()
-    expect(JSON.parse(String(row?.data))).toEqual({ seenAt: 1000, version: 1 })
+    expect(JSON.parse(String(row?.data))).toEqual({ firstSeenAt: 1000, seenAt: 2000, release: '1.4.0' })
+  })
+})
+
+test('a welcome record from before per-release display is shown again for the current release', () => {
+  const { store, dir } = open()
+  store.close()
+  sql(dir, (db) => {
+    db.prepare("INSERT INTO kv_settings(id,data) VALUES('welcome',?)").run(
+      JSON.stringify({ seenAt: 500, version: 1 }),
+    )
+  })
+  const next = new WhaleStore(dir, { clock: fixedClock(2000), log: vi.fn() })
+  cleanups.push(() => next.close())
+  expect(next.welcomeStatus('1.3.0')).toEqual({ show: true, firstRun: false })
+  next.markWelcomeSeen('1.3.0')
+  sql(dir, (db) => {
+    const row = db.prepare("SELECT data FROM kv_settings WHERE id='welcome'").get()
+    expect(JSON.parse(String(row?.data))).toMatchObject({ firstSeenAt: 500, release: '1.3.0' })
   })
 })
 
@@ -230,7 +250,7 @@ test('migration failure rolls back schema and data, closes DB, releases lock and
   }
   const failed = open(dir, [...MIGRATIONS, bad])
   expect(failed.store.status()).toMatchObject({ state: 'error', message: 'migration failed' })
-  expect(failed.store.welcomePending()).toBe(false)
+  expect(failed.store.welcomeStatus('1.3.0').show).toBe(false)
   expect(failed.log).toHaveBeenCalledWith('store degraded', expect.any(Error))
   expect(() => failed.store.goals.list()).toThrow('store-unavailable')
   sql(dir, (db) => {

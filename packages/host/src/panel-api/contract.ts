@@ -129,7 +129,12 @@ export const RouteResultSchema = z.strictObject({
   stat: z.string().optional(),
 })
 export const ReminderSchema = z.strictObject({ notificationId: z.string().min(1) })
-export const WelcomeStatusSchema = z.strictObject({ show: z.boolean(), language: LanguageSchema })
+export const WelcomeStatusSchema = z.strictObject({
+  show: z.boolean(),
+  firstRun: z.boolean(),
+  release: z.string(),
+  language: LanguageSchema,
+})
 export const WelcomeArtRequestSchema = z.strictObject({ kind: z.enum(['motion', 'still']) })
 export const WelcomeArtSchema = z.strictObject({ src: z.string().startsWith('data:image/').optional() })
 
