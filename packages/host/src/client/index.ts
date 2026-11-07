@@ -30,6 +30,7 @@ import { Memories } from './memories.js'
 import { CompanionActionsView } from './companion-actions.js'
 import { CompanionArchivesView } from './companion-archives.js'
 import { DailyBriefView } from './daily-brief.js'
+import { InitiativeView } from './initiative.js'
 import { EverydayApprovalsView } from './everyday-approvals.js'
 import { CodexView } from './codex.js'
 
@@ -244,6 +245,7 @@ function Panel({ ctx, connection }: Face) {
         setNotificationsOpen(true)
       },
     }),
+    h(InitiativeView, { connection, locale, onOpenGoal: setSelectedGoal }),
     h(
       'section',
       { 'aria-label': text('status') },

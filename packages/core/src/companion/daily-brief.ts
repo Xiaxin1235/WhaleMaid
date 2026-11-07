@@ -3,6 +3,8 @@ import type { Locale } from '../i18n/index.js'
 import { dailyBriefCopy } from '../i18n/daily-brief.js'
 import { shortTitle } from '../notify/copy.js'
 import { redactSecrets } from './redact.js'
+import { initiativeFindingCopy } from '../initiative/copy.js'
+import type { DetectorId } from '../initiative/model.js'
 
 export const DailyGoalChangesSchema = z.array(
   z.object({ goalId: z.string(), status: z.string(), at: z.number() }),
@@ -31,6 +33,7 @@ export interface DailyBriefFacts {
   }
   proposals: readonly { id: string; at: number; title: string; action: string; confirmed: boolean }[]
   experiences: readonly { id: string; at: number }[]
+  findings?: readonly { detector: DetectorId; title: string }[]
 }
 export function briefTitle(value: string): string {
   return shortTitle(redactSecrets(value).replaceAll('{{', '{ {'))
@@ -47,10 +50,16 @@ export function buildDailyBrief(facts: DailyBriefFacts, locale: Locale): string 
     !facts.proposals.length &&
     !facts.experiences.length &&
     !facts.automation.runs &&
-    !facts.automation.plans
+    !facts.automation.plans &&
+    !facts.findings?.length
   )
     return ''
   const c = dailyBriefCopy(locale)
+  const findings = (facts.findings ?? []).slice(0, 3).map(({ detector, title }) => {
+    const name = initiativeFindingCopy(locale, detector).name
+    const label = title ? name + ' · ' + briefTitle(title) : name
+    return label.length > 69 ? label.slice(0, 68) + '…' : label
+  })
   const status = (s: string) => c.statuses[s as keyof typeof c.statuses] ?? c.statuses.UNKNOWN
   const item = (v: Item) => `${c[v.kind]} ${briefTitle(v.title)} · ${status(v.status)}`
   const sections: [string, string[]][] = [
@@ -86,18 +95,28 @@ export function buildDailyBrief(facts: DailyBriefFacts, locale: Locale): string 
     .filter(([, rows]) => rows.length)
     .map(([heading, rows]) => {
       const selected: string[] = []
-      // 238 code units per section including heading, bullets and overflow. Total <=1198.
+      // Reserve room for three findings without changing older snapshots or the 1,200-character cap.
+      const limit = findings.length ? 190 : 238
       for (const row of rows.slice(0, 5)) {
         const next = '• ' + row
         const omitted = rows.length - selected.length - 1
         const tail = omitted ? '\n' + c.more(omitted) : ''
-        if ([heading, ...selected, next].join('\n').length + tail.length > 238) break
+        if ([heading, ...selected, next].join('\n').length + tail.length > limit) break
         selected.push(next)
       }
       // A long title must still show something; titles use the shared shortTitle rule first.
-      if (!selected.length) selected.push('• ' + rows[0]!.slice(0, 145) + '…')
+      if (!selected.length) selected.push('• ' + rows[0]!.slice(0, findings.length ? 100 : 145) + '…')
       if (rows.length > selected.length) selected.push(c.more(rows.length - selected.length))
       return [heading, ...selected].join('\n')
     })
+    .concat(
+      findings.length
+        ? [
+            [locale === 'zh-CN' ? '最近发现' : 'Recent findings', ...findings.map((row) => '• ' + row)].join(
+              '\n',
+            ),
+          ]
+        : [],
+    )
     .join('\n\n')
 }

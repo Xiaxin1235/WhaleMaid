@@ -286,7 +286,7 @@ it('v9 adds tables without rewriting any v8 rows', async () => {
     }
   }
   const before = JSON.stringify(snapshot()),
-    next = new WhaleStore(dir, { log: vi.fn() })
+    next = new WhaleStore(dir, { log: vi.fn(), migrations: MIGRATIONS.slice(0, 9) })
   clean.push(() => next.close())
   expect(next.status().state).toBe('ok')
   expect(JSON.stringify(snapshot())).toBe(before)

@@ -50,6 +50,7 @@ export interface EvidenceRepo {
 }
 export interface RunRepo {
   all(): Run[]
+  forGoal(goalId: GoalId): Run[]
   get(id: RunId): Run | undefined
   list(taskId: TaskId): Run[]
   insert(run: Run): void

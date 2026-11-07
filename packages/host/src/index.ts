@@ -41,6 +41,9 @@ import { ConversationCodex, installConversationCodex } from './codex/service.js'
 import { CodexRunner } from './codex/runner.js'
 import { installCompanionPermission } from './companion/permission.js'
 import { startWork } from './companion/work.js'
+import { InitiativeConfigSchema, readInitiativeConfig } from './initiative/config.js'
+import type { InitiativeConfig, InitiativeConfigInput } from './initiative/config.js'
+import { InitiativeService } from './initiative/service.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -64,13 +67,15 @@ export interface CompanionConfig {
   excludedSessions?: string[]
 }
 export interface Config {
+  initiative?: InitiativeConfig
   maxConcurrentRuns?: number
   dataDir?: string
   debugLogSignals?: boolean
   language?: Volatile<LanguageSetting>
   companion?: CompanionConfig
 }
-type ConfigInput = Omit<Config, 'language' | 'companion'> & {
+type ConfigInput = Omit<Config, 'language' | 'companion' | 'initiative'> & {
+  initiative?: InitiativeConfigInput
   language?: LanguageSetting
   companion?: Omit<CompanionConfig, 'memory' | 'recall' | 'archiveEarlier' | 'dailyBrief'> & {
     dailyBrief?: { enabled?: boolean }
@@ -80,6 +85,7 @@ type ConfigInput = Omit<Config, 'language' | 'companion'> & {
   }
 }
 export const Config: Schema<ConfigInput, Config> = Schema.object({
+  initiative: InitiativeConfigSchema,
   maxConcurrentRuns: Schema.number().min(1).step(1).default(1),
   dataDir: Schema.string().description('Data directory; defaults to <DSH_HOME>/whaledot'),
   debugLogSignals: Schema.boolean().default(false),
@@ -283,11 +289,21 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       log: (message) => debug.host(message),
     })
     companion.recall = recall
+    const initiative = new InitiativeService(store, scopes, {
+      settings: () => readInitiativeConfig(config.initiative),
+      locale: notificationLocale,
+      log: (message, error) => debug.host(message, error),
+    })
+    companion.findings = (sessionId) => {
+      if (!sessionId || !companionSessions.allSessionIds().includes(sessionId)) throw Error('companion-only')
+      return initiative.query()
+    }
     const brief = new CompanionDailyBrief(store, scopes, {
       enabled: () =>
         (config.companion?.enabled ?? true) && (config.companion?.dailyBrief?.enabled?.get() ?? true),
       locale: notificationLocale,
       owns: (id) => companionSessions.allSessionIds().includes(id),
+      findings: (now) => initiative.brief(now),
     })
     companion.brief = brief
     const archives = new CompanionArchives(store, dshCompanionArchiveHost(ctx, dataDir), {
@@ -340,6 +356,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       companionActions.dispose()
       intake.dispose()
       await Promise.all([
+        initiative.dispose(),
         execution.dispose(),
         autopilot.dispose(),
         notifier.dispose(),
@@ -383,6 +400,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           execution.registry.recover()
           autopilot.start()
           notifier.start()
+          initiative.refresh()
         },
         intake,
         execution,
@@ -400,6 +418,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         recall,
         archives,
         brief,
+        initiative,
         everydayApprovals,
         codex,
       },
@@ -440,6 +459,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
     autopilot.start()
     notifier.start()
     memoryDrafts.start()
+    initiative.start()
     // Session creation needs the controller and the agent registry; wait for both without blocking load.
     const companionReady = ctx.inject(['sessionController', 'agents'], (child) => {
       if (store.status().state === 'ok') {

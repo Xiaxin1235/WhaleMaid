@@ -14,6 +14,8 @@ import { VerificationRunner, verificationEnv, verificationBatch } from './runner
 import type { SessionObservation } from './reconcile.js'
 import { observeSession } from './reconcile.js'
 import type { Context } from '@deepseek-ai/cordis'
+import { defaultInitiativeSettings } from '@whalemaid/core'
+import { InitiativeService } from '../initiative/service.js'
 
 vi.setConfig({ testTimeout: 20000 })
 const cleanups: (() => Promise<unknown> | void)[] = []
@@ -171,6 +173,26 @@ test('report-only tasks need a real nonempty final response and no writes', asyn
     reasons: ['report-only'],
   })
   expect(f.store.tasks.get(f.task.id)?.state).toBe('SUCCEEDED')
+})
+test('a failing initiative detection cannot affect independent acceptance or state transitions', async () => {
+  const f = await setup({ after: 'good' })
+  const log = vi.fn()
+  const initiative = new InitiativeService(f.store, f.scopes, {
+    settings: defaultInitiativeSettings,
+    locale: () => 'en',
+    log,
+  })
+  cleanups.push(() => initiative.dispose())
+  vi.spyOn(f.store.verifications, 'forGoal').mockImplementation(() => {
+    throw Error('fixture detector failure')
+  })
+  initiative.start()
+  const result = await f.verifier.verifyTask(f.task.id)
+  await initiative.scan()
+  expect(result.judgment.verdict).toBe('PASS')
+  expect(f.store.verifications.get(result.id)).toEqual(result)
+  expect(f.store.tasks.get(f.task.id)?.state).toBe('SUCCEEDED')
+  expect(log).toHaveBeenCalledWith('initiative goal scan failed', expect.any(Error))
 })
 
 test('trusted mode does not discover or expand independent verification commands', async () => {

@@ -123,6 +123,14 @@ The panel's **Today’s brief** shows a fixed snapshot and generation time, reta
 
 Briefs and daily execution allowances use the host's local calendar day (America/Los_Angeles on the reference machine), unlike the UTC-day allowance for recollection calls. “Planner results” for the period count audited outcomes; today's remaining planning allowance counts actual calls. Interrupted planning can consume allowance without producing a result. The injection marker is persisted during prompt assembly; later cancellation or request failure does not automatically replay it on the second turn, nor does the marker prove that you read it.
 
+## Initiative
+
+Open **Initiative** on the WhaleMaid panel to see repeated acceptance failures, early signs of a stall, limited acceptance evidence, a nearly exhausted budget, unanswered decisions, idle authorized goals, and remaining work on completed goals. Findings are grouped by goal. Expand a finding to inspect its evidence and open the goal details. **Last 7 days** counts new findings by detector.
+
+In **Settings**, switch initiative off entirely or adjust each detector and its maximum level. Switching a detector off keeps existing records, and individual findings can be deleted after confirmation. With the brief channel on, each new daily brief can include up to three findings ranked by score. The day's existing brief stays fixed. You can also ask Da Fei Yu about recent findings.
+
+This phase surfaces findings in the panel and daily brief, without separate notifications, pet envelopes, or automatic actions. Suggestion cards and questions are disabled in the panel.
+
 ## Everyday auto-approval
 
 Enable **Settings → WhaleMaid → Everyday auto-approval** and confirm the risk notice. It is off by default and needs no goal. For an approval in an ordinary session, WhaleMaid reuses trusted command classification against the session working directory. Parseable shell commands without a recognized dangerous category receive “allow once”.

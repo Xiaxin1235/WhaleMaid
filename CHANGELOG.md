@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Add rule-based initiative findings to the WhaleMaid panel, with evidence links, per-detector settings, and a seven-day count. The daily brief can include three findings and Da Fei Yu can look up recent findings on request.
+
 ## 1.2.3
 
 - Fix PTC sessions failing before a message is sent with `tool "codex" parameters must be lossless JSON before schema projection`. Remove Zod’s non-JSON metadata from Codex and companion tool parameter schemas while preserving fields, constraints, defaults and runtime validation.

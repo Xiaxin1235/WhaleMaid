@@ -30,8 +30,21 @@ import {
   hashScope,
   transition,
   DailyGoalChangesSchema,
+  OpportunitySchema,
+  INITIATIVE_TTL,
+  opportunityNovelty,
+  GoalIdSchema,
 } from '@whalemaid/core'
-import type { AuthorizationScope, Clock, IdGen, ScopeHasher } from '@whalemaid/core'
+import type {
+  AuthorizationScope,
+  Clock,
+  GoalId,
+  IdGen,
+  InitiativeLevel,
+  OpportunityCandidate,
+  ScopeHasher,
+  TaskId,
+} from '@whalemaid/core'
 import type {
   GoalRepo,
   ScopeRepo,
@@ -72,6 +85,8 @@ export interface StoreOptions {
   migrations?: readonly Migration[]
   log(message: string, error?: unknown): void
 }
+type InitiativeChange = { goalId: GoalId } | { taskId: TaskId } | 'all'
+const IdleObservationSchema = z.object({ key: z.string(), since: z.number() })
 
 /** Owns one SQLite handle and writer lock. All domain writes validate core schemas. */
 export class WhaleStore {
@@ -90,6 +105,24 @@ export class WhaleStore {
   readonly checkpoints: CheckpointRepo
   readonly evidence: EvidenceRepo
   readonly runs: RunRepo
+  private readonly initiativeListeners = new Set<(change: InitiativeChange) => void>()
+
+  watchInitiative(listener: (change: InitiativeChange) => void): () => void {
+    this.initiativeListeners.add(listener)
+    return () => this.initiativeListeners.delete(listener)
+  }
+  private initiativeChanged(change: InitiativeChange): void {
+    if (!this.initiativeListeners.size) return
+    queueMicrotask(() => {
+      for (const listener of this.initiativeListeners) {
+        try {
+          listener(change)
+        } catch (error) {
+          this.options.log('initiative observer failed', error)
+        }
+      }
+    })
+  }
 
   private readonly listeners = new Set<() => void>()
   private changeQueued = false
@@ -253,6 +286,7 @@ export class WhaleStore {
         this.writer()
           .prepare('INSERT INTO goals(id,version,data) VALUES(?,?,?)')
           .run(row.id, row.version, JSON.stringify(row))
+        this.initiativeChanged({ goalId: row.id })
         this.changed()
       },
       update: (input, expectedVersion) => {
@@ -272,6 +306,7 @@ export class WhaleStore {
               { goalId: row.id, status: row.status, at },
             ])
           }
+          this.initiativeChanged({ goalId: row.id })
           this.changed()
         })
       },
@@ -306,6 +341,7 @@ export class WhaleStore {
     this.verifications = {
       get: (id: string) => this.one('verifications', id, VerificationSchema),
       list: () => this.rows('verifications', VerificationSchema),
+      forGoal: (id: GoalId) => this.initiativeRows('verifications', VerificationSchema, id),
       insert: (input: import('@whalemaid/core').Verification) => {
         const row = VerificationSchema.parse(input)
         this.writer()
@@ -313,21 +349,25 @@ export class WhaleStore {
             'INSERT INTO verifications(id,task_id,data) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data',
           )
           .run(row.id, row.taskId, JSON.stringify(row))
+        this.initiativeChanged({ taskId: row.taskId })
       },
     }
     this.notifications = {
       get: (id: string) => this.one('notifications', id, NotificationSchema),
       list: () => this.rows('notifications', NotificationSchema),
+      forGoal: (id: GoalId) => this.initiativeRows('notifications', NotificationSchema, id),
       insert: (input: import('@whalemaid/core').Notification) => {
         const row = NotificationSchema.parse(input)
         this.writer()
           .prepare('INSERT INTO notifications(id,data) VALUES(?,?)')
           .run(row.id, JSON.stringify(row))
+        this.initiativeChanged({ goalId: row.goalId })
         this.changed()
       },
       update: (input: import('@whalemaid/core').Notification) => {
         const row = NotificationSchema.parse(input)
         this.writer().prepare('UPDATE notifications SET data=? WHERE id=?').run(JSON.stringify(row), row.id)
+        this.initiativeChanged({ goalId: row.goalId })
         this.changed()
       },
     }
@@ -367,6 +407,7 @@ export class WhaleStore {
           .prepare('UPDATE tasks SET version=?,data=? WHERE id=? AND version=?')
           .run(row.version, JSON.stringify(row), row.id, expectedVersion)
         if (result.changes !== 1) throw new Error('stale-version')
+        this.initiativeChanged({ goalId: row.goalId })
         this.changed()
       },
       get: (id) => this.one('tasks', id, TaskSchema),
@@ -378,6 +419,7 @@ export class WhaleStore {
         this.writer()
           .prepare('INSERT INTO tasks(id,goal_id,task_key,version,state,data) VALUES(?,?,?,?,?,?)')
           .run(row.id, row.goalId, row.key, row.version, row.state, JSON.stringify(row))
+        this.initiativeChanged({ goalId: row.goalId })
         this.changed()
       },
       transition: (id, to, meta) =>
@@ -403,6 +445,7 @@ export class WhaleStore {
           this.writer()
             .prepare('INSERT INTO state_transitions(id,task_id,data) VALUES(?,?,?)')
             .run(record.id, record.entityId, JSON.stringify(record))
+          this.initiativeChanged({ goalId: row.goalId })
           this.changed()
           return next
         }),
@@ -430,11 +473,13 @@ export class WhaleStore {
       all: () => this.rows('runs', RunSchema),
       get: (id) => this.one('runs', id, RunSchema),
       list: (id) => this.rows('runs', RunSchema, 'task_id', id),
+      forGoal: (id) => this.initiativeRows('runs', RunSchema, id),
       insert: (input) => {
         const row = RunSchema.parse(input)
         this.writer()
           .prepare('INSERT INTO runs(id,task_id,data) VALUES(?,?,?)')
           .run(row.run_id, row.taskId, JSON.stringify(row))
+        this.initiativeChanged({ taskId: row.taskId })
         this.changed()
       },
       update: (input) => {
@@ -443,10 +488,109 @@ export class WhaleStore {
           .prepare('UPDATE runs SET data=? WHERE id=? AND task_id=?')
           .run(JSON.stringify(row), row.run_id, row.taskId)
         if (result.changes !== 1) throw new Error('run-not-found')
+        this.initiativeChanged({ taskId: row.taskId })
         this.changed()
       },
     }
     this.open()
+  }
+
+  readonly opportunities = {
+    get: (id: string) => this.one('opportunities', id, OpportunitySchema),
+    list: (goalId?: GoalId) =>
+      this.rows('opportunities', OpportunitySchema, goalId ? 'goal_id' : undefined, goalId),
+    expire: (now: number) => {
+      this.writer()
+        .prepare(
+          `
+        UPDATE opportunities SET status='expired',data=json_set(data,'$.status','expired','$.outcomeAt',?)
+        WHERE status='open' AND expires_at<=? AND json_valid(data)
+      `,
+        )
+        .run(now, now)
+    },
+    save: (candidate: OpportunityCandidate, level: InitiativeLevel, now: number) => {
+      const db = this.writer()
+      const existing = db
+        .prepare("SELECT * FROM opportunities WHERE dedupe_key=? AND status='open'")
+        .get(candidate.dedupeKey)
+      let previous = existing && this.decode('opportunities', existing, OpportunitySchema)
+      if (previous && opportunityNovelty(now, { cooldownUntil: previous.expiresAt }) > 0) {
+        this.opportunities.expire(now)
+        previous = undefined
+      }
+      const row = OpportunitySchema.parse({
+        ...candidate,
+        id: previous?.id ?? this.idGen.next('opportunity'),
+        level,
+        status: 'open',
+        actions: previous?.actions ?? [],
+        createdAt: previous?.createdAt ?? now,
+        expiresAt: previous?.expiresAt ?? now + INITIATIVE_TTL,
+      })
+      db.prepare(
+        `
+        INSERT INTO opportunities(id,goal_id,detector,dedupe_key,status,created_at,expires_at,score,data)
+        VALUES(?,?,?,?,?,?,?,?,?)
+        ON CONFLICT(id) DO UPDATE SET score=excluded.score,data=excluded.data
+      `,
+      ).run(
+        row.id,
+        row.subject.goalId ?? null,
+        row.detector,
+        row.dedupeKey,
+        row.status,
+        row.createdAt,
+        row.expiresAt,
+        row.score,
+        JSON.stringify(row),
+      )
+      return row
+    },
+    delete: (id: string) =>
+      this.writer().prepare('DELETE FROM opportunities WHERE id=?').run(id).changes === 1,
+  }
+
+  initiativeIdle(goalId: GoalId) {
+    return this.one('kv_settings', 'initiative.idle:' + goalId, IdleObservationSchema)
+  }
+
+  setInitiativeIdle(goalId: GoalId, observation?: z.infer<typeof IdleObservationSchema>): void {
+    const id = 'initiative.idle:' + goalId
+    if (observation === undefined) {
+      this.writer().prepare('DELETE FROM kv_settings WHERE id=?').run(id)
+      return
+    }
+    this.writer()
+      .prepare(
+        'INSERT INTO kv_settings(id,data) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data',
+      )
+      .run(id, JSON.stringify(observation))
+  }
+
+  initiativeGoalIds(): GoalId[] {
+    return this.writer()
+      .prepare('SELECT id FROM goals ORDER BY rowid')
+      .all()
+      .map((row) => GoalIdSchema.parse(row.id))
+  }
+
+  private initiativeRows<T>(
+    table: 'runs' | 'verifications' | 'notifications',
+    schema: z.ZodType<T>,
+    goalId: GoalId,
+  ): T[] {
+    const sql =
+      table === 'notifications'
+        ? "SELECT * FROM notifications WHERE CASE WHEN json_valid(data) THEN json_extract(data,'$.goalId') END = ? ORDER BY rowid"
+        : `SELECT source.* FROM tasks JOIN ${table} AS source ON source.task_id=tasks.id WHERE tasks.goal_id=? ORDER BY source.rowid`
+    return this.writer()
+      .prepare(sql)
+      .all(goalId)
+      .flatMap((row) => {
+        const parsed = this.decode(table, row, schema)
+        return parsed === undefined ? [] : [parsed]
+      })
   }
 
   /** Detached status; corruptRows counts distinct invalid stored rows observed this startup. */
@@ -552,6 +696,7 @@ export class WhaleStore {
       .prepare("UPDATE scopes SET status=?,data=? WHERE id=? AND status='active'")
       .run(row.status, JSON.stringify(row), row.id)
     if (result.changes !== 1) throw new Error('scope-inactive')
+    this.initiativeChanged({ goalId: row.goalId })
   }
 
   codexSettings(): ReturnType<typeof CodexSettingsSchema.parse> {
@@ -684,12 +829,14 @@ export class WhaleStore {
           "INSERT INTO kv_settings(id,data) VALUES('autopilot.paused',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
         )
         .run(JSON.stringify(value))
+      this.initiativeChanged('all')
       this.changed()
     })
   }
 
   close(): void {
     this.listeners.clear()
+    this.initiativeListeners.clear()
     try {
       this.db?.close()
     } finally {
@@ -822,6 +969,16 @@ export class WhaleStore {
                 scope_key: memoryScopeKey(
                   (table === 'memories' ? MemorySchema : MemoryProposalSchema).parse(parsed).scope,
                 ),
+              }
+            : {}),
+          ...(table === 'opportunities'
+            ? {
+                goal_id: OpportunitySchema.parse(parsed).subject.goalId ?? null,
+                detector: fields.detector,
+                dedupe_key: fields.dedupeKey,
+                created_at: fields.createdAt,
+                expires_at: fields.expiresAt,
+                score: fields.score,
               }
             : {}),
         }

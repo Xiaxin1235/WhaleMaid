@@ -14,6 +14,7 @@ import type { WhaleStore } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'
 import type { MemoryExecution } from './memory.js'
 import { localDay } from '../autopilot/day.js'
+import type { InitiativeService } from '../initiative/service.js'
 
 const State = z.object({
   records: z.array(DailyBriefRecordSchema).max(30),
@@ -26,7 +27,13 @@ export class CompanionDailyBrief {
   constructor(
     private readonly store: WhaleStore,
     private readonly scopes: Pick<ScopeService, 'activeScopeFor'>,
-    readonly deps: { enabled(): boolean; locale(): Locale; owns(id: string): boolean; now?(): number },
+    readonly deps: {
+      enabled(): boolean
+      locale(): Locale
+      owns(id: string): boolean
+      now?(): number
+      findings?: InitiativeService['brief']
+    },
   ) {}
   private now() {
     return this.deps.now?.() ?? Date.now()
@@ -88,6 +95,7 @@ export class CompanionDailyBrief {
     const runs = this.store.runs.all()
     const today = localDay(to)
     return {
+      findings: this.deps.findings?.(to) ?? [],
       completed: [...changes, ...transitions, ...verifications].filter((v) =>
         ['completed', 'succeeded', 'SUCCEEDED', 'PASS'].includes(v.status),
       ),

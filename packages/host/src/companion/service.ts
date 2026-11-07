@@ -16,6 +16,7 @@ import type { CompanionMemory } from './memory.js'
 import type { CompanionActions } from './actions.js'
 import type { CompanionRecall } from './recall.js'
 import type { CompanionDailyBrief } from './daily-brief.js'
+import type { InitiativeService } from '../initiative/service.js'
 import type {
   Locale,
   Notification,
@@ -43,6 +44,7 @@ export interface CompanionSettings {
 
 /** Companion facts and human-confirmed memory; every result is data, never authority. */
 export interface CompanionApi {
+  findings?: ((sessionId?: string) => ReturnType<InitiativeService['query']>) | undefined
   brief?: CompanionDailyBrief | undefined
   recall?: CompanionRecall | undefined
   actions?: CompanionActions | undefined
@@ -113,6 +115,7 @@ const defaultPersona = (locale: Locale) =>
 
 /** Builds the companion's read model from WhaleMaid's store and DSH's public session controller. */
 export class CompanionService implements CompanionApi {
+  findings?: CompanionApi['findings']
   brief: CompanionDailyBrief | undefined
   recall: CompanionRecall | undefined
   actions: CompanionActions | undefined

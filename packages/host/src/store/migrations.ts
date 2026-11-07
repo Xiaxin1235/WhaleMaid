@@ -127,4 +127,25 @@ export const MIGRATIONS: readonly Migration[] = [
         CREATE TABLE companion_recall_state (id TEXT PRIMARY KEY, data TEXT NOT NULL);`)
     },
   },
+  {
+    version: 10,
+    up(db) {
+      db.exec(`
+        CREATE TABLE opportunities (
+          id TEXT PRIMARY KEY, goal_id TEXT REFERENCES goals(id), detector TEXT NOT NULL,
+          dedupe_key TEXT NOT NULL, status TEXT NOT NULL, created_at INTEGER NOT NULL,
+          expires_at INTEGER NOT NULL, score REAL NOT NULL, data TEXT NOT NULL
+        );
+        CREATE UNIQUE INDEX opportunities_open_key ON opportunities(dedupe_key) WHERE status='open';
+        CREATE INDEX opportunities_expiry ON opportunities(status,expires_at);
+        CREATE INDEX opportunities_created ON opportunities(created_at);
+        CREATE INDEX initiative_verification_task ON verifications(task_id);
+        CREATE INDEX initiative_run_task ON runs(task_id);
+        CREATE INDEX initiative_event_goal ON autopilot_events(goal_id);
+        CREATE INDEX initiative_notification_goal ON notifications(
+          CASE WHEN json_valid(data) THEN json_extract(data,'$.goalId') END
+        );
+      `)
+    },
+  },
 ]

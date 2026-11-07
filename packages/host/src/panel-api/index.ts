@@ -4,6 +4,8 @@ import type { MemoryDrafts } from '../companion/drafts.js'
 import type { CompanionRecall } from '../companion/recall.js'
 import type { CompanionDailyBrief } from '../companion/daily-brief.js'
 import type { CompanionArchives } from '../companion/archive.js'
+import type { InitiativeService } from '../initiative/service.js'
+import { defaultInitiativeSettings, InitiativeSettingsSchema } from '@whalemaid/core'
 import { MemoryTextSchema, MemoryScopeSchema } from '@whalemaid/core'
 import type { NotificationRouter } from '../notify/router.js'
 import { NotificationPreferencesSchema } from '@whalemaid/core'
@@ -47,8 +49,13 @@ import {
   ProjectFactsSchema,
   GoalDetailSchema,
   ConfirmResultSchema,
+  InitiativePanelSchema,
+  InitiativeSettingsPatchSchema,
+  InitiativeFindingRequestSchema,
+  InitiativeEvidenceResponseSchema,
+  InitiativeDeleteSchema,
 } from './contract.js'
-import type { PanelMethod } from './contract.js'
+import type { InitiativeSettingsPatch, PanelMethod } from './contract.js'
 import type { PanelStatus } from './contract.js'
 import type { EverydayApprovals } from '../everyday-approval/service.js'
 import type { ConversationCodex } from '../codex/service.js'
@@ -60,6 +67,8 @@ export interface PanelRuntime {
   codex?: ConversationCodex
   everydayApprovals?: EverydayApprovals
   brief?: CompanionDailyBrief
+  initiative?: InitiativeService
+  setInitiative?: (patch: InitiativeSettingsPatch) => Promise<ReturnType<InitiativeService['settings']>>
   setDailyBrief?: (enabled: boolean) => Promise<void>
   archives?: CompanionArchives
   setArchiveEarlier?: (enabled: boolean) => Promise<void>
@@ -127,6 +136,23 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
           result = q
           break
         }
+        case 'initiative':
+          z.strictObject({}).parse(input)
+          result = InitiativePanelSchema.parse(runtime.initiative!.panel())
+          break
+        case 'initiative-settings':
+          result = InitiativeSettingsSchema.parse(
+            await runtime.setInitiative!(InitiativeSettingsPatchSchema.parse(input)),
+          )
+          break
+        case 'initiative-evidence':
+          result = InitiativeEvidenceResponseSchema.parse(
+            runtime.initiative!.evidence(InitiativeFindingRequestSchema.parse(input).id),
+          )
+          break
+        case 'initiative-delete':
+          result = { deleted: runtime.initiative!.delete(InitiativeDeleteSchema.parse(input).id) }
+          break
         case 'companion-archives':
           z.strictObject({}).parse(input)
           result = runtime.archives!.view()
@@ -417,6 +443,7 @@ export function installPanelApi(
     | 'recall'
     | 'archives'
     | 'brief'
+    | 'initiative'
     | 'everydayApprovals'
     | 'codex'
   >,
@@ -425,6 +452,22 @@ export function installPanelApi(
     const runtime: PanelRuntime = {
       snapshot,
       ...storage,
+      async setInitiative(patch) {
+        const initiative = storage.initiative!
+        const settings = child.get('settings') as Context['settings'] | undefined
+        const editor = child.get('configEditor') as Context['configEditor'] | undefined
+        const entry = editor?.entries().find((entry) => entry.fiber === ctx.fiber)
+        const form = settings?.describe().find((form) => form.ns === entry?.options.id)
+        if (!form || !settings) throw Error('settings-unavailable')
+        const next = patch.kind === 'reset' ? defaultInitiativeSettings() : initiative.settings()
+        if (patch.kind === 'enabled') next.enabled = patch.value
+        if (patch.kind === 'brief') next.channels.brief = patch.value
+        if (patch.kind === 'detector-enabled') next.detectors[patch.detector].enabled = patch.value
+        if (patch.kind === 'detector-level') next.detectors[patch.detector].maxLevel = patch.value
+        await settings.update(form.ns, { initiative: next }, form.revision)
+        initiative.refresh()
+        return next
+      },
       async setDailyBrief(enabled) {
         const settings = child.get('settings') as Context['settings'] | undefined
         const editor = child.get('configEditor') as Context['configEditor'] | undefined

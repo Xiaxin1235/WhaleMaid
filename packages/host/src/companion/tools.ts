@@ -26,6 +26,7 @@ export const COMPANION_TOOL_NAMES = [
   'whaledot_memory_forget',
   'whaledot_recall_search',
   'whaledot_daily_brief',
+  'whaledot_recent_findings',
   'whaledot_goals_overview',
   'whaledot_pending_decisions',
   'whaledot_goal_detail',
@@ -51,7 +52,7 @@ function readTool<S extends z.ZodType>(
   description: string,
   parameters: object,
   args: S,
-  run: (args: z.infer<S>, signal: AbortSignal) => Promise<unknown> | unknown,
+  run: (args: z.infer<S>, signal: AbortSignal, sessionId?: string) => Promise<unknown> | unknown,
 ): ToolDefinition {
   return {
     name,
@@ -66,7 +67,7 @@ function readTool<S extends z.ZodType>(
     async execute(raw, exec) {
       const parsed = args.safeParse(raw ?? {})
       if (!parsed.success) throw new Error(`Invalid arguments for ${name}`)
-      const result = await run(parsed.data, exec.signal)
+      const result = await run(parsed.data, exec.signal, exec.agent?.session.id)
       const text = JSON.stringify(result ?? null)
       return text.length > MAX_OUTPUT ? text.slice(0, MAX_OUTPUT) + '…(truncated)' : text
     },
@@ -224,6 +225,17 @@ export function companionTools(api: CompanionApi): ToolDefinition[] {
         return Promise.resolve(JSON.stringify(api.brief.query(query, exec)))
       },
     },
+    readTool(
+      'whaledot_recent_findings',
+      'Read recent WhaleMaid findings and evidence references. Returns data only and cannot change any status, settings or permissions.',
+      empty,
+      z.strictObject({}),
+      (_args, signal, sessionId) => {
+        signal.throwIfAborted()
+        if (!api.findings) throw Error('initiative-unavailable')
+        return api.findings(sessionId)
+      },
+    ),
     readTool(
       'whaledot_goals_overview',
       'List the user’s WhaleMaid goals with status, autopilot state, task progress, the latest verification verdict and how many decisions are waiting. Read-only.',

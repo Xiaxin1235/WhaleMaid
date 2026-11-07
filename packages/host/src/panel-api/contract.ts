@@ -22,6 +22,11 @@ import {
   StateTransitionSchema,
   DirectionSchema,
   DailyBriefRecordSchema,
+  DetectorSchema,
+  InitiativeLevelSchema,
+  InitiativeSettingsSchema,
+  OpportunityEvidenceSchema,
+  OpportunitySchema,
 } from '@whalemaid/core'
 
 export const LanguageSchema = z.enum(['auto', 'zh-CN', 'en'])
@@ -31,6 +36,36 @@ export const DailyBriefPanelSchema = z.strictObject({
   today: DailyBriefRecordSchema.optional(),
   records: z.array(DailyBriefRecordSchema).max(30),
 })
+export const InitiativePanelSchema = z.strictObject({
+  settings: InitiativeSettingsSchema,
+  findings: z.array(OpportunitySchema.extend({ goalTitle: z.string() })),
+  counts: z.record(DetectorSchema, z.int().nonnegative()),
+})
+export const InitiativeSettingsPatchSchema = z.discriminatedUnion('kind', [
+  z.strictObject({ kind: z.literal('enabled'), value: z.boolean() }),
+  z.strictObject({ kind: z.literal('brief'), value: z.boolean() }),
+  z.strictObject({ kind: z.literal('detector-enabled'), detector: DetectorSchema, value: z.boolean() }),
+  z.strictObject({
+    kind: z.literal('detector-level'),
+    detector: DetectorSchema,
+    value: InitiativeLevelSchema,
+  }),
+  z.strictObject({ kind: z.literal('reset') }),
+])
+export type InitiativeSettingsPatch = z.infer<typeof InitiativeSettingsPatchSchema>
+export const InitiativeFindingRequestSchema = z.strictObject({ id: z.string().min(1).max(200) })
+export const InitiativeDeleteSchema = InitiativeFindingRequestSchema.extend({ confirm: z.literal(true) })
+export const InitiativeEvidenceResponseSchema = z.array(
+  OpportunityEvidenceSchema.extend({
+    missing: z.boolean(),
+    status: z.string().optional(),
+    at: z.number().optional(),
+    title: z.string().optional(),
+    command: z.string().optional(),
+    excerpt: z.string().optional(),
+    exitCode: z.number().nullable().optional(),
+  }),
+)
 export const LanguageRequestSchema = z.strictObject({ language: LanguageSchema })
 export const PausedSchema = z.strictObject({ paused: z.boolean() })
 export const RevokeScopeSchema = z.strictObject({ scopeId: ScopeIdSchema })
@@ -99,6 +134,10 @@ export const PANEL_METHODS = [
   'everyday-approval-settings',
   'daily-brief',
   'daily-brief-settings',
+  'initiative',
+  'initiative-settings',
+  'initiative-evidence',
+  'initiative-delete',
   'companion-archives',
   'companion-restore',
   'companion-archive-settings',
