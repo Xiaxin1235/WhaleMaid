@@ -1,3 +1,4 @@
+import { inspectSession } from './dsh-session-inspection.js'
 import { NotificationDeliverer } from './notify/deliverer.js'
 import { NotificationRouter } from './notify/router.js'
 import { dshInbox } from './notify/inbox-session.js'
@@ -279,9 +280,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       currentSession: () => companionSessions.sessionId(),
       owns: (id) => companionSessions.allSessionIds().includes(id),
       async read(id, signal) {
-        const controller = ctx.get('sessionController') as Context['sessionController'] | undefined
-        if (!controller) throw Error('session-controller-unavailable')
-        const inspected = await controller.inspect(id as SessionId, signal)
+        const inspected = await inspectSession(ctx, id as SessionId, signal)
         if (inspected.meta.agentPreset !== 'whaledot-companion' || inspected.meta.origin)
           throw Error('companion-only')
         return inspected.events

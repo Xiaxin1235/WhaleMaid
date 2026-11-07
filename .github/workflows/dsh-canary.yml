@@ -1,0 +1,138 @@
+name: DSH compatibility canary
+on:
+  schedule:
+    - cron: '23 8 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dsh-compatibility-canary
+  cancel-in-progress: false
+jobs:
+  versions:
+    runs-on: ubuntu-latest
+    outputs:
+      versions: ${{ steps.versions.outputs.versions }}
+      commit: ${{ steps.versions.outputs.commit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - id: versions
+        shell: bash
+        run: |
+          versions=$(node scripts/dsh-canary-versions.mjs)
+          echo "versions=$versions" >> "$GITHUB_OUTPUT"
+          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+  package:
+    needs: versions
+    if: needs.versions.outputs.versions != '[]'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.versions.outputs.commit }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm pack:release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dsh-canary-complete
+          path: |
+            dist/release/dsh-whalemaid-full.tgz
+            dist/release/verification.json
+          if-no-files-found: error
+  install:
+    needs: [versions, package]
+    if: needs.versions.outputs.versions != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        version: ${{ fromJSON(needs.versions.outputs.versions) }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      DSH_TEST_VERSION: ${{ matrix.version }}
+    steps:
+      - uses: actions/checkout@v4
+        id: checkout
+        with:
+          ref: ${{ needs.versions.outputs.commit }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        id: pnpm
+      - uses: actions/setup-node@v4
+        id: node
+        with:
+          node-version: 24
+          cache: pnpm
+      - id: dependencies
+        run: pnpm install --frozen-lockfile
+      - uses: ./.github/actions/setup-complete-install
+        id: browser
+      - uses: actions/download-artifact@v4
+        id: download
+        with:
+          name: dsh-canary-complete
+          path: dist/release
+      - id: runtime
+        shell: bash
+        run: npm install --prefix .dsh-dev/complete-runtime --no-audit --no-fund "@deepseek-ai/dsh@$DSH_TEST_VERSION"
+      - id: complete-install
+        run: node scripts/test-complete-install.mjs
+      - name: Save failure details
+        if: failure()
+        shell: bash
+        env:
+          FAILED_STEP: ${{ steps.checkout.outcome == 'failure' && 'Checkout' || steps.pnpm.outcome == 'failure' && 'Set up pnpm' || steps.node.outcome == 'failure' && 'Set up Node' || steps.dependencies.outcome == 'failure' && 'Install project dependencies' || steps.browser.outcome == 'failure' && 'Prepare browser and display' || steps.download.outcome == 'failure' && 'Download complete package' || steps.runtime.outcome == 'failure' && 'Install DSH runtime' || 'Run complete-install test' }}
+          CANARY_OS: ${{ matrix.os }}
+        run: |
+          node -e 'const { DSH_TEST_VERSION: version, CANARY_OS: os, FAILED_STEP: step } = process.env; require("node:fs").writeFileSync("failure.json", JSON.stringify({version, os, step}));'
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: dsh-canary-failure-${{ matrix.version }}-${{ matrix.os }}
+          path: |
+            failure.json
+            artifacts/
+          if-no-files-found: error
+  report:
+    needs: [versions, package, install]
+    if: always() && !cancelled() && (needs.package.result == 'failure' || needs.install.result == 'failure')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.versions.outputs.commit }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        if: needs.install.result == 'failure'
+        with:
+          pattern: dsh-canary-failure-*
+          path: dsh-canary-failures
+      - run: node scripts/report-dsh-canary.mjs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DSH_CANARY_VERSIONS: ${{ needs.versions.outputs.versions }}
+          DSH_CANARY_PACKAGE: ${{ needs.package.result }}
+          DSH_CANARY_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

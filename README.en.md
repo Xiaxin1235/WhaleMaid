@@ -4,7 +4,7 @@
 
 WhaleMaid is a project autopilot plugin for DeepSeek Harness (DSH): it plans and executes tasks within the scope you confirm, independently verifies results, and asks you when a decision is needed.
 
-Documentation for **1.3.0**. Requires DSH Desktop **0.2.1-rc.2 or 0.2.1-rc.3** and Node.js ≥22.19. Preview limitations still apply; see the [usage guide](docs/usage.en.md).
+Documentation for **1.3.1**. Requires DSH Desktop **0.2.x from 0.2.1-rc.2**. Source builds require Node.js ≥22.19. Preview limitations still apply; see the [usage guide](docs/usage.en.md).
 
 ## What it can do
 
@@ -62,7 +62,7 @@ This feature is off by default. It sends only the opening of the final reply: th
 
 **Install WhaleMaid Complete once.** It automatically installs and enables WhaleMaid plus the [WhaleMaid companion fork](https://github.com/Xiaxin1235/dsh-coopanion); no separate pet installation or source build is needed. **Do not install any other Coopanion build alongside it** (including the original `@takboo/dsh-coopanion`): two pets enabled at once conflict.
 
-Requires DeepSeek Harness Desktop **0.2.1-rc.2 / rc.3**, a working model configured in Harness, and an internet connection for dependencies and the initial Electron download. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](docs/market-release-report.md) for platform evidence.
+Requires DeepSeek Harness Desktop **0.2.x from 0.2.1-rc.2**, a working model configured in Harness, and an internet connection for dependencies and the initial Electron download. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](docs/market-release-report.md) for platform evidence.
 
 **Easiest: one-click install from the plugin market.** WhaleMaid is listed in the community catalog [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin). Search for **WhaleMaid** in the Harness plugin market ([dsh-market](https://github.com/dsh-market/dsh-market#readme)) and install it in one click. If you don't have the market yet, enter `dshmarket` under **Plugins → Add plugin** first, then search in the **Plugin Market** tab of the **Plugins** page. After installation, choose **Enable now** to activate both components.
 
@@ -71,14 +71,14 @@ You can also add our own index `https://raw.githubusercontent.com/Xiaxin1235/Wha
 Alternatively, in **Plugins → Add plugin**, enter the complete-package URL:
 
 ```text
-https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.0/dsh-whalemaid-full-1.3.0.tgz
+https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.1/dsh-whalemaid-full-1.3.1.tgz
 ```
 
 Or, with Harness fully closed and no test DSH_HOME set, use its bundled CLI:
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.0/dsh-whalemaid-full-1.3.0.tgz'
+& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.1/dsh-whalemaid-full-1.3.1.tgz'
 ```
 
 Reopen Harness: the **WhaleMaid** panel and **Settings → Desktop pet** should both be available. Existing users who installed the two source bundles separately should first follow the backup and migration instructions in the [installation guide](docs/install.en.md#complete-installation). Your goals, memories and pet settings are retained. Decisions API expressions are configured separately in pet settings and remain off by default.

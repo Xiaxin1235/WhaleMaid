@@ -5,6 +5,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, 
 import { dirname, join, resolve } from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { parseArgs } from 'node:util'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim()
@@ -13,7 +14,16 @@ const saveJson = (path, value) => writeFileSync(path, JSON.stringify(value, null
 const host = readJson(join(root, 'packages/host/package.json'))
 const core = readJson(join(root, 'packages/core/package.json'))
 const companion = readJson(join(root, 'market/companion.json'))
-const stageOnly = process.argv.includes('--stage-only')
+const { values } = parseArgs({
+  options: { 'stage-only': { type: 'boolean' }, 'local-companion': { type: 'string' } },
+})
+const stageOnly = values['stage-only']
+const local = values['local-companion']
+if (local)
+  assert.ok(
+    !stageOnly && !process.env.GITHUB_ACTIONS,
+    'Local companion archives are for local installation tests',
+  )
 if (!stageOnly) assert.equal(git('status', '--porcelain'), '', 'Commit source before making a release')
 assert.equal(host.version, core.version)
 assert.equal(host.license, 'MIT')
@@ -26,7 +36,7 @@ assert.equal(
 for (const dir of ['host', 'core'])
   assert.ok(existsSync(join(root, `packages/${dir}/lib/index.js`)), 'Run pnpm build first')
 
-const out = join(root, 'dist/release')
+const out = join(root, local ? '.dsh-dev/local-release' : 'dist/release')
 mkdirSync(out, { recursive: true })
 const stage = mkdtempSync(join(out, 'stage-'))
 for (const name of ['lib', 'companion', 'welcome', 'LICENSE', 'THIRD_PARTY_NOTICES.md'])
@@ -80,22 +90,29 @@ writeFileSync(
   join(stage, 'DISTRIBUTION.md'),
   `# WhaleMaid complete installation\n\nThis is a multi-license distribution. WhaleMaid and its private core are MIT licensed. Source: https://github.com/Xiaxin1235/WhaleMaid\n\nThe separate AGPL-3.0-or-later companion fork ${companion.version} is included as an npm bundled dependency, with its corresponding source, LICENSE, THIRD_PARTY_NOTICES.md and artwork notices under node_modules/@takboo/dsh-coopanion. It retains its own package identity and license; its implementation is not copied into WhaleMaid's MIT source. The two plugins still communicate through public DSH services. Fork source: https://github.com/Xiaxin1235/dsh-coopanion/tree/${companion.sourceCommit}\nUpstream and attribution: https://github.com/takboo/dsh-coopanion\nOther bundled runtime dependencies retain their own licenses. No package is published to the upstream npm account.\n`,
 )
-const source = { sourceCommit: git('rev-parse', 'HEAD'), version: host.version, companion }
+const source = {
+  sourceCommit: git('rev-parse', 'HEAD'),
+  version: host.version,
+  companion,
+  ...(local ? { local: true } : {}),
+}
 saveJson(join(stage, 'release-source.json'), source)
 if (stageOnly) {
   console.log(stage)
 } else {
   assert.ok(process.env.npm_execpath, 'Run through pnpm pack:release')
-  const response = await globalThis.fetch(companion.tarball, {
-    signal: globalThis.AbortSignal.timeout(120000),
-  })
-  assert.equal(response.status, 200, 'Published companion archive is required')
-  const bytes = new Uint8Array(await response.arrayBuffer())
-  const metadata = await globalThis.fetch(companion.tarball.replace(/[^/]+$/, 'verification.json'), {
-    signal: globalThis.AbortSignal.timeout(120000),
-  })
-  assert.equal(metadata.status, 200)
-  const verified = await metadata.json()
+  const fetchRelease = async (url) => {
+    const response = await globalThis.fetch(url, { signal: globalThis.AbortSignal.timeout(120000) })
+    assert.equal(response.status, 200, 'Published companion release is required: ' + url)
+    return response
+  }
+  const bytes = local
+    ? readFileSync(resolve(local))
+    : new Uint8Array(await (await fetchRelease(companion.tarball)).arrayBuffer())
+  const verified = local
+    ? readJson(join(dirname(resolve(local)), 'verification.json'))
+    : await (await fetchRelease(companion.tarball.replace(/[^/]+$/, 'verification.json'))).json()
+  assert.equal(verified.name, companion.name)
   assert.equal(verified.version, companion.version)
   assert.equal(verified.sourceCommit, companion.sourceCommit)
   assert.equal(createHash('sha256').update(bytes).digest('hex'), verified.sha256)

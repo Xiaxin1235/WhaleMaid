@@ -2,7 +2,7 @@
 
 [中文](install.md) | English
 
-For WhaleMaid 1.3.0. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](market-release-report.md) for evidence and the [usage guide](usage.en.md) for features and permission boundaries.
+For WhaleMaid 1.3.1. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](market-release-report.md) for evidence and the [usage guide](usage.en.md) for features and permission boundaries.
 
 <a id="complete-installation"></a>
 
@@ -12,7 +12,7 @@ The easiest route is the Harness plugin market ([dsh-market](https://github.com/
 
 **Do not install any other Coopanion build alongside it** (including the original `@takboo/dsh-coopanion`): the complete package already includes the companion pet, and two pets enabled at once conflict.
 
-You can also install the prebuilt [WhaleMaid Complete 1.3.0 package](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.0/dsh-whalemaid-full-1.3.0.tgz) through Harness **Plugins → Add plugin**. It installs WhaleMaid and its compatible Coopanion fork in one operation; choose **Enable now** when prompted. No Git, pnpm or source build is needed for this route. Configure a model in Harness first.
+You can also install the prebuilt [WhaleMaid Complete 1.3.1 package](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.1/dsh-whalemaid-full-1.3.1.tgz) through Harness **Plugins → Add plugin**. It installs WhaleMaid and its compatible Coopanion fork in one operation; choose **Enable now** when prompted. No Git, pnpm or source build is needed for this route. Configure a model in Harness first.
 
 Before upgrading from separate installations, fully exit Harness and back up the profile and data as described below. Remove the old top-level pet bundle with `dsh plugin --profile desktop remove @takboo/dsh-coopanion` and the old WhaleMaid bundle with `dsh plugin --profile desktop remove dsh-whalemaid`, then add the complete-package URL. Use Harness's bundled CLI, not an old global CLI. Do not delete data directories. The complete package owns both configuration nodes; only `dsh-whalemaid` needs to appear as a top-level bundle.
 
@@ -22,8 +22,8 @@ The remaining instructions cover development from source and earlier separate in
 
 ## 1. Prerequisites
 
-- An installed, working DeepSeek Harness Desktop **0.2.1-rc.2 or 0.2.1-rc.3**. Other versions are unsupported.
-- Node.js **≥22.19**, Git, and the pnpm version specified in `package.json`. Run `corepack enable` to enable pnpm; Corepack may need to download that version on first use.
+- An installed, working DeepSeek Harness Desktop **0.2.x from 0.2.1-rc.2**.
+- The npm-installed DSH 0.2.2-rc.1 CLI requires Node.js **≥24.9**. To build WhaleMaid from source, use Node.js **≥22.19**, Git, and the pnpm version specified in `package.json`. Run `corepack enable` to enable pnpm; Corepack may need to download that version on first use.
 - The source is in the public GitHub repository [`Xiaxin1235/WhaleMaid`](https://github.com/Xiaxin1235/WhaleMaid).
 
 The examples use PowerShell. Completely exit Harness and back up the target profile's configuration before installing or updating your everyday environment. Do not share keys, credential files or URLs containing login tokens.
@@ -182,10 +182,10 @@ You can instead enter the original `@takboo/dsh-coopanion@0.4.14` in Harness und
 
 ## 10. Troubleshooting and verification scope
 
-| Issue                               | Action                                                                                                                         |
-| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `pnpm deploy` rejects deployment    | Include `--legacy` and choose a fixed-copy directory outside the repository.                                                   |
-| WhaleMaid is missing from the panel | Check for `dsh-whalemaid` in the target profile's bundles, verify build output exists, then fully restart Harness.             |
-| Incompatible host version           | Only Desktop 0.2.1-rc.2 / rc.3 are supported. Do not extend declarations or grant version exemptions to force another version. |
+| Issue                               | Action                                                                                                             |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `pnpm deploy` rejects deployment    | Include `--legacy` and choose a fixed-copy directory outside the repository.                                       |
+| WhaleMaid is missing from the panel | Check for `dsh-whalemaid` in the target profile's bundles, verify build output exists, then fully restart Harness. |
+| Incompatible host version           | Use DSH 0.2.x from 0.2.1-rc.2. DSH 0.3 requires a compatibility review.                                            |
 
 The earlier P18B source-install rehearsal used Windows, a clean local clone, an isolated `DSH_HOME` and a temporary Web profile. It verified frozen dependency installation, building, fixed-copy deployment, CLI installation, host loading and removal; see the [P18B report, in Chinese](p18b-report.md). Enabling Corepack in its default install location, cloning from GitHub, Release downloads, everyday-profile backup and installation, Start-menu launch, actual updates and configuration rollback were not exercised then; macOS and Linux were also unverified at that time. Current complete-package platform evidence is recorded separately in the [market release report](market-release-report.md).

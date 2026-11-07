@@ -21,6 +21,8 @@
 
 欢迎弹窗兼作每次更新的简短指引：每个数据目录对每个公布的版本只自动显示一次。发布有明显变化的版本时，在 [`packages/core/src/welcome.ts`](packages/core/src/welcome.ts) 中把 `WELCOME_RELEASE` 改为新版本号，并把 `WELCOME_NOTES` 换成这次的 3–5 条中英文要点（与 `CHANGELOG.md` 对应，只写已实现的功能）。只修小问题、不需要打扰用户的版本，保持 `WELCOME_RELEASE` 不变即可。功能速览（`welcomeGoals` 等文案）随功能变化一并更新。
 
+WhaleMaid 的宿主范围为从 0.2.1-rc.2 起的开放 0.2.x。新版 DSH 由巡检工作流验证，出现巡检 issue 时先修复再发补丁版，升到 0.3 时人工评估并调整范围。
+
 ## 第三方内容
 
 不要提交第三方代码或素材；不要复制 AGPL 代码。

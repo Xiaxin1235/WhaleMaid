@@ -1,3 +1,4 @@
+import { inspectSession } from '../dsh-session-inspection.js'
 import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
@@ -180,9 +181,7 @@ export function dshCompanionArchiveHost(ctx: Context, dataDir: string): Companio
         .find((w) => normalizeScopePath(w.path) === normalizeScopePath(join(dataDir, 'companion'))),
     archived: () => registry().archivedSessionIds,
     async inspect(id) {
-      const controller = ctx.get('sessionController') as Context['sessionController'] | undefined
-      if (!controller) throw Error('session-controller-unavailable')
-      return (await controller.inspect(id as SessionId, AbortSignal.timeout(15000))).meta
+      return (await inspectSession(ctx, id as SessionId, AbortSignal.timeout(15000))).meta
     },
     archive: (id) => registry().archiveSession(id as SessionId),
     restore: (id) => registry().unarchiveSession(id as SessionId),

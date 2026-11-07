@@ -1,3 +1,4 @@
+import { inspectSession, isMissingSession } from '../dsh-session-inspection.js'
 import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import type { Context } from '@deepseek-ai/cordis'
@@ -317,14 +318,10 @@ export class CompanionService implements CompanionApi {
     if (this.hidden(sessionId)) return { ok: false, reason: 'session-not-readable' }
     let events: readonly TranscriptEvent[]
     try {
-      events = (await this.controller().inspect(sessionId as SessionId, signal))
+      events = (await inspectSession(this.ctx, sessionId as SessionId, signal))
         .events as readonly TranscriptEvent[]
     } catch (error) {
-      if (
-        error instanceof Error &&
-        ['ApiSessionNotFound', 'SessionPersistenceNotFoundError'].includes(error.name)
-      )
-        return { ok: false, reason: 'session-not-found' }
+      if (isMissingSession(error)) return { ok: false, reason: 'session-not-found' }
       throw error
     }
     const title = transcriptTitle(events)
@@ -367,7 +364,7 @@ export class CompanionService implements CompanionApi {
     let title: string | undefined
     try {
       title = transcriptTitle(
-        (await this.controller().inspect(id as SessionId, signal)).events as readonly TranscriptEvent[],
+        (await inspectSession(this.ctx, id as SessionId, signal)).events as readonly TranscriptEvent[],
       )
     } catch (error) {
       this.deps.log('companion title lookup failed', error)

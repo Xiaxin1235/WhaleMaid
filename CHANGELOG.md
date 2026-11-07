@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.1
+
+- Support DSH 0.2.2-rc.1 and open the compatibility window to 0.2.x starting at 0.2.1-rc.2. The complete package includes Coopanion 0.5.8.
+- Check new DSH releases automatically and keep the 1.3.0 welcome announcement for this compatibility update.
+
+### 中文
+
+- 支持 DSH 0.2.2-rc.1，宿主兼容范围覆盖 0.2.1-rc.2 起的 0.2.x，完整包内置 Coopanion 0.5.8。
+- 自动巡检新版 DSH，本次兼容性更新沿用 1.3.0 欢迎公告。
+
 ## 1.3.0
 
 - **Initiative (phase 1).** Rule-based findings for repeated failures with the same cause, looming stalls, missing acceptance evidence, budgets running low, decisions left waiting, idle goals and leftovers after completion. The WhaleMaid panel lists them with evidence links, per-detector switches and maximum levels, and a seven-day count. The daily brief includes up to three findings, and Da Fei Yu can look them up read-only. Findings never send notifications, call a model or change any state. Repeated verification timeouts also count as the same failure.

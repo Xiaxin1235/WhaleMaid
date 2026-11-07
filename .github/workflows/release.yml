@@ -52,7 +52,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [windows-latest, ubuntu-latest]
-        dsh: ['0.2.1-rc.2', '0.2.1-rc.3']
+        dsh: ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.2-rc.1']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     steps:
@@ -65,30 +65,7 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Use the official Ubuntu archive for graphical test dependencies
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          for source in /etc/apt/apt-mirrors.txt /etc/apt/sources.list /etc/apt/sources.list.d/*.sources /etc/apt/sources.list.d/*.list; do
-            if [ -f "$source" ]; then
-              sudo sed -i 's|http://azure.archive.ubuntu.com/ubuntu|https://archive.ubuntu.com/ubuntu|g' "$source"
-            fi
-          done
-      - run: pnpm exec playwright-core install --with-deps chromium
-      - name: Start managed Linux display
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          sudo timeout 120 apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
-          sudo timeout 300 apt-get -o Acquire::Retries=1 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install -y --no-install-recommends xvfb openbox x11-utils libxtst6 python3
-          Xvfb :99 -screen 0 1200x800x24 -nolisten tcp > "$RUNNER_TEMP/xvfb.log" 2>&1 &
-          for attempt in {1..100}; do if DISPLAY=:99 xdpyinfo > /dev/null 2>&1; then break; fi; sleep .1; done
-          export DISPLAY=:99
-          xdpyinfo > /dev/null
-          openbox > "$RUNNER_TEMP/openbox.log" 2>&1 &
-          for attempt in {1..100}; do if xprop -root _NET_SUPPORTING_WM_CHECK | grep -q 'window id'; then break; fi; sleep .1; done
-          xprop -root _NET_SUPPORTING_WM_CHECK | grep -q 'window id'
-          echo 'DISPLAY=:99' >> "$GITHUB_ENV"
+      - uses: ./.github/actions/setup-complete-install
       - uses: actions/download-artifact@v4
         with:
           name: whalemaid-complete
@@ -103,11 +80,10 @@ jobs:
           name: complete-install-${{ matrix.os }}-${{ matrix.dsh }}
           path: artifacts/
   install_macos:
-    # Acquire one scarce GPU-capable ARM runner for both host versions.
-    # The two installations still consume the identical canonical archive.
+    # Use one GPU-capable ARM runner. Each installation consumes the canonical archive.
     needs: package
     runs-on: macos-15
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
         with:
@@ -142,6 +118,16 @@ jobs:
         if: always() && (steps.rc3.outcome == 'success' || steps.rc3.outcome == 'failure')
         with:
           name: complete-install-macos-15-0.2.1-rc.3
+          path: artifacts/
+      - run: npm install --prefix .dsh-dev/complete-runtime --no-audit --no-fund @deepseek-ai/dsh@0.2.2-rc.1
+      - id: rc1-022
+        run: node scripts/test-complete-install.mjs
+        env:
+          DSH_TEST_VERSION: '0.2.2-rc.1'
+      - uses: actions/upload-artifact@v4
+        if: always() && (steps.rc1-022.outcome == 'success' || steps.rc1-022.outcome == 'failure')
+        with:
+          name: complete-install-macos-15-0.2.2-rc.1
           path: artifacts/
   publish:
     needs: [install, install_macos]

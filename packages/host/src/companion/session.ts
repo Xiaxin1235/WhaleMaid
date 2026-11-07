@@ -1,3 +1,4 @@
+import { inspectSession, isMissingSession } from '../dsh-session-inspection.js'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -133,14 +134,10 @@ export function dshCompanionHost(ctx: Context): CompanionHost {
   return {
     async exists(id) {
       try {
-        const inspected = await controller().inspect(id as SessionId)
+        const inspected = await inspectSession(ctx, id as SessionId)
         return inspected.meta.agentPreset === COMPANION_PRESET
       } catch (error) {
-        if (
-          error instanceof Error &&
-          ['ApiSessionNotFound', 'SessionPersistenceNotFoundError'].includes(error.name)
-        )
-          return false
+        if (isMissingSession(error)) return false
         throw error
       }
     },

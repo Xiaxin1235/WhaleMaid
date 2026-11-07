@@ -1,3 +1,4 @@
+import { inspectSession, isMissingSession } from '../dsh-session-inspection.js'
 import { randomUUID } from 'node:crypto'
 import { access } from 'node:fs/promises'
 import type { Context } from '@deepseek-ai/cordis'
@@ -25,13 +26,9 @@ export function dshInbox(ctx: Context, store: WhaleStore): InboxPort {
     if (id) {
       if (store.inboxSessions.get(id)?.goalId !== goalId) throw Error('inbox-ownership-missing')
       try {
-        await controller.inspect(id)
+        await inspectSession(ctx, id)
       } catch (error) {
-        if (
-          error instanceof Error &&
-          ['ApiSessionNotFound', 'SessionPersistenceNotFoundError'].includes(error.name)
-        )
-          id = undefined
+        if (isMissingSession(error)) id = undefined
         else throw error
       }
     }

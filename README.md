@@ -4,7 +4,7 @@
 
 WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确认的范围内规划和执行任务，独立验收结果，需要决定时再找你。
 
-**1.3.0** 文档。目标宿主为 DSH Desktop **0.2.1-rc.2 或 0.2.1-rc.3**，Node.js ≥22.19；仍有预览版限制，见[使用说明](docs/usage.md)。
+**1.3.1** 文档。目标宿主为 DSH Desktop **0.2.1-rc.2 起的 0.2.x**。从源码构建需要 Node.js ≥22.19。预览版限制，见[使用说明](docs/usage.md)。
 
 ## 当前能做什么
 
@@ -62,7 +62,7 @@ WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确�
 
 **只安装一次 WhaleMaid 完整版。** 安装包自带并统一启用 WhaleMaid 和 [WhaleMaid 配套 Coopanion](https://github.com/Xiaxin1235/dsh-coopanion)，无需分别安装，也无需自行构建源码。**不要再单独安装任何版本的 Coopanion**（包括原版 `@takboo/dsh-coopanion`），两份桌宠同时启用会冲突。
 
-需要已安装并初始化的 DeepSeek Harness Desktop **0.2.1-rc.2 / rc.3**，并在 Harness 中配置可用的聊天模型；首次安装需要联网下载依赖和 Electron。核心授权与执行支持 Windows、macOS、Linux；Linux 桌宠使用 X11，需要 `/usr/bin/python3` 与 libX11，Wayland 桌宠未声明支持。平台验收见[市场发布报告](docs/market-release-report.md)。
+需要已安装并初始化的 DeepSeek Harness Desktop **0.2.1-rc.2 起的 0.2.x**，并在 Harness 中配置可用的聊天模型；首次安装需要联网下载依赖和 Electron。核心授权与执行支持 Windows、macOS、Linux；Linux 桌宠使用 X11，需要 `/usr/bin/python3` 与 libX11，Wayland 桌宠未声明支持。平台验收见[市场发布报告](docs/market-release-report.md)。
 
 **最方便：在插件市场一键安装。** WhaleMaid 已收录进社区插件目录 [awesome-dsh-plugin](https://github.com/awesome-dsh-plugin/awesome-dsh-plugin)。在 Harness 的插件市场（[dsh-market](https://github.com/dsh-market/dsh-market#readme)）中搜索 **WhaleMaid** 即可一键安装；还没有插件市场时，先在 **插件 → 添加插件** 中填入 `dshmarket` 安装它，之后在 **插件** 页的 **插件市场** 标签中搜索。安装完成后，按提示点击“立即启用”，两部分会一起生效。
 
@@ -71,14 +71,14 @@ WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确�
 也可在 **插件 → 添加插件** 中填写完整安装包地址：
 
 ```text
-https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.0/dsh-whalemaid-full-1.3.0.tgz
+https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.1/dsh-whalemaid-full-1.3.1.tgz
 ```
 
 也可完全退出 Harness，在未设置测试 DSH_HOME 的终端里使用桌面版自带 CLI：
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.0/dsh-whalemaid-full-1.3.0.tgz'
+& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.1/dsh-whalemaid-full-1.3.1.tgz'
 ```
 
 重新打开 Harness，应同时看到 **WhaleMaid** 面板和 **Settings → 桌宠**。原来分别安装两份源码的用户，请先按[安装说明](docs/install.md#complete-installation)备份和迁移，避免同时启用两份桌宠；目标、记忆和桌宠设置保留。Decisions API 表情仍需在桌宠设置中单独配置，默认关闭。

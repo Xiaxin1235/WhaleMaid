@@ -1,3 +1,5 @@
+import semver from 'semver'
+import { untestedDshVersions } from './dsh-canary-versions.mjs'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync } from 'node:fs'
@@ -75,4 +77,22 @@ test('staged complete manifest loads the private core and declares both componen
     ],
     { cwd: stage, stdio: 'pipe' },
   )
+})
+
+test('host compatibility follows DSH prerelease matching and preserves the 0.3 boundary', () => {
+  const pkg = JSON.parse(readFileSync(join(root, 'packages/host/package.json'), 'utf8'))
+  assert.equal(pkg.engines.dsh, '>=0.2.1-rc.2 <0.3.0-0')
+  for (const version of ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.2-rc.1', '0.2.2'])
+    assert.ok(semver.satisfies(version, pkg.engines.dsh, { includePrerelease: true }), version)
+  for (const version of ['0.2.1-rc.1', '0.3.0-alpha.1', '0.3.0'])
+    assert.ok(!semver.satisfies(version, pkg.engines.dsh, { includePrerelease: true }), version)
+})
+
+test('canary deduplicates published tags, skips the release matrix and rejects malformed tags', () => {
+  assert.deepEqual(untestedDshVersions({ latest: '0.2.2', next: '0.2.2' }, ['0.2.2-rc.1']), ['0.2.2'])
+  assert.deepEqual(untestedDshVersions({ latest: '0.2.2-rc.1', next: '0.3.0-alpha.1' }, ['0.2.2-rc.1']), [
+    '0.3.0-alpha.1',
+  ])
+  assert.deepEqual(untestedDshVersions({ latest: '0.2.2-rc.1' }, ['0.2.2-rc.1']), [])
+  assert.throws(() => untestedDshVersions({ latest: 'latest' }, []), /Invalid DSH dist-tag/)
 })

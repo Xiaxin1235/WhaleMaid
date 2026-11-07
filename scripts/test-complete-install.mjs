@@ -4,6 +4,7 @@ import { setTimeout, clearTimeout } from 'node:timers'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
 import { mkdtemp, mkdir, readFile, writeFile, realpath, rm } from 'node:fs/promises'
+import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { createServer } from 'node:net'
@@ -19,6 +20,8 @@ const cli = resolve(
   process.env.DSH_TEST_RUNTIME ?? '.dsh-dev/complete-runtime',
   'node_modules/@deepseek-ai/dsh/lib/bin.js',
 )
+const runtime = JSON.parse(await readFile(join(dirname(cli), '../package.json'), 'utf8'))
+if (process.env.DSH_TEST_VERSION) assert.equal(runtime.version, process.env.DSH_TEST_VERSION)
 const archive = resolve(process.env.DSH_TEST_ARCHIVE ?? 'dist/release/dsh-whalemaid-full.tgz')
 const report = JSON.parse(await readFile(join(dirname(archive), 'verification.json'), 'utf8'))
 assert.equal(
@@ -85,6 +88,10 @@ try {
     'packages:\n  - .\nnodeLinker: hoisted\nautoInstallPeers: false\n',
   )
   await run(['plugin', '--profile', profileName, 'add', archive])
+  assert.ok(
+    !existsSync(join(profile, 'compatibility.json')),
+    'The complete package must install without a compatibility exemption',
+  )
   const installed = JSON.parse(await readFile(join(profile, 'package.json'), 'utf8'))
   assert.ok(installed.dsh.profile.bundles.includes('dsh-whalemaid'))
   assert.ok(
@@ -190,7 +197,7 @@ try {
     JSON.stringify(
       {
         platform: process.platform,
-        dsh: process.env.DSH_TEST_VERSION,
+        dsh: runtime.version,
         version: report.version,
         sha256: report.sha256,
         companion: pet.version,
