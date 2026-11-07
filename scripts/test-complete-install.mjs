@@ -148,8 +148,9 @@ try {
   const welcome = page.locator('dialog.whalemaid-welcome[open]')
   await welcome.waitFor({ timeout: 60000 })
   await page.waitForFunction(() => {
-    const image = document.querySelector('dialog.whalemaid-welcome img.whalemaid-welcome-art')
-    return image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0
+    // Runs in the page; reach the DOM through globalThis so Node lint rules apply unchanged.
+    const image = globalThis.document.querySelector('dialog.whalemaid-welcome img.whalemaid-welcome-art')
+    return Boolean(image?.complete && image.naturalWidth > 0)
   })
   await mkdir('artifacts', { recursive: true })
   await page.screenshot({ path: 'artifacts/complete-welcome.png' })
