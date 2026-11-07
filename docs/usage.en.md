@@ -6,7 +6,7 @@ For WhaleMaid 1.1.0 and DSH Desktop 0.2.1-rc.2 / rc.3. See [installation](instal
 
 ## First launch
 
-After installing or upgrading, open Harness to see the welcome tour. It appears once per WhaleMaid data directory. To revisit it, choose **WhaleMaid → Welcome & about**, or **Settings → WhaleMaid → About & feedback**, which also links to GitHub issues and the feedback group.
+After installing or upgrading, open Harness to see the welcome tour. It appears once per WhaleMaid data directory. To revisit it, choose **WhaleMaid → Welcome & about**, or **Settings → WhaleMaid → Help & feedback**, which also links to GitHub issues and the feedback group.
 
 ## Goal entry and authorization
 
