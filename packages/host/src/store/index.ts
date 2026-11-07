@@ -850,6 +850,14 @@ export class WhaleStore {
       )
       .run(id, JSON.stringify(input))
   }
+  welcomePending(): boolean {
+    return this.state === 'ok' && !this.db!.prepare("SELECT 1 FROM kv_settings WHERE id='welcome'").get()
+  }
+  markWelcomeSeen(): void {
+    this.writer()
+      .prepare("INSERT OR IGNORE INTO kv_settings(id,data) VALUES('welcome',?)")
+      .run(JSON.stringify({ seenAt: this.clock.now(), version: 1 }))
+  }
   setMemoryMeta(input: ReturnType<WhaleStore['memoryMeta']>): void {
     this.writer()
       .prepare(

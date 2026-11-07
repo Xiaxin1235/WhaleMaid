@@ -33,6 +33,7 @@ import { DailyBriefView } from './daily-brief.js'
 import { InitiativeView } from './initiative.js'
 import { EverydayApprovalsView } from './everyday-approvals.js'
 import { CodexView } from './codex.js'
+import { openWelcome, WelcomeOverlay } from './welcome.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
@@ -232,7 +233,17 @@ function Panel({ ctx, connection }: Face) {
     h(
       'header',
       null,
-      h('div', null, h('h1', null, 'WhaleMaid'), h('p', null, text('subtitle'))),
+      h(
+        'div',
+        null,
+        h('h1', null, 'WhaleMaid'),
+        h('p', null, text('subtitle')),
+        h(
+          'button',
+          { className: 'whalemaid-welcome-link', type: 'button', onClick: () => openWelcome(locale) },
+          text('welcomeAbout'),
+        ),
+      ),
       h('button', { onClick: () => refresh((value) => value + 1) }, text('refresh')),
       h('button', { onClick: () => setNotificationsOpen(true) }, text('notificationCenter')),
     ),
@@ -534,6 +545,12 @@ export function apply(ctx: Context): void {
   })
   ctx.slots.inject('main', () =>
     ctx.slots.register({ name: 'main', key: PANEL_ID, inject: () => ({ ctx, connection }) }, Panel),
+  )
+  ctx.slots.inject('shell.overlay', () =>
+    ctx.slots.register(
+      { name: 'shell.overlay', id: 'whalemaid.welcome', inject: () => ({ ctx, connection }) },
+      WelcomeOverlay,
+    ),
   )
   // A recent explicit inbox choice is the only source of background panel navigation.
   ctx.effect(() => {

@@ -57,7 +57,8 @@
     "lib/types/**/*.d.ts",
     "companion/*.md",
     "cordis.patch.yml",
-    "LICENSE"
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && node build-client.mjs",

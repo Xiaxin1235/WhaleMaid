@@ -128,3 +128,5 @@ pnpm format:check
 ## 许可证
 
 WhaleMaid 自有代码采用 [MIT](LICENSE)。配套鲸鱼桌宠采用 AGPL-3.0-or-later，以独立依赖包自动安装；其许可证、对应源码和第三方声明见 fork 仓库及安装包。
+
+欢迎形象的作者和角色署名见[素材声明](packages/host/THIRD_PARTY_NOTICES.md)。

@@ -393,6 +393,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         }
       },
       {
+        welcome: store,
         goals: () => store.goals.list(),
         setPaused: (paused) => store.setPaused(paused),
         takeoverStore: () => {

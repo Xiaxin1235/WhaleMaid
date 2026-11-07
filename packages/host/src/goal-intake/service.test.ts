@@ -183,6 +183,31 @@ test('missing/file roots, escaping symlinks, non-Git writes, extra fields and fo
   ).rejects.toThrow('forbidden-verify-command')
   await expect(intake.confirm(confirmed(project), undefined as unknown as PeerScope)).rejects.toThrow('owner')
 })
+test('welcome routes report the owner state and keep a failed dismissal eligible', async () => {
+  const { store } = setup()
+  const markWelcomeSeen = vi
+    .fn(() => store.markWelcomeSeen())
+    .mockImplementationOnce(() => {
+      throw Error('write failed')
+    })
+  const handler = createPanelHandler({
+    snapshot: () => ({ ...snapshot, language: 'en' }),
+    setLanguage: vi.fn(),
+    goals: () => [],
+    setPaused: vi.fn(),
+    revokeScope: vi.fn(),
+    takeoverStore: vi.fn(),
+    welcome: { welcomePending: () => store.welcomePending(), markWelcomeSeen },
+  })
+  const read = () => handler('welcome-status', {}, peer.signal, peer)
+  const mark = () => handler('welcome-seen', {}, peer.signal, peer)
+  expect(await read()).toEqual({ ok: true, value: { show: true, language: 'en' } })
+  expect(await mark()).toMatchObject({ ok: false })
+  expect(await read()).toMatchObject({ value: { show: true } })
+  expect(await mark()).toMatchObject({ ok: true })
+  expect(await read()).toMatchObject({ value: { show: false } })
+})
+
 test('all new routes deny unauthenticated callers before dispatch', async () => {
   const { intake } = setup()
   const handler = createPanelHandler({

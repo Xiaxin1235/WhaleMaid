@@ -128,3 +128,5 @@ Further references: the [documentation index, in Chinese](docs/README.md), [arch
 ## License
 
 WhaleMaid's own code is licensed under [MIT](LICENSE). The automatically installed companion dependency uses AGPL-3.0-or-later, with its own license, corresponding source and third-party notices.
+
+See the [welcome artwork credits](packages/host/THIRD_PARTY_NOTICES.md).

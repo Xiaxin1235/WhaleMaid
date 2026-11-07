@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Show a bilingual welcome dialog once per WhaleMaid data directory, with Da Fei Yu artwork, a quick feature tour, and a panel shortcut to reopen it.
+
 - Retry failed decision questions with backoff, resume interrupted asks when eligible, and show delivery history in the notification center. Keep valid pending decisions open and reserve option slots for manual acceptance, retry, and other essential choices.
 
 - Add rule-based initiative findings to the WhaleMaid panel, with evidence links, per-detector settings, and a seven-day count. The daily brief can include three findings and Da Fei Yu can look up recent findings on request.

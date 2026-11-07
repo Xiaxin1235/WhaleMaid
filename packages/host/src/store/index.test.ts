@@ -153,6 +153,27 @@ test('close/reopen preserves goals, tasks, runs, transitions and global pause', 
   expect(reopened.paused()).toBe(true)
 })
 
+test('the welcome record is written once and survives another store instance', () => {
+  const { store, dir } = open()
+  expect(store.welcomePending()).toBe(true)
+  const reader = open(dir).store
+  expect(reader.status().state).toBe('read-only')
+  expect(reader.welcomePending()).toBe(false)
+  expect(() => reader.markWelcomeSeen()).toThrow('store-unavailable')
+  reader.close()
+  store.markWelcomeSeen()
+  expect(store.welcomePending()).toBe(false)
+  store.close()
+  const next = new WhaleStore(dir, { clock: fixedClock(2000), log: vi.fn() })
+  cleanups.push(() => next.close())
+  expect(next.welcomePending()).toBe(false)
+  next.markWelcomeSeen()
+  sql(dir, (db) => {
+    const row = db.prepare("SELECT data FROM kv_settings WHERE id='welcome'").get()
+    expect(JSON.parse(String(row?.data))).toEqual({ seenAt: 1000, version: 1 })
+  })
+})
+
 test('live PID yields read-only access and cannot mutate or steal writer lock', () => {
   const { store, dir } = open()
   seed(store)
@@ -209,6 +230,7 @@ test('migration failure rolls back schema and data, closes DB, releases lock and
   }
   const failed = open(dir, [...MIGRATIONS, bad])
   expect(failed.store.status()).toMatchObject({ state: 'error', message: 'migration failed' })
+  expect(failed.store.welcomePending()).toBe(false)
   expect(failed.log).toHaveBeenCalledWith('store degraded', expect.any(Error))
   expect(() => failed.store.goals.list()).toThrow('store-unavailable')
   sql(dir, (db) => {

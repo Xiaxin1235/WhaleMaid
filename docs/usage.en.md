@@ -4,6 +4,10 @@
 
 For WhaleMaid 1.1.0 and DSH Desktop 0.2.1-rc.2 / rc.3. See [installation](install.en.md) for setup, fixed-copy updates and removal, and the [documentation index, in Chinese](README.md) for implementation evidence. This guide distinguishes WhaleMaid features from those of the independent whale desktop pet.
 
+## First launch
+
+After installing or upgrading, open Harness to see the welcome tour. It appears once per WhaleMaid data directory. To revisit it, choose **WhaleMaid → Welcome & about**.
+
 ## Goal entry and authorization
 
 1. Open **WhaleMaid → Create goal** in Harness, select the project directory, and describe the objective, expected outcome, acceptance criteria and stop conditions.

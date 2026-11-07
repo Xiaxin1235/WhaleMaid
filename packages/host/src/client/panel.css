@@ -237,3 +237,141 @@
     grid-template-columns: 1fr;
   }
 }
+
+.whalemaid-welcome {
+  box-sizing: border-box;
+  position: fixed;
+  inset: 0;
+  width: min(640px, calc(100% - 24px));
+  max-height: calc(100% - 24px);
+  margin: auto;
+  padding: clamp(18px, 4vw, 30px);
+  overflow: auto;
+  color: var(--dsw-alias-label-primary, CanvasText);
+  background: var(--dsw-alias-bg-base, Canvas);
+  border: 1px solid var(--dsw-alias-separator-primary, GrayText);
+  border-radius: 18px;
+  font: inherit;
+  line-height: 1.5;
+  pointer-events: auto;
+}
+.whalemaid-welcome::backdrop {
+  background: rgb(8 20 39 / 56%);
+}
+.whalemaid-welcome-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-inline-end: 26px;
+}
+.whalemaid-welcome-header h1 {
+  margin: 0;
+  font-size: clamp(23px, 4vw, 30px);
+  line-height: 1.18;
+}
+.whalemaid-welcome-header p {
+  margin: 8px 0 0;
+}
+.whalemaid-welcome-art {
+  display: block;
+  height: 150px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 12px;
+}
+.whalemaid-welcome-features {
+  display: grid;
+  gap: 6px;
+  list-style: none;
+  margin: 20px 0;
+  padding: 0;
+}
+.whalemaid-welcome-features li {
+  display: grid;
+  grid-template-columns: 1.3em 1fr;
+  gap: 5px;
+}
+.whalemaid-welcome-features li span {
+  color: var(--dsw-alias-label-secondary, CanvasText);
+  font-weight: 700;
+}
+.whalemaid-welcome-feedback,
+.whalemaid-welcome footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+}
+.whalemaid-welcome code {
+  font-size: 1em;
+  font-weight: 700;
+  user-select: all;
+}
+.whalemaid-welcome a {
+  color: inherit;
+  text-underline-offset: 3px;
+}
+.whalemaid-welcome button {
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--dsw-alias-separator-primary, GrayText);
+  border-radius: 8px;
+  padding: 4px 10px;
+  font: inherit;
+  cursor: pointer;
+}
+.whalemaid-welcome .whalemaid-welcome-close {
+  position: absolute;
+  inset-block-start: 12px;
+  inset-inline-end: 12px;
+  min-width: 36px;
+  min-height: 36px;
+  font-size: 22px;
+  line-height: 1;
+}
+.whalemaid-welcome-pet {
+  color: var(--dsw-alias-label-secondary, CanvasText);
+  margin: 14px 0;
+}
+.whalemaid-welcome footer {
+  justify-content: flex-end;
+}
+.whalemaid-welcome .whalemaid-welcome-start {
+  background: #275ab5;
+  color: white;
+  border-color: transparent;
+  padding: 8px 16px;
+  font-weight: 650;
+}
+.whalemaid-welcome :focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+.whaledot-panel .whalemaid-welcome-link {
+  padding: 0;
+  background: transparent;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--dsw-alias-label-secondary, CanvasText);
+  font-size: 0.875em;
+}
+@media (max-width: 480px) {
+  .whalemaid-welcome {
+    padding: 16px;
+    font-size: 14px;
+    line-height: 1.45;
+  }
+  .whalemaid-welcome-features {
+    gap: 4px;
+    margin: 14px 0;
+  }
+  .whalemaid-welcome-header {
+    display: block;
+  }
+  .whalemaid-welcome-art {
+    height: 140px;
+    margin: 0 auto 12px;
+  }
+}

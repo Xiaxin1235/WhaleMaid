@@ -1,3 +1,4 @@
+import type { WhaleStore } from '../store/index.js'
 import type { NotificationDeliverer } from '../notify/deliverer.js'
 import type { CompanionMemory } from '../companion/memory.js'
 import type { MemoryDrafts } from '../companion/drafts.js'
@@ -44,6 +45,7 @@ import {
   StatusSchema,
   CompanionRebuildSchema,
   PANEL_METHODS,
+  WelcomeStatusSchema,
   DraftStartedSchema,
   DraftStatusSchema,
   ProjectFactsSchema,
@@ -64,6 +66,7 @@ import { EverydayApprovalPanelSchema, EverydayApprovalSettingsSchema } from '../
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
+  welcome?: Pick<WhaleStore, 'welcomePending' | 'markWelcomeSeen'>
   codex?: ConversationCodex
   everydayApprovals?: EverydayApprovals
   brief?: CompanionDailyBrief
@@ -110,6 +113,18 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'welcome-status':
+          z.strictObject({}).parse(input)
+          result = WelcomeStatusSchema.parse({
+            show: runtime.welcome?.welcomePending() ?? false,
+            language: runtime.snapshot().language,
+          })
+          break
+        case 'welcome-seen':
+          z.strictObject({}).parse(input)
+          runtime.welcome?.markWelcomeSeen()
+          result = { ok: true }
+          break
         case 'codex':
           z.strictObject({}).parse(input)
           result = CodexPanelSchema.parse(await runtime.codex!.panel())
@@ -426,6 +441,7 @@ export function installPanelApi(
   snapshot: () => PanelStatus,
   storage: Pick<
     PanelRuntime,
+    | 'welcome'
     | 'goals'
     | 'setPaused'
     | 'revokeScope'

@@ -4,6 +4,10 @@
 
 适用于 WhaleMaid 1.1.0、DSH Desktop 0.2.1-rc.2 / rc.3。安装、固定副本更新与卸载见[安装说明](install.md)，实现证据见[文档索引](README.md)。以下区分 WhaleMaid 功能与独立鲸鱼桌宠功能。
 
+## 首次使用
+
+新装或升级后，首次打开 Harness 会显示欢迎介绍。每个 WhaleMaid 数据目录只显示一次；之后可从 **WhaleMaid → 欢迎与介绍** 再打开。
+
 ## 目标录入与授权
 
 1. 在 Harness 打开 **WhaleMaid → 创建目标**，选择项目根目录，描述目标、预期成果、验收标准和停止条件。

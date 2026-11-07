@@ -129,7 +129,11 @@ export const RouteResultSchema = z.strictObject({
   stat: z.string().optional(),
 })
 export const ReminderSchema = z.strictObject({ notificationId: z.string().min(1) })
+export const WelcomeStatusSchema = z.strictObject({ show: z.boolean(), language: LanguageSchema })
+
 export const PANEL_METHODS = [
+  'welcome-status',
+  'welcome-seen',
   'codex',
   'codex-settings',
   'everyday-approvals',
