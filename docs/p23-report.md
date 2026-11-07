@@ -51,5 +51,5 @@ WhaleMaid 1.3.1 使用 `>=0.2.1-rc.2 <0.3.0-0`。Coopanion 0.5.8 同样开放此
 ## 发布顺序
 
 1. 作者先发布 Coopanion 0.5.8，核对归档和 `verification.json`。
-2. 核对 [market/companion.json](../market/companion.json) 的 0.5.8 URL、发布提交和产物验证信息。当前填的是本地 fork 提交 `ad7da28589eb269517e24ba5a9f6ff3e5af671d6`。
+2. 核对 [market/companion.json](../market/companion.json) 的 0.5.8 URL、发布提交和产物验证信息。发布时 macOS 慢渲染导致一项桌宠待机节奏测试失败，DSH 0.2.2 下两项宿主契约测试因以 `new` 构造服务而未完成异步启动；修正这些测试后以 fork 提交 `cdcf9dc771d0ca73c84f0b2da72aae6f128a5535` 发布 0.5.8。
 3. 在 WhaleMaid 的发布提交打 `v1.3.1`，由发布流程完成三平台安装矩阵，再发布完整包和市场索引。
