@@ -1,3 +1,4 @@
+import { refreshDecision } from './decision-lifecycle.js'
 import {
   checkAction,
   buildSuggestions,
@@ -40,13 +41,18 @@ export class NotificationRouter {
     private readonly wake: (id: GoalId) => void,
     private readonly goalDecisions?: GoalDecisions,
   ) {}
+  refresh(n: Notification): Notification {
+    return refreshDecision(this.store, this.scopes, n)
+  }
   /** Build the fixed recommendation set even when reminders are muted or held. */
   options(n: Notification): Suggestion[] {
+    n = this.refresh(this.store.notifications.get(n.id) ?? n)
     const goalVersion = this.store.goals.get(n.goalId)?.version
     const scope = this.scopes.activeScopeFor(n.goalId),
       task = n.taskId ? this.store.tasks.get(n.taskId) : undefined
     if (
       !scope ||
+      n.routingSuggestionId ||
       n.resolvedAt !== undefined ||
       (n.expiresAt ?? Infinity) <= Date.now() ||
       (n.taskId && task?.version !== n.taskVersion)
@@ -62,6 +68,8 @@ export class NotificationRouter {
         (s) =>
           'scopeHash' in s.bindTo &&
           s.bindTo.scopeHash === scope.hash &&
+          s.bindTo.generation === n.decisionDelivery?.generation &&
+          s.consumedAt === undefined &&
           s.expiresAt > Date.now() &&
           (!n.choices?.includes('change-direction') || s.bindTo.goalVersion === goalVersion),
       )
@@ -96,6 +104,7 @@ export class NotificationRouter {
       throw Error('option-stale-or-consumed')
     if (!('notificationId' in s.bindTo) || s.bindTo.notificationId !== n.id || s.bindTo.goalId !== n.goalId)
       throw Error('option-binding-invalid')
+    if (s.bindTo.generation !== n.decisionDelivery?.generation) throw Error('option-stale-or-consumed')
     const scope = this.scopes.activeScopeFor(n.goalId)
     if (!scope || scope.id !== s.bindTo.scopeId || scope.hash !== s.bindTo.scopeHash)
       throw Error('option-authorization-changed')
@@ -151,6 +160,9 @@ export class NotificationRouter {
       reviewedVersion: number | undefined,
       direction: string | undefined
     try {
+      const option = this.store.suggestions.get(input.suggestionId)
+      const notice = option && this.store.notifications.get(option.notificationId)
+      if (notice) this.refresh(notice)
       this.store.transaction(() => {
         s = this.store.suggestions.get(input.suggestionId)
         if (!s) throw Error('option-not-found')
@@ -286,7 +298,8 @@ export class NotificationRouter {
     } = {},
   ): Promise<RouteResult> {
     if (peer.principal.kind !== 'owner' || peer.signal.aborted) return { ok: false, reason: 'owner-required' }
-    const n = this.store.notifications.get(notificationId),
+    const notice = this.store.notifications.get(notificationId)
+    const n = notice && this.refresh(notice),
       scope = n && this.scopes.activeScopeFor(n.goalId)
     if (!n || !scope || n.resolvedAt !== undefined || n.routingSuggestionId)
       return { ok: false, reason: 'option-stale-or-consumed' }
@@ -306,7 +319,8 @@ export class NotificationRouter {
   }
   /** Explicit owner reminder is the only manual exception to no-repeat delivery. */
   remind(notificationId: string): void {
-    const n = this.store.notifications.get(notificationId)
+    const notice = this.store.notifications.get(notificationId)
+    const n = notice && this.refresh(notice)
     if (!n || n.resolvedAt !== undefined || n.routingSuggestionId || (n.expiresAt ?? Infinity) <= Date.now())
       throw Error('notification-stale')
     this.store.notifications.update({

@@ -1,3 +1,4 @@
+import { refreshDecision } from '../notify/decision-lifecycle.js'
 import {
   planTick,
   buildPlannerPrompt,
@@ -246,40 +247,10 @@ export class AutopilotScheduler {
       ...(runId ? { runId } : {}),
     })
   }
-  private refreshDecisions(id: GoalId): void {
-    for (const n of this.store.notifications
-      .list()
-      .filter(
-        (n) => n.goalId === id && ['decision', 'blocked'].includes(n.kind) && n.resolvedAt === undefined,
-      )) {
-      const task = n.taskId ? this.store.tasks.get(n.taskId) : undefined
-      const stale = !!n.taskId && (!task || task.version !== n.taskVersion)
-      const expired = (n.expiresAt ?? Infinity) <= this.clock.now()
-      if (!stale && !expired) continue
-      this.store.transaction(() => {
-        this.store.notifications.update({
-          ...n,
-          resolvedAt: this.clock.now(),
-          resolvedReason: stale ? 'superseded' : 'expired',
-        })
-        this.store.suggestions.consume(n.id, this.clock.now())
-        if (task && ['WAITING_APPROVAL', 'FAILED', 'BLOCKED', 'PAUSED'].includes(task.state))
-          this.ports.requestDecision?.(task.id)
-        else if (!n.taskId && expired)
-          goalNotice(
-            this.store,
-            this.store.goals.get(id)!,
-            n.reason ?? 'decision-expired',
-            this.options.locale(),
-            n.choices ?? ['pause-goal'],
-            n.kind,
-          )
-      })
-    }
-  }
   private async check(id: GoalId): Promise<void> {
     if (this.stopped || this.store.status().state !== 'ok' || !this.store.goals.get(id)) return
-    this.refreshDecisions(id)
+    for (const n of this.store.notifications.forGoal(id))
+      refreshDecision(this.store, this.scopes, n, this.clock.now())
     const snapshot = this.snapshot(id),
       action = planTick(snapshot)
     if (action.type === 'idle') {

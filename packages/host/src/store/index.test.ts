@@ -4,7 +4,15 @@ import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { DatabaseSync } from 'node:sqlite'
 import { afterEach, expect, test, vi } from 'vitest'
-import { fixedClock, sequenceIdGen, RunSchema, DEFAULT_PROTECTED_NAMES, hashScope } from '@whalemaid/core'
+import {
+  decideDelivery,
+  NotificationSchema,
+  fixedClock,
+  sequenceIdGen,
+  RunSchema,
+  DEFAULT_PROTECTED_NAMES,
+  hashScope,
+} from '@whalemaid/core'
 import { makeGoal, makeTask } from '../../../core/tests/fixtures.js'
 import { makeScope } from '../../../core/tests/fixtures.js'
 import { WhaleStore, sha256 } from './index.js'
@@ -341,4 +349,55 @@ test('v1 scopes receive nested secret defaults, an audit marker and a valid reco
   expect(scope.protectedNames).toEqual([...DEFAULT_PROTECTED_NAMES])
   expect(scope.legacyAuthorization).toBe(true)
   expect(hashScope(scope, sha256)).toEqual({ ok: true, value: scope.hash })
+})
+
+test('P21 migration preserves historical records and only retries positively identified failures', () => {
+  const { store, dir } = open(directory(), MIGRATIONS.slice(0, 10))
+  seed(store)
+  const sample = NotificationSchema.parse({
+    id: 'notification_legacy',
+    kind: 'decision',
+    goalId: makeGoal().id,
+    priority: 'high',
+    dedupeKey: 'one',
+    channel: 'panel',
+    createdAt: 1000,
+    deliveryAttemptedAt: 2000,
+  })
+  const failed = { ...sample, id: 'notification_failed', deliveryState: 'failed' }
+  const progress = { ...sample, id: 'notification_progress', kind: 'progress' }
+  const settled = { ...sample, id: 'notification_settled', resolvedAt: 4000 }
+  store.close()
+  sql(dir, (db) => {
+    for (const record of [sample, failed, progress, settled])
+      db.prepare('INSERT INTO notifications(id,data) VALUES(?,?)').run(record.id, JSON.stringify(record))
+  })
+  const { store: upgraded } = open(dir)
+  expect(upgraded.notifications.get(sample.id)).toEqual({
+    ...sample,
+    decisionDelivery: { generation: 1, failures: 0, outcome: 'unanswered', reason: 'legacy-attempt' },
+  })
+  expect(upgraded.notifications.get(failed.id)).toEqual({
+    ...failed,
+    decisionDelivery: {
+      generation: 1,
+      failures: 1,
+      outcome: 'failed',
+      reason: 'question-service-failed',
+      retryAt: 62000,
+    },
+  })
+  expect(upgraded.notifications.get(progress.id)).toEqual(progress)
+  expect(upgraded.notifications.get(settled.id)).toEqual(settled)
+  expect(upgraded.status().corruptRows).toBe(0)
+  const context = {
+    now: 100000,
+    localMinutes: 0,
+    nextQuietEnd: 0,
+    history: [],
+    recent: [],
+    preferences: { muted: false, maxPerHour: 4 },
+  }
+  expect(decideDelivery(upgraded.notifications.get(sample.id)!, context).action).toBe('drop')
+  expect(decideDelivery(upgraded.notifications.get(failed.id)!, context).action).toBe('deliver-now')
 })

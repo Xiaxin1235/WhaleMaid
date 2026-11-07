@@ -1,5 +1,6 @@
 import {
-  buildSuggestions,
+  isDecision,
+  quietHoursActive,
   decideDelivery,
   notificationCopy,
   NotificationIdSchema,
@@ -7,29 +8,30 @@ import {
 } from '@whalemaid/core'
 import type { Notification, NotificationFacts, Locale, GoalId } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
-import { productionClock, productionIdGen } from '../store/index.js'
+import { productionIdGen } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'
 import type { InboxPort } from './inbox-session.js'
 import type { NotificationRouter } from './router.js'
 import { notificationDeliveryHistory } from './history.js'
-/** Deliver one durable attempt per notification generation; unhandled/cancelled asks never nag. */
+const retryDelays = [60000, 300000, 1800000, 7200000]
+type AttemptResult = 'answered' | 'unanswered' | 'cancelled' | 'failed'
+type Pending = {
+  controller: AbortController
+  work: Promise<void>
+  goalId: GoalId
+  selectionId: string | undefined
+  attemptAt: number
+  generation: number | undefined
+  responding: boolean
+}
+/** Claim the attempt before any provider work and record exactly how it ends. */
 export class NotificationDeliverer {
   private stopped = true
   private stopWatch: (() => void) | undefined
   private timer: ReturnType<typeof setInterval> | undefined
   private debounce: ReturnType<typeof setTimeout> | undefined
-  private readonly pending = new Map<
-    string,
-    {
-      controller: AbortController
-      work: Promise<void>
-      goalId: GoalId
-      selectionId: string | undefined
-      attemptAt: number
-      responding: boolean
-      expiry: ReturnType<typeof setTimeout>
-    }
-  >()
+  private wakeTimer: ReturnType<typeof setTimeout> | undefined
+  private readonly pending = new Map<string, Pending>()
   constructor(
     readonly store: WhaleStore,
     private readonly scopes: Pick<ScopeService, 'activeScopeFor'>,
@@ -41,6 +43,7 @@ export class NotificationDeliverer {
   /** Register state-change observation only after migrations, recovery and tool gates are ready. */
   start(): void {
     if (!this.stopped || this.store.status().state !== 'ok') return
+    this.recoverAttempts()
     this.stopped = false
     this.stopWatch = this.store.watchChanges(() => {
       this.cancelInvalid()
@@ -54,40 +57,62 @@ export class NotificationDeliverer {
     if (this.stopped) return
     clearTimeout(this.debounce)
     this.debounce = setTimeout(() => {
-      void this.sweep().catch((e) => this.log('notification sweep failed', e))
+      void this.sweep().catch(() => this.log('notification sweep failed'))
     }, 100)
     this.debounce.unref()
   }
-  private cancelInvalid(): void {
-    for (const [id, entry] of this.pending) {
-      if (entry.responding) continue
-      const n = this.store.notifications.get(id)
-      if (
-        !n ||
-        !this.valid(n) ||
-        this.store.notificationPreferences().muted ||
-        n.lastSelectionId !== entry.selectionId ||
-        (n.remindAt ?? 0) > entry.attemptAt
-      )
-        entry.controller.abort(new Error('notification-no-longer-valid'))
+  private recoverAttempts(): void {
+    for (const n of this.store.notifications.list()) {
+      if (n.decisionDelivery?.outcome !== 'asking') continue
+      const attempt = this.store.notificationDeliveries
+        .list(n.goalId)
+        .find(
+          (d) =>
+            d.notificationId === n.id &&
+            d.generation === n.decisionDelivery?.generation &&
+            d.result === 'started',
+        )
+      this.finish(n, attempt?.id, 'cancelled', 'host-restarted')
     }
   }
+  private cancelInvalid(): void {
+    for (const [id, entry] of this.pending) {
+      if (entry.responding || entry.controller.signal.aborted) continue
+      const n = this.store.notifications.get(id)
+      const reason = n ? this.cancellation(this.router.refresh(n), entry) : 'decision-no-longer-current'
+      if (reason) entry.controller.abort(reason)
+    }
+  }
+  private cancellation(n: Notification, entry: Pending): string | undefined {
+    if (n.resolvedReason) return n.deliveryReason ?? 'decision-no-longer-current'
+    if (n.resolvedAt !== undefined || n.routingSuggestionId || n.lastSelectionId !== entry.selectionId)
+      return 'decision-handled'
+    if (n.decisionDelivery?.generation !== entry.generation) return 'task-version-refreshed'
+    if ((n.remindAt ?? 0) > entry.attemptAt) return 'owner-reminded'
+    if (!this.valid(n)) return 'decision-no-longer-current'
+    const prefs = this.store.notificationPreferences()
+    if (prefs.muted) return 'muted'
+    const date = new Date()
+    if (isDecision(n) && quietHoursActive(prefs.quietHours, date.getHours() * 60 + date.getMinutes()))
+      return 'quiet-hours'
+    return undefined
+  }
   private valid(n: Notification): boolean {
-    if (
-      n.resolvedAt !== undefined ||
-      n.routingSuggestionId ||
-      (n.expiresAt ?? Infinity) <= Date.now() ||
-      !this.scopes.activeScopeFor(n.goalId)
+    return (
+      n.resolvedAt === undefined &&
+      !n.routingSuggestionId &&
+      (n.expiresAt ?? Infinity) > Date.now() &&
+      !!this.scopes.activeScopeFor(n.goalId) &&
+      (!n.taskId || this.store.tasks.get(n.taskId)?.version === n.taskVersion)
     )
-      return false
-    return !n.taskId || this.store.tasks.get(n.taskId)?.version === n.taskVersion
   }
   /** Panel views share deterministic copy and the same persisted option identities. */
   center(goalId?: string) {
     const items = this.store.notifications
       .list()
       .filter((n) => !goalId || n.goalId === goalId)
-      .map((n) => {
+      .map((stored) => {
+        const n = this.router.refresh(stored)
         const suggestions =
           n.resolvedAt === undefined
             ? this.router.options(n)
@@ -104,6 +129,13 @@ export class NotificationDeliverer {
           suggestions,
           notes: this.store.userNotes.list(n.goalId).filter((note) => note.notificationId === n.id),
           choices: this.store.notificationChoices.list(n.goalId).filter((c) => c.notificationId === n.id),
+          ...(isDecision(n)
+            ? {
+                deliveries: this.store.notificationDeliveries
+                  .list(n.goalId)
+                  .filter((d) => d.notificationId === n.id),
+              }
+            : {}),
         }
       })
     return { preferences: this.store.notificationPreferences(), items }
@@ -130,122 +162,147 @@ export class NotificationDeliverer {
   async sweep(): Promise<void> {
     if (this.stopped || this.store.status().state !== 'ok') return
     this.cancelInvalid()
-    for (const n of this.store.notifications.list()) {
-      if (this.pending.has(n.id)) continue
+    let wakeAt = Infinity
+    const prefs = this.store.notificationPreferences()
+    const quiet = prefs.quietHours
+    if (quiet && quiet.start !== quiet.end) wakeAt = this.nextLocalTime(quiet.start, Date.now())
+    for (const stored of this.store.notifications.list()) {
+      if (this.pending.has(stored.id)) continue
+      const n = this.router.refresh(stored)
       if (!this.valid(n)) continue
-      const now = Date.now(),
-        date = new Date(now),
-        prefs = this.store.notificationPreferences(),
-        end = prefs.quietHours?.end ?? '00:00',
-        quietEnd = new Date(now)
-      quietEnd.setHours(Number(end.slice(0, 2)), Number(end.slice(3)), 0, 0)
-      if (quietEnd.getTime() <= now) quietEnd.setDate(quietEnd.getDate() + 1)
-      const history = this.store.notifications.list()
+      const now = Date.now()
+      const date = new Date(now)
       const decision = decideDelivery(n, {
         now,
         localMinutes: date.getHours() * 60 + date.getMinutes(),
-        nextQuietEnd: quietEnd.getTime(),
+        nextQuietEnd: this.nextLocalTime(quiet?.end ?? '00:00', now),
         preferences: prefs,
         recent: notificationDeliveryHistory(this.store),
-        history,
+        history: this.store.notifications.list(),
       })
-      if (decision.action === 'drop') continue
-      this.router.options(n)
       if (decision.action !== 'deliver-now') {
+        if (decision.until !== undefined) wakeAt = Math.min(wakeAt, decision.until)
         const state = decision.action === 'digest' ? 'digest' : decision.reason === 'muted' ? 'muted' : 'held'
-        if (
-          n.deliveryState !== state ||
-          n.deliveryReason !== decision.reason ||
-          n.nextDeliveryAt !== decision.until
-        )
-          this.store.notifications.update({
-            ...n,
-            deliveryState: state,
-            deliveryReason: decision.reason,
-            nextDeliveryAt: decision.until,
-          })
+        if (decision.action !== 'drop' || (isDecision(n) && decision.reason === 'duplicate-unresolved')) {
+          if (
+            n.deliveryState !== state ||
+            n.deliveryReason !== decision.reason ||
+            n.nextDeliveryAt !== decision.until
+          )
+            this.store.transaction(() => {
+              this.store.notifications.update({
+                ...n,
+                deliveryState: state,
+                deliveryReason: decision.reason,
+                nextDeliveryAt: decision.until,
+              })
+              if (isDecision(n)) this.audit(n, 'held', decision.reason)
+            })
+        }
         continue
       }
       if ([...this.pending.values()].some((entry) => entry.goalId === n.goalId)) continue
-      await this.inbox.prepare?.(n.goalId)
-      if (this.pending.has(n.id) || !this.valid(this.store.notifications.get(n.id)!)) continue
-      const controller = new AbortController()
-      const work = this.send(n, controller)
-        .catch((error) => this.log('notification delivery failed', error))
-        .finally(() => {
-          clearTimeout(this.pending.get(n.id)?.expiry)
-          this.pending.delete(n.id)
-          this.mark()
-        })
-      const expiry = setTimeout(
-        () => controller.abort(new Error('notification-expired')),
-        Math.max(0, Math.min(2147483647, (n.expiresAt ?? Date.now() + 86400000) - Date.now())),
-      )
-      expiry.unref()
-      this.pending.set(n.id, {
-        controller,
-        work,
-        goalId: n.goalId,
-        expiry,
-        selectionId: n.lastSelectionId,
-        attemptAt: this.store.notifications.get(n.id)!.deliveryAttemptedAt!,
-        responding: false,
-      })
+      this.claim(n, now)
+    }
+    clearTimeout(this.wakeTimer)
+    if (wakeAt < Infinity) {
+      this.wakeTimer = setTimeout(() => this.mark(), Math.max(1, Math.min(2147483647, wakeAt - Date.now())))
+      this.wakeTimer.unref()
     }
   }
-  private async send(n: Notification, controller: AbortController): Promise<void> {
-    const scope = this.scopes.activeScopeFor(n.goalId)!
-    const task = n.taskId ? this.store.tasks.get(n.taskId) : undefined
-    const choices = buildSuggestions(n, task, this.store.notificationChoices.list(), {
-      clock: productionClock,
-      idGen: productionIdGen,
-      locale: this.locale(),
-      scope,
-      goalVersion: this.store.goals.get(n.goalId)!.version,
-    })
-    const at = Date.now(),
-      deliveryId = productionIdGen.next('delivery')
-    const generation = n.deliveryAttemptedAt
-    this.store.transaction(() => {
-      const current = this.store.notifications.get(n.id)!
-      if (current.deliveryAttemptedAt !== generation || !this.valid(current))
-        throw Error('notification-already-claimed')
-      this.store.suggestions.consume(n.id, at)
-      for (const s of choices) this.store.suggestions.insert(s)
-      this.store.notifications.update({
-        ...current,
+  private nextLocalTime(time: string, now: number): number {
+    const date = new Date(now)
+    date.setHours(Number(time.slice(0, 2)), Number(time.slice(3)), 0, 0)
+    if (date.getTime() <= now) date.setDate(date.getDate() + 1)
+    return date.getTime()
+  }
+  private claim(n: Notification, at: number): void {
+    const deliveryId = productionIdGen.next('delivery')
+    const current = this.store.transaction(() => {
+      const fresh = this.store.notifications.get(n.id)!
+      if (fresh.deliveryAttemptedAt !== n.deliveryAttemptedAt || !this.valid(fresh)) return undefined
+      if (
+        isDecision(fresh) &&
+        this.store.notifications
+          .forGoal(n.goalId)
+          .some((other) => other.decisionDelivery?.outcome === 'asking' && other.resolvedAt === undefined)
+      )
+        return undefined
+      const started: Notification = {
+        ...fresh,
         channel: 'dsh-question',
-        suggestionIds: choices.map((s) => s.id),
+        suggestionIds: [],
         deliveryAttemptedAt: at,
         deliveredAt: at,
         deliveryState: 'delivered',
         deliveryReason: 'dispatched',
         nextDeliveryAt: undefined,
-      })
-      this.store.notificationDeliveries.insert({
-        id: deliveryId,
-        goalId: n.goalId,
-        notificationId: n.id,
-        at,
-        result: 'started',
-      })
+        ...(isDecision(fresh)
+          ? {
+              decisionDelivery: {
+                generation: (fresh.decisionDelivery?.generation ?? 0) + 1,
+                failures: fresh.decisionDelivery?.failures ?? 0,
+                outcome: 'asking',
+              },
+            }
+          : {}),
+      }
+      this.store.suggestions.consume(n.id, at)
+      this.store.notifications.update(started)
+      this.audit(started, 'started', undefined, deliveryId)
+      return started
     })
-    const copy = notificationCopy(n, this.facts(n), this.locale())
+    if (!current) return
+    const controller = new AbortController()
+    const work = Promise.resolve()
+      .then(() => this.send(current, deliveryId, controller.signal))
+      .catch(() => this.log('notification attempt recording failed: ' + n.id))
+      .finally(() => {
+        this.pending.delete(n.id)
+        this.mark()
+      })
+    this.pending.set(n.id, {
+      controller,
+      work,
+      goalId: n.goalId,
+      attemptAt: at,
+      selectionId: n.lastSelectionId,
+      generation: current.decisionDelivery?.generation,
+      responding: false,
+    })
+  }
+  private async send(n: Notification, deliveryId: string, signal: AbortSignal): Promise<void> {
+    let phase = 'inbox-preparation-failed'
     try {
+      signal.throwIfAborted()
+      await this.inbox.prepare?.(n.goalId)
+      signal.throwIfAborted()
+      const fresh = this.router.refresh(this.store.notifications.get(n.id)!)
+      const reason = this.cancellation(fresh, this.pending.get(n.id)!)
+      if (reason) {
+        this.pending.get(n.id)!.controller.abort(reason)
+        signal.throwIfAborted()
+      }
+      const choices = this.router.options(fresh)
+      phase = 'question-service-failed'
+      const copy = notificationCopy(n, this.facts(n), this.locale())
       const answer = await this.inbox.ask(
         n.goalId,
         {
           id: n.id,
           ...copy,
-          ...(n.choices?.includes('change-direction')
+          ...(choices.some(
+            (s) => s.intent.type === 'panel-decision' && s.intent.choice === 'change-direction',
+          )
             ? { detail: copy.detail + '\n\n' + goalDecisionCopy(this.locale()).inboxHint }
             : {}),
           options: choices.map((s) => ({ label: s.label, description: s.description! })),
           multiSelect: false,
         },
-        controller.signal,
+        signal,
       )
-      controller.signal.throwIfAborted()
+      signal.throwIfAborted()
+      phase = 'response-processing-failed'
       const pending = this.pending.get(n.id)
       if (pending) pending.responding = true
       const item = answer.answers.find((a) => a.id === n.id)
@@ -282,28 +339,93 @@ export class NotificationDeliverer {
           } else this.info(n, 'option-expired')
         } else if (selected.length > 1) this.info(n, 'option-expired')
       }
-      this.store.notificationDeliveries.update({
-        ...this.store.notificationDeliveries.get(deliveryId)!,
-        result: 'answered',
-      })
+      this.finish(
+        n,
+        deliveryId,
+        !isDecision(n) || item?.selected.length || item?.custom?.trim() ? 'answered' : 'unanswered',
+      )
     } catch (error) {
       if (this.store.status().state !== 'ok') return
-      const cancelled = controller.signal.aborted
-      const current = this.store.notifications.get(n.id)
-      if (current)
-        this.store.notifications.update({
-          ...current,
-          deliveryState: cancelled ? 'cancelled' : 'failed',
-          deliveryReason: cancelled ? 'cancelled' : 'delivery-failed',
-          ...(!cancelled ? { deliveredAt: n.deliveredAt } : {}),
-        })
-      this.store.notificationDeliveries.update({
-        ...this.store.notificationDeliveries.get(deliveryId)!,
-        result: cancelled ? 'cancelled' : 'failed',
-        detail: cancelled ? 'request-aborted' : 'question-service-failed',
-      })
-      if (!cancelled) this.log('question service failed', error)
+      if (signal.aborted) this.finish(n, deliveryId, 'cancelled', String(signal.reason))
+      else if (phase === 'response-processing-failed') this.finish(n, deliveryId, 'answered', phase)
+      else if (
+        isDecision(n) &&
+        phase === 'question-service-failed' &&
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        error.code === 'ASK_ABORTED'
+      )
+        this.finish(n, deliveryId, 'unanswered', 'provider-aborted')
+      else this.finish(n, deliveryId, 'failed', phase)
     }
+  }
+  private finish(
+    n: Notification,
+    deliveryId: string | undefined,
+    result: AttemptResult,
+    detail?: string,
+  ): void {
+    const now = Date.now()
+    const current = this.store.notifications.get(n.id)
+    const attempt = deliveryId ? this.store.notificationDeliveries.get(deliveryId) : undefined
+    const owner = current && current.decisionDelivery?.generation === n.decisionDelivery?.generation
+    const decision = current?.decisionDelivery
+    const failures = (decision?.failures ?? 0) + Number(result === 'failed')
+    const retryAt =
+      result === 'failed' && decision
+        ? now + retryDelays[Math.min(failures - 1, retryDelays.length - 1)]!
+        : undefined
+    const reason = detail ?? (result === 'unanswered' ? 'user-unanswered' : result)
+    const outcome = reason === 'decision-handled' ? 'answered' : result
+    this.store.transaction(() => {
+      if (attempt?.result === 'started') {
+        this.store.notificationDeliveries.update({ ...attempt, result, detail: reason, endedAt: now })
+      }
+      if (!owner) return
+      const terminal = current.resolvedAt !== undefined
+      const reminded = (current.remindAt ?? 0) > (current.deliveryAttemptedAt ?? 0)
+      if (decision && (result !== 'answered' || terminal)) this.store.suggestions.consume(n.id, now)
+      this.store.notifications.update({
+        ...current,
+        ...(decision
+          ? {
+              decisionDelivery: {
+                generation: decision.generation,
+                outcome,
+                failures,
+                reason,
+                retryAt,
+              },
+            }
+          : {}),
+        ...(!terminal && !reminded
+          ? {
+              deliveryState:
+                outcome === 'failed' ? 'failed' : outcome === 'cancelled' ? 'cancelled' : 'delivered',
+              deliveryReason: reason,
+              nextDeliveryAt: retryAt,
+            }
+          : {}),
+        ...(result === 'failed' && !decision ? { deliveredAt: undefined } : {}),
+      })
+    })
+  }
+  private audit(
+    n: Notification,
+    result: 'started' | 'held',
+    detail?: string,
+    id = productionIdGen.next('delivery'),
+  ): void {
+    this.store.notificationDeliveries.insert({
+      id,
+      goalId: n.goalId,
+      notificationId: n.id,
+      at: Date.now(),
+      result,
+      detail,
+      generation: isDecision(n) ? (n.decisionDelivery?.generation ?? 0) : undefined,
+    })
   }
   private info(n: Notification, reason: string): void {
     this.store.notifications.insert({
@@ -324,10 +446,8 @@ export class NotificationDeliverer {
     this.stopWatch?.()
     clearInterval(this.timer)
     clearTimeout(this.debounce)
-    for (const entry of this.pending.values()) {
-      clearTimeout(entry.expiry)
-      entry.controller.abort(new Error('notifier-disposed'))
-    }
+    clearTimeout(this.wakeTimer)
+    for (const entry of this.pending.values()) if (!entry.responding) entry.controller.abort('host-stopped')
     let deadline: ReturnType<typeof setTimeout> | undefined
     await Promise.race([
       Promise.allSettled([...this.pending.values()].map((e) => e.work)),

@@ -10,6 +10,18 @@ import {
   TaskIdSchema,
 } from './ids.js'
 
+export const DecisionDeliverySchema = z.strictObject({
+  generation: z.int().nonnegative(),
+  failures: z.int().nonnegative(),
+  outcome: z.enum(['ready', 'asking', 'answered', 'unanswered', 'cancelled', 'failed']),
+  reason: z.string().optional(),
+  retryAt: TimestampSchema.optional(),
+})
+
+export function isDecision(n: { kind: string }): boolean {
+  return n.kind === 'decision' || n.kind === 'blocked'
+}
+
 export const NotificationSchema = z.strictObject({
   id: NotificationIdSchema,
   kind: z.enum(['progress', 'decision', 'blocked', 'info']),
@@ -22,6 +34,14 @@ export const NotificationSchema = z.strictObject({
   runId: z.string().optional(),
   taskVersion: VersionSchema.optional(),
   reason: z.string().optional(),
+  decisionDelivery: DecisionDeliverySchema.optional(),
+  decisionBinding: z
+    .strictObject({
+      scopeId: z.string(),
+      scopeHash: z.string(),
+      transitionId: z.string().nullable().optional(),
+    })
+    .optional(),
   deliveryAttemptedAt: TimestampSchema.optional(),
   deliveryState: z
     .enum(['delivered', 'held', 'muted', 'digest', 'dropped', 'cancelled', 'failed'])
@@ -60,6 +80,7 @@ export const SuggestionSchema = z.strictObject({
       notificationId: NotificationIdSchema,
       taskId: TaskIdSchema.optional(),
       taskVersion: VersionSchema.optional(),
+      generation: z.int().nonnegative().optional(),
       goalVersion: VersionSchema.optional(),
       scopeHash: z.string(),
       scopeId: z.string(),

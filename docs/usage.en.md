@@ -38,7 +38,7 @@ Details include task states, runs, checkpoints, verification logs and trace expo
 
 ## Notifications and owner decisions
 
-The panel's **Notification center** lists **Unhandled**, **Handled** and **Digest** records. When a decision is needed, WhaleMaid uses a separate read-only notification conversation containing native DSH questions. **Open notification session** in goal details opens it directly, regardless of pet visibility. Notification conversations do not call models and cannot execute tools.
+The panel's **Notification center** lists **Unhandled**, **Handled** and **Digest** records. Expand **Delivery history** on a decision to see attempts, holds, cancellations and the next eligible time when known. When a decision is needed, WhaleMaid uses a separate read-only notification conversation containing native DSH questions. **Open notification session** in goal details opens it directly, regardless of pet visibility. Notification conversations do not call models and cannot execute tools.
 
 | Default or operation   | Behavior and limits                                                                                                                                                                                                                                                                                                    |
 | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -50,6 +50,8 @@ The panel's **Notification center** lists **Unhandled**, **Handled** and **Diges
 | Custom text (其他)     | Older notifications only save a supplementary note; newer change-direction cards follow their displayed instructions. Do not treat every free-text entry as confirmation of an action.                                                                                                                                 |
 
 A change of direction must remain within the existing authorization; broader scope requires a new review. If abandonment or a direction change cannot confirm that execution has stopped, the goal stays paused and the problem is reported rather than described as completed. Da Fei Yu cannot propose or choose these two actions.
+
+A delivery failure is retried after 1 minute, 5 minutes, 30 minutes, and then every 2 hours, subject to the hourly limit. Questions interrupted by a host restart, mute or quiet hours can reappear once conditions allow. If you close or submit a question without answering, use the notification center to request another reminder. A valid pending decision remains actionable past 24 hours. The panel explains when a decision is superseded or its authorization is invalid.
 
 The pet's envelope, sounds, bubbles and quiet mode belong to the independent plugin. If the pet is absent, not ready or hidden, use the Harness notification conversation and WhaleMaid notification center. Muting and quiet hours control delivery; they do not revoke actions that already occurred.
 

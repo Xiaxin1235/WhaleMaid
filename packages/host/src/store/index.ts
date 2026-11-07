@@ -15,6 +15,7 @@ import {
   AutopilotEventSchema,
   PlannerStateSchema,
   NotificationSchema,
+  isDecision,
   SuggestionSchema,
   NotificationPreferencesSchema,
   UserNoteSchema,
@@ -217,7 +218,25 @@ export class WhaleStore {
     this.userNotes = ledger('user_notes', UserNoteSchema)
     this.notificationChoices = ledger('notification_choices', NotificationChoiceSchema)
     this.inboxSessions = ledger('inbox_sessions', InboxSessionSchema)
-    this.notificationDeliveries = ledger('notification_deliveries', DeliveryRecordSchema)
+    const deliveries = ledger('notification_deliveries', DeliveryRecordSchema)
+    const logDelivery = (entry: z.infer<typeof DeliveryRecordSchema>) => {
+      if (entry.generation === undefined) return
+      const detail = entry.detail && /^[a-z-]+$/.test(entry.detail) ? ' ' + entry.detail : ''
+      this.options.log(
+        'notification ' + entry.notificationId + ' #' + entry.generation + ' ' + entry.result + detail,
+      )
+    }
+    this.notificationDeliveries = {
+      ...deliveries,
+      insert: (entry: z.infer<typeof DeliveryRecordSchema>) => {
+        deliveries.insert(entry)
+        logDelivery(entry)
+      },
+      update: (entry: z.infer<typeof DeliveryRecordSchema>) => {
+        deliveries.update(entry)
+        logDelivery(entry)
+      },
+    }
     this.memoryProposals = {
       get: (id: string) => this.one('memory_proposals', id, MemoryProposalSchema),
       list: () => this.rows('memory_proposals', MemoryProposalSchema),
@@ -357,10 +376,36 @@ export class WhaleStore {
       list: () => this.rows('notifications', NotificationSchema),
       forGoal: (id: GoalId) => this.initiativeRows('notifications', NotificationSchema, id),
       insert: (input: import('@whalemaid/core').Notification) => {
-        const row = NotificationSchema.parse(input)
-        this.writer()
-          .prepare('INSERT INTO notifications(id,data) VALUES(?,?)')
-          .run(row.id, JSON.stringify(row))
+        const goal = isDecision(input) ? this.goals.get(input.goalId) : undefined
+        const scope = goal?.scopeId ? this.scopes.get(goal.scopeId) : undefined
+        const row = NotificationSchema.parse({
+          ...input,
+          ...(scope?.status === 'active' && !input.decisionBinding
+            ? {
+                decisionBinding: {
+                  scopeId: scope.id,
+                  scopeHash: scope.hash,
+                  ...(input.taskId
+                    ? { transitionId: this.transitions.list(input.taskId).at(-1)?.id ?? null }
+                    : {}),
+                },
+              }
+            : {}),
+        })
+        this.transaction(() => {
+          this.writer()
+            .prepare('INSERT INTO notifications(id,data) VALUES(?,?)')
+            .run(row.id, JSON.stringify(row))
+          if (isDecision(row))
+            this.notificationDeliveries.insert({
+              id: productionIdGen.next('delivery'),
+              goalId: row.goalId,
+              notificationId: row.id,
+              at: row.createdAt,
+              result: 'generated',
+              generation: 0,
+            })
+        })
         this.initiativeChanged({ goalId: row.goalId })
         this.changed()
       },
@@ -697,6 +742,7 @@ export class WhaleStore {
       .run(row.status, JSON.stringify(row), row.id)
     if (result.changes !== 1) throw new Error('scope-inactive')
     this.initiativeChanged({ goalId: row.goalId })
+    this.changed()
   }
 
   codexSettings(): ReturnType<typeof CodexSettingsSchema.parse> {

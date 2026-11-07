@@ -9,19 +9,6 @@ import type { NotificationChoice } from './model.js'
 import { notificationReason } from './copy.js'
 import { notificationMessages } from '../i18n/notifications.js'
 export type NotificationAction = DecisionChoice | 'snooze' | 'open-panel'
-const safety: Record<NotificationAction, number> = {
-  'view-diff': 0,
-  'open-panel': 1,
-  snooze: 2,
-  'pause-goal': 3,
-  verify: 4,
-  'resume-goal': 5,
-  retry: 6,
-  accept: 7,
-  rollback: 8,
-  'change-direction': 7,
-  abandon: 9,
-}
 /** Create an immutable stored option; labels are presentation, while intent and bindings own execution. */
 export function suggestionForAction(
   n: Notification,
@@ -51,42 +38,59 @@ export function suggestionForAction(
       notificationId: n.id,
       ...(task ? { taskId: task.id, taskVersion: task.version } : {}),
       scopeId: deps.scope.id,
+      ...(n.decisionDelivery ? { generation: n.decisionDelivery.generation } : {}),
       scopeHash: deps.scope.hash,
       ...(deps.goalVersion === undefined ? {} : { goalVersion: deps.goalVersion }),
     },
   }
 }
-/** Select a fixed set before personalization: at most two domain choices plus the two common options. */
+// Each row selects legal mandatory choices before filling the remaining slots.
+const mandatory = {
+  verification: ['accept', 'retry', 'rollback'],
+  unknown: ['verify', 'accept'],
+  blocked: ['resume-goal', 'retry', 'change-direction'],
+} as const
+const blockedReasons = new Set([
+  'stalled',
+  'execution-needs-owner',
+  'execution-stopped',
+  'execution-preflight-blocked',
+  'autopilot-disabled',
+  'reconcile-blocked',
+  'planner-need-user',
+])
+/** Personalization orders the selected options without changing membership. */
 export function buildSuggestions(
   n: Notification,
   task: Task | undefined,
   history: NotificationChoice[],
   deps: Parameters<typeof suggestionForAction>[3],
 ): Suggestion[] {
-  const priority: DecisionChoice[] = [
-    'change-direction',
-    'verify',
-    'retry',
-    'resume-goal',
-    'view-diff',
-    'pause-goal',
-    'rollback',
-    'accept',
-  ]
+  const legal = n.choices ?? []
+  const reason = notificationReason(n)
+  const candidates =
+    reason === 'verification-unknown'
+      ? mandatory.unknown
+      : n.kind === 'blocked' || blockedReasons.has(reason) || !legal.includes('accept')
+        ? mandatory.blocked
+        : mandatory.verification
+  const required = candidates.filter((action) => legal.includes(action))
+  if (candidates === mandatory.blocked && required.includes('resume-goal') && required.includes('retry'))
+    required.splice(required.indexOf('retry'), 1)
   const actions: NotificationAction[] = [
-    ...priority.filter((choice) => n.choices?.includes(choice)).slice(0, 2),
-    'snooze',
-    'open-panel',
-  ]
+    ...new Set<NotificationAction>([
+      ...required,
+      'snooze',
+      ...(['pause-goal', 'view-diff'] as const).filter((action) => legal.includes(action)),
+      'open-panel',
+    ]),
+  ].slice(0, 4)
   const frequency = (action: NotificationAction) =>
     history.filter(
       (h) => h.reason === notificationReason(n) && h.action === action && h.result === 'succeeded',
     ).length
   return actions
     .map((action, index) => ({ action, index }))
-    .sort(
-      (a, b) =>
-        frequency(b.action) - frequency(a.action) || safety[a.action] - safety[b.action] || a.index - b.index,
-    )
+    .sort((a, b) => frequency(b.action) - frequency(a.action) || a.index - b.index)
     .map(({ action }) => suggestionForAction(n, task, action, deps))
 }

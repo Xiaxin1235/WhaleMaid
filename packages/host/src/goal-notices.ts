@@ -1,4 +1,4 @@
-import { NotificationIdSchema, SuggestionIdSchema, t, goalDecisionChoices } from '@whalemaid/core'
+import { NotificationIdSchema, SuggestionIdSchema, t, goalDecisionChoices, isDecision } from '@whalemaid/core'
 import type { ProjectGoal, DecisionChoice, Locale, Notification } from '@whalemaid/core'
 import { productionIdGen } from './store/index.js'
 import type { WhaleStore } from './store/index.js'
@@ -19,7 +19,11 @@ export function goalNotice(
       .list()
       .some(
         (n) =>
-          n.dedupeKey === dedupeKey && n.resolvedAt === undefined && (n.expiresAt ?? Infinity) > Date.now(),
+          n.dedupeKey === dedupeKey &&
+          n.resolvedAt === undefined &&
+          (isDecision(n)
+            ? !n.decisionBinding || n.decisionBinding.scopeId === goal.scopeId
+            : (n.expiresAt ?? Infinity) > Date.now()),
       )
   )
     return

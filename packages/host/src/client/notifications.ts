@@ -112,8 +112,95 @@ export function NotificationCenter({
       setError(String(e))
     }
   }
+  const phrases =
+    locale === 'zh-CN'
+      ? {
+          generated: '已生成提问',
+          held: '暂缓投递',
+          started: '开始提问',
+          answered: '已作答',
+          unanswered: '未作答，等待手动提醒',
+          cancelled: '系统取消',
+          failed: '投递失败',
+          superseded: '已取代',
+          expired: '已失效',
+          history: '投递经过',
+          next: '下次可提问',
+          muted: '静音中，解除后再问',
+          'quiet-hours': '勿扰时段，结束后再问',
+          'hourly-limit': '已达每小时上限',
+          'duplicate-unresolved': '同类决策仍待处理',
+          'retry-backoff': '投递失败，等待重试',
+          snoozed: '稍后提醒',
+          'manual-reminder': '已请求提醒',
+          'host-stopped': '宿主已停止',
+          'host-restarted': '宿主已重启',
+          'task-version-refreshed': '任务版本更新，已更新选项',
+          'decision-handled': '已在另一界面操作',
+          'owner-reminded': '用户请求了新的提醒',
+          'authorization-invalid': '授权已失效或被撤销',
+          'decision-no-longer-current': '目标、任务状态或执行记录已变化',
+          'inbox-preparation-failed': '通知会话准备失败',
+          'question-service-failed': '提问服务失败',
+          'response-processing-failed': '已收到回答，处理时出错',
+          'provider-aborted': '提问渠道中止，未确认收到答复',
+          'user-unanswered': '关闭或提交时没有作答',
+          'legacy-attempt': '旧版已尝试投递，接收情况未知',
+        }
+      : {
+          generated: 'Question created',
+          held: 'Delivery held',
+          started: 'Asking',
+          answered: 'Answered',
+          unanswered: 'Unanswered. Waiting for a manual reminder.',
+          cancelled: 'Cancelled by the system',
+          failed: 'Delivery failed',
+          superseded: 'Superseded',
+          expired: 'Expired',
+          history: 'Delivery history',
+          next: 'Next eligible time',
+          muted: 'Muted. Asking can resume when unmuted.',
+          'quiet-hours': 'Asking can resume after quiet hours.',
+          'hourly-limit': 'Hourly limit reached',
+          'duplicate-unresolved': 'A matching decision is still pending',
+          'retry-backoff': 'Delivery failed. Waiting to retry.',
+          snoozed: 'Snoozed',
+          'manual-reminder': 'Reminder requested',
+          'host-stopped': 'Host stopped',
+          'host-restarted': 'Host restarted',
+          'task-version-refreshed': 'Options refreshed for the current task version',
+          'decision-handled': 'An action was taken in another interface',
+          'owner-reminded': 'Owner requested another reminder',
+          'authorization-invalid': 'Authorization is invalid or revoked',
+          'decision-no-longer-current': 'Goal, task state or run changed',
+          'inbox-preparation-failed': 'Could not prepare the notification chat',
+          'question-service-failed': 'Question service failed',
+          'response-processing-failed': 'Answer received. Processing failed.',
+          'provider-aborted': 'Question channel ended without a confirmed answer',
+          'user-unanswered': 'Closed or submitted without an answer',
+          'legacy-attempt': 'Earlier delivery attempt. Receipt unknown.',
+        }
+  const reasonText = (reason?: string) => (reason ? phrases[reason as keyof typeof phrases] : undefined)
+  const dateText = (at: number) => new Date(at).toLocaleString(locale)
   const delivery = (item: NonNullable<typeof data>['items'][number]) => {
     const n = item.notification
+    if (item.deliveries) {
+      const state = n.decisionDelivery?.outcome
+      const reason = reasonText(n.deliveryReason)
+      const next = n.nextDeliveryAt
+      return [
+        n.resolvedChoice
+          ? phrases.answered
+          : n.resolvedReason
+            ? [phrases[n.resolvedReason], reason].filter(Boolean).join(' · ')
+            : state === 'unanswered' && next === undefined
+              ? phrases.unanswered
+              : (reason ?? (state === 'asking' ? phrases.started : text('notifyQueued'))),
+        n.resolvedAt === undefined && next !== undefined ? phrases.next + ' ' + dateText(next) : undefined,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    }
     return text(
       n.deliveryState === 'muted'
         ? 'notifyMuted'
@@ -231,6 +318,37 @@ export function NotificationCenter({
                   h('p', null, item.copy.question),
                   h('small', null, item.copy.detail),
                   h('p', null, delivery(item)),
+                  item.deliveries?.length
+                    ? h(
+                        'details',
+                        null,
+                        h('summary', null, phrases.history),
+                        h(
+                          'ul',
+                          null,
+                          ...item.deliveries.map((entry) =>
+                            h(
+                              'li',
+                              { key: entry.id },
+                              [
+                                entry.endedAt === undefined
+                                  ? dateText(entry.at)
+                                  : dateText(entry.at) +
+                                    ' ' +
+                                    phrases.started +
+                                    ' → ' +
+                                    dateText(entry.endedAt),
+                                phrases[entry.result],
+                                reasonText(entry.detail),
+                                entry.generation === undefined ? undefined : '#' + entry.generation,
+                              ]
+                                .filter(Boolean)
+                                .join(' · '),
+                            ),
+                          ),
+                        ),
+                      )
+                    : null,
                   ...item.notes.map((note) => h('p', { key: note.id }, text('userNote'), ': ', note.text)),
                   ...item.choices.map((c) =>
                     h(

@@ -82,7 +82,12 @@ export function dshInbox(ctx: Context, store: WhaleStore): InboxPort {
       const questions = ctx.get('userQuestions') as Context['userQuestions'] | undefined
       const agent = agents?.get(id)
       if (!agent || !questions) throw Error('inbox-service-unavailable')
-      return questions.ask({ agent, questions: [question], signal })
+      try {
+        return await questions.ask({ agent, questions: [question], signal })
+      } catch (error) {
+        if (!signal.aborted && agents?.get(id) !== agent) throw Error('inbox-session-unavailable')
+        throw error
+      }
     },
   }
 }

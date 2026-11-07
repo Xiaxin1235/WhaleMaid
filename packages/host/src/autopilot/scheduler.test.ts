@@ -285,7 +285,7 @@ test('expired goal decisions are renewed without allowing execution around the o
   vi.setSystemTime(new Date(Date.now() + 86400001))
   await vi.advanceTimersByTimeAsync(3000)
   expect(f.sent).not.toHaveBeenCalled()
-  expect(f.store.notifications.get(old.id)?.resolvedReason).toBe('expired')
+  expect(f.store.notifications.get(old.id)?.resolvedAt).toBeUndefined()
   const pending = f.store.notifications.list().filter((n) => n.resolvedAt === undefined)
   expect(pending).toHaveLength(1)
   expect(pending[0]?.reason).toBe(old.reason)

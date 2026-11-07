@@ -1,3 +1,4 @@
+import { refreshDecision } from '../notify/decision-lifecycle.js'
 import { createHash } from 'node:crypto'
 import { goalNotice } from '../goal-notices.js'
 import { realpath, lstat } from 'node:fs/promises'
@@ -392,18 +393,7 @@ export class TaskVerifier {
       )
     else {
       const dedupeKey = `${task.goalId}:${task.id}:preflight`
-      if (
-        this.store.notifications
-          .list()
-          .some(
-            (n) =>
-              n.dedupeKey === dedupeKey &&
-              n.resolvedAt === undefined &&
-              (n.expiresAt ?? 0) > Date.now() &&
-              n.taskVersion === task.version,
-          )
-      )
-        return
+      if (this.hasPendingDecision(task, dedupeKey)) return
       this.store.notifications.insert({
         id: NotificationIdSchema.parse(productionIdGen.next('notification')),
         goalId: task.goalId,
@@ -420,20 +410,18 @@ export class TaskVerifier {
       })
     }
   }
+  private hasPendingDecision(task: Task, dedupeKey: string): boolean {
+    return this.store.notifications
+      .forGoal(task.goalId)
+      .filter((n) => n.dedupeKey === dedupeKey && n.resolvedAt === undefined)
+      .some((n) => {
+        const current = refreshDecision(this.store, this.scopes, n)
+        return current.resolvedAt === undefined && current.taskVersion === task.version
+      })
+  }
   private notify(task: Task, run: Run, type: string, reason: string): void {
     const dedupeKey = `${task.goalId}:${task.id}:${type}`
-    if (
-      this.store.notifications
-        .list()
-        .some(
-          (item) =>
-            item.dedupeKey === dedupeKey &&
-            item.resolvedAt === undefined &&
-            (item.expiresAt ?? 0) > Date.now() &&
-            item.taskVersion === task.version,
-        )
-    )
-      return
+    if (this.hasPendingDecision(task, dedupeKey)) return
     const id = NotificationIdSchema.parse(productionIdGen.next('notification'))
     const choices: DecisionChoice[] =
       type === 'verification-unknown'

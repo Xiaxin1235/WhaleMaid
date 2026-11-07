@@ -148,4 +148,28 @@ export const MIGRATIONS: readonly Migration[] = [
       `)
     },
   },
+  {
+    version: 11,
+    up(db) {
+      // An old attempt without positive failure evidence could have reached the owner.
+      db.exec(`
+        UPDATE notifications SET data = json_set(data, '$.decisionDelivery', json_object(
+          'generation', 1,
+          'failures', CASE WHEN json_extract(data,'$.deliveryState') = 'failed' THEN 1 ELSE 0 END,
+          'outcome', CASE WHEN json_extract(data,'$.deliveryState') = 'failed' THEN 'failed' ELSE 'unanswered' END,
+          'reason', CASE WHEN json_extract(data,'$.deliveryState') = 'failed' THEN 'question-service-failed' ELSE 'legacy-attempt' END
+        ))
+        WHERE CASE WHEN json_valid(data) THEN
+          json_extract(data,'$.kind') IN ('decision','blocked')
+          AND json_extract(data,'$.resolvedAt') IS NULL
+          AND json_extract(data,'$.decisionDelivery') IS NULL
+          AND json_extract(data,'$.deliveryAttemptedAt') IS NOT NULL
+        END;
+        UPDATE notifications SET data = json_set(data, '$.decisionDelivery.retryAt',
+          json_extract(data,'$.deliveryAttemptedAt') + 60000)
+        WHERE CASE WHEN json_valid(data) THEN json_extract(data,'$.decisionDelivery.outcome') = 'failed'
+          AND json_extract(data,'$.decisionDelivery.retryAt') IS NULL END;
+      `)
+    },
+  },
 ]

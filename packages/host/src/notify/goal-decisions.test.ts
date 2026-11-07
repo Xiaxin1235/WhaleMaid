@@ -408,7 +408,7 @@ test('native custom text is a direction for new cards, while selecting change wi
   cleanup.push(() => without.dispose())
   without.start()
   await without.sweep()
-  await vi.waitFor(() => expect(other.store.notificationDeliveries.list()[0]?.result).toBe('answered'))
+  await vi.waitFor(() => expect(other.store.notificationDeliveries.list().at(-1)?.result).toBe('answered'))
   expect(other.store.userNotes.list()).toEqual([])
   expect(other.store.notifications.get(other.n.id)?.resolvedAt).toBeUndefined()
   expect(other.store.notifications.list().some((n) => n.reason === 'option-expired')).toBe(false)

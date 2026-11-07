@@ -166,7 +166,7 @@ test('panel processing aborts the corresponding live ask, without cancelling ord
   expect(signal.aborted).toBe(true)
   expect(f.resolveDecision).toHaveBeenCalledOnce()
 })
-test.each(['version', 'revoke', 'expire'] as const)(
+test.each(['version', 'revoke', 'transition'] as const)(
   '%s changes abort asking and reject stale options',
   async (kind) => {
     const f = await setup()
@@ -177,12 +177,22 @@ test.each(['version', 'revoke', 'expire'] as const)(
       const task = f.store.tasks.get(f.task.id)!
       f.store.tasks.update({ ...task, version: task.version + 1 }, task.version)
     } else if (kind === 'revoke') f.scopes.revoke(f.scope.id, owner)
-    else vi.setSystemTime(new Date(Date.now() + 86400001))
+    else f.move('READY')
     await f.notifier.sweep()
     await vi.advanceTimersByTimeAsync(200)
     expect(signal.aborted).toBe(true)
     expect((await f.router.route({ suggestionId: s.id, source: 'inbox' })).ok).toBe(false)
     expect(f.resolveDecision).not.toHaveBeenCalled()
+    if (kind === 'version') {
+      expect(f.ask).toHaveBeenCalledTimes(2)
+      expect(f.store.notifications.get(f.n.id)?.taskVersion).toBe(f.store.tasks.get(f.task.id)?.version)
+      expect((await f.router.routeChoice(f.n.id, 'accept', owner)).ok).toBe(true)
+    } else {
+      expect(f.ask).toHaveBeenCalledOnce()
+      expect(f.store.notifications.get(f.n.id)?.resolvedReason).toBe(
+        kind === 'revoke' ? 'expired' : 'superseded',
+      )
+    }
   },
 )
 test('custom text alone stays a note, never a command, goal update or resolved decision', async () => {
@@ -213,32 +223,60 @@ test('an answer carrying both custom text and one option preserves the note and 
   expect(f.store.userNotes.list()).toHaveLength(1)
   expect(f.resolveDecision).toHaveBeenCalledOnce()
 })
-test('restart never reopens a delivered unanswered question; explicit reminder does', async () => {
-  const f = await setup()
-  await f.start()
-  await f.notifier.dispose()
-  const secondAsk = vi.fn<InboxPort['ask']>(
-    async (_g, _q, signal) =>
-      new Promise((_resolve, reject) =>
-        signal.addEventListener('abort', () => reject(signal.reason), { once: true }),
-      ),
-  )
-  const second = new NotificationDeliverer(
-    f.store,
-    f.scopes,
-    { ask: secondAsk },
-    f.router,
-    () => 'en',
-    vi.fn(),
-  )
-  cleanup.push(() => second.dispose())
-  second.start()
-  await vi.advanceTimersByTimeAsync(62000)
-  expect(secondAsk).not.toHaveBeenCalled()
-  f.router.remind(f.n.id)
-  await vi.advanceTimersByTimeAsync(200)
-  expect(secondAsk).toHaveBeenCalledOnce()
-})
+test.each(['host-stopped', 'user-unanswered', 'provider-aborted'] as const)(
+  '%s persists across restart',
+  async (reason) => {
+    const f = await setup()
+    if (reason === 'provider-aborted') f.ask.mockRejectedValueOnce({ code: 'ASK_ABORTED' })
+    await f.start()
+    if (reason === 'user-unanswered') {
+      f.answer({ answers: [{ id: f.n.id, selected: [] }] })
+      await vi.advanceTimersByTimeAsync(200)
+    }
+    await f.notifier.dispose()
+    expect(f.store.notifications.get(f.n.id)?.decisionDelivery?.reason).toBe(reason)
+    f.store.close()
+    const reopened = new WhaleStore(f.dir, { log: vi.fn() })
+    cleanup.push(() => reopened.close())
+    const scopes = new ScopeService(reopened, {
+      clock: productionClock,
+      idGen: productionIdGen,
+      hasher: sha256,
+      log: vi.fn(),
+      revoked: () => {},
+    })
+    const router = new NotificationRouter(
+      reopened,
+      scopes,
+      { resolveDecision: f.resolveDecision },
+      () => 'en',
+      f.wake,
+    )
+    const secondAsk = vi.fn<InboxPort['ask']>(
+      async (_g, _q, signal) =>
+        new Promise((_resolve, reject) =>
+          signal.addEventListener('abort', () => reject(signal.reason), { once: true }),
+        ),
+    )
+    const second = new NotificationDeliverer(
+      reopened,
+      scopes,
+      { ask: secondAsk },
+      router,
+      () => 'en',
+      vi.fn(),
+    )
+    cleanup.push(() => second.dispose())
+    second.start()
+    await vi.advanceTimersByTimeAsync(62000)
+    if (reason !== 'host-stopped') {
+      expect(secondAsk).not.toHaveBeenCalled()
+      router.remind(f.n.id)
+      await vi.advanceTimersByTimeAsync(200)
+    }
+    expect(secondAsk).toHaveBeenCalledOnce()
+  },
+)
 test('snooze schedules exactly one fresh question after an hour', async () => {
   const f = await setup()
   await f.start()
@@ -385,10 +423,93 @@ test('manual reminders replace an open ask and each attempt counts toward the ho
   await vi.advanceTimersByTimeAsync(400)
   expect(f.ask).toHaveBeenCalledTimes(2)
   expect(f.store.notifications.get(f.n.id)?.deliveryReason).toBe('hourly-limit')
-  expect(f.store.notificationDeliveries.list()).toHaveLength(2)
+  expect(
+    f.store.notificationDeliveries.list().filter((d) => d.endedAt !== undefined || d.result === 'started'),
+  ).toHaveLength(2)
 })
 test('the first notification-center view returns the persisted option generation', async () => {
   const f = await setup()
   const item = f.notifier.center().items[0]!
   expect(item.notification.suggestionIds).toEqual(item.suggestions.map((s) => s.id))
+})
+
+test.each(['muted', 'quiet-hours'] as const)('a live question resumes after %s', async (reason) => {
+  const f = await setup()
+  await f.start()
+  f.store.setNotificationPreferences({
+    maxPerHour: 4,
+    muted: reason === 'muted',
+    ...(reason === 'quiet-hours' ? { quietHours: { start: '12:00', end: '12:05' } } : {}),
+  })
+  await vi.advanceTimersByTimeAsync(500)
+  expect(f.ask.mock.calls[0]?.[2].aborted).toBe(true)
+  expect(f.ask).toHaveBeenCalledOnce()
+  expect(f.store.notifications.get(f.n.id)?.decisionDelivery).toMatchObject({
+    outcome: 'cancelled',
+    failures: 0,
+    reason,
+  })
+  if (reason === 'muted') f.store.setNotificationPreferences({ maxPerHour: 4, muted: false })
+  await vi.advanceTimersByTimeAsync(reason === 'muted' ? 500 : 300100)
+  expect(f.ask).toHaveBeenCalledTimes(2)
+})
+
+test('failed sends back off at 1m, 5m, 30m and then every 2h', async () => {
+  const f = await setup()
+  for (let i = 0; i < 5; i++) f.ask.mockRejectedValueOnce(Error('sensitive provider message'))
+  await f.start()
+  const delays = [60000, 300000, 1800000, 7200000, 7200000]
+  for (const [i, delay] of delays.entries()) {
+    expect(f.ask).toHaveBeenCalledTimes(i + 1)
+    const state = f.store.notifications.get(f.n.id)?.decisionDelivery
+    expect(state).toMatchObject({ outcome: 'failed', failures: i + 1, reason: 'question-service-failed' })
+    const attempt = f.store.notificationDeliveries
+      .list()
+      .find((d) => d.result === 'failed' && d.generation === i + 1)!
+    expect(state?.retryAt).toBe(attempt.endedAt! + delay)
+    await vi.advanceTimersByTimeAsync(state!.retryAt! - Date.now() - 1)
+    expect(f.ask).toHaveBeenCalledTimes(i + 1)
+    await vi.advanceTimersByTimeAsync(200)
+  }
+  expect(f.ask).toHaveBeenCalledTimes(6)
+  expect(f.store.notifications.get(f.n.id)?.decisionDelivery?.outcome).toBe('asking')
+})
+
+test('one failed preparation consumes the hourly budget, even with overlapping sweeps', async () => {
+  const f = await setup()
+  f.store.setNotificationPreferences({ maxPerHour: 1, muted: false })
+  const prepare = vi.fn<NonNullable<InboxPort['prepare']>>().mockRejectedValueOnce(Error('unavailable'))
+  const notifier = new NotificationDeliverer(
+    f.store,
+    f.scopes,
+    { ask: f.ask, prepare },
+    f.router,
+    () => 'en',
+    vi.fn(),
+  )
+  cleanup.push(() => notifier.dispose())
+  notifier.start()
+  await Promise.all([notifier.sweep(), notifier.sweep()])
+  await vi.advanceTimersByTimeAsync(61000)
+  expect(prepare).toHaveBeenCalledOnce()
+  expect(f.ask).not.toHaveBeenCalled()
+  expect(f.store.notifications.get(f.n.id)?.deliveryReason).toBe('hourly-limit')
+  await vi.advanceTimersByTimeAsync(3540000)
+  expect(prepare).toHaveBeenCalledTimes(2)
+  expect(f.ask).toHaveBeenCalledOnce()
+})
+
+test('waiting past 24h preserves the card and its existing options', async () => {
+  const f = await setup()
+  await f.start()
+  const s = f.options().find((s) => s.intent.type === 'panel-decision' && s.intent.choice === 'accept')!
+  vi.setSystemTime(new Date(Date.now() + 86400001))
+  await f.notifier.sweep()
+  const item = f.notifier.center().items[0]!
+  expect(item.notification.resolvedAt).toBeUndefined()
+  expect(item.suggestions.map((s) => s.id)).toContain(s.id)
+  expect(f.ask).toHaveBeenCalledOnce()
+  expect((await f.router.route({ suggestionId: s.id, source: 'panel', peer: owner })).ok).toBe(true)
+  await vi.advanceTimersByTimeAsync(200)
+  expect(f.ask.mock.calls[0]?.[2].aborted).toBe(true)
 })

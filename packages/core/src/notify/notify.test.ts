@@ -162,7 +162,7 @@ test('recommendation set stays 2–4, descriptions explain high risk, history on
           ? s.intent.choice
           : '',
     ),
-  ).toEqual(['view-diff', 'open-panel', 'snooze', 'retry'])
+  ).toEqual(['accept', 'retry', 'rollback', 'snooze'])
   const chosen = {
     id: 'choice',
     goalId: n.goalId,
@@ -209,4 +209,86 @@ test('user notes bound Unicode characters consistently with the delivery and pla
   }
   expect(UserNoteSchema.safeParse(note).success).toBe(true)
   expect(UserNoteSchema.safeParse({ ...note, text: note.text + 'a' }).success).toBe(false)
+})
+
+test.each([
+  ['verification-unknown', ['verify', 'accept'], ['verify', 'accept', 'pause-goal', 'change-direction']],
+  [
+    'stalled',
+    ['resume-goal', 'change-direction'],
+    ['resume-goal', 'pause-goal', 'change-direction', 'abandon'],
+  ],
+  ['execution-preflight-blocked', ['retry', 'change-direction'], ['retry', 'pause-goal', 'change-direction']],
+  [
+    'fix-rounds-exhausted',
+    ['accept', 'retry', 'rollback'],
+    ['accept', 'retry', 'rollback', 'change-direction'],
+  ],
+] as const)('%s keeps its essential legal options despite history', (reason, required, choices) => {
+  const n = note({ reason, choices: [...choices] })
+  const options = buildSuggestions(
+    n,
+    undefined,
+    [
+      {
+        id: 'c',
+        notificationId: n.id,
+        goalId: n.goalId,
+        action: 'snooze',
+        at: now,
+        reason,
+        result: 'succeeded',
+        source: 'panel',
+        suggestionId: 's',
+      },
+    ],
+    { clock: fixedClock(now), idGen: sequenceIdGen(), locale: 'en', scope: makeScope() },
+  )
+  expect(options.length).toBeGreaterThanOrEqual(2)
+  expect(options.length).toBeLessThanOrEqual(4)
+  const selected = options.flatMap((s) => (s.intent.type === 'panel-decision' ? [s.intent.choice] : []))
+  expect(selected).toEqual(expect.arrayContaining([...required]))
+  expect(selected.every((action) => (choices as readonly string[]).includes(action))).toBe(true)
+})
+
+test.each([
+  ['ready', 'deliver-now'],
+  ['cancelled', 'deliver-now'],
+  ['failed', 'hold'],
+  ['asking', 'drop'],
+  ['answered', 'drop'],
+  ['unanswered', 'drop'],
+] as const)('%s honors holds, rate limiting and reminders', (outcome, action) => {
+  const n = note({
+    deliveryAttemptedAt: now - 100,
+    decisionDelivery: {
+      outcome,
+      generation: 1,
+      failures: Number(outcome === 'failed'),
+      ...(outcome === 'failed' ? { retryAt: now + 1 } : {}),
+    },
+  })
+  expect(decideDelivery(n, context()).action).toBe(action)
+  expect(decideDelivery({ ...n, expiresAt: now }, context()).reason).toBe('resolved-or-expired')
+  const explicit = { ...n, remindAt: now }
+  if (outcome === 'asking') return
+  expect(decideDelivery(explicit, context()).action).toBe('deliver-now')
+  expect(decideDelivery(explicit, context({ preferences: { muted: true, maxPerHour: 1 } })).reason).toBe(
+    'muted',
+  )
+  expect(
+    decideDelivery(
+      explicit,
+      context({ preferences: { muted: false, maxPerHour: 1, quietHours: { start: '11:00', end: '13:00' } } }),
+    ).reason,
+  ).toBe('quiet-hours')
+  expect(
+    decideDelivery(
+      explicit,
+      context({ preferences: { muted: false, maxPerHour: 1 }, recent: [{ ...n, deliveredAt: now }] }),
+    ).reason,
+  ).toBe('hourly-limit')
+  expect(
+    decideDelivery(explicit, context({ history: [{ ...n, id: 'other', deliveredAt: now }] })).reason,
+  ).toBe('duplicate-unresolved')
 })
