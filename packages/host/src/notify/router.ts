@@ -21,6 +21,7 @@ import { productionClock, productionIdGen } from '../store/index.js'
 import type { ScopeService } from '../scope-service.js'
 import type { TaskVerifier } from '../verify/verify-task.js'
 import type { GoalDecisions } from './goal-decisions.js'
+import type { InitiativeCards } from '../initiative/cards.js'
 import { z } from 'zod'
 export interface RouteResult {
   ok: boolean
@@ -30,6 +31,9 @@ export interface RouteResult {
   state?: string
   files?: string[]
   stat?: string
+  draftId?: string
+  evidenceId?: string
+  decisionId?: string | undefined
 }
 /** One durable claim precedes every effect, regardless of the display label or originating UI. */
 export class NotificationRouter {
@@ -40,9 +44,12 @@ export class NotificationRouter {
     private readonly locale: () => Locale,
     private readonly wake: (id: GoalId) => void,
     private readonly goalDecisions?: GoalDecisions,
+    readonly initiative?: InitiativeCards,
   ) {}
   refresh(n: Notification): Notification {
-    return refreshDecision(this.store, this.scopes, n)
+    return n.kind === 'initiative'
+      ? (this.initiative?.refresh(n) ?? n)
+      : refreshDecision(this.store, this.scopes, n)
   }
   /** Build the fixed recommendation set even when reminders are muted or held. */
   options(n: Notification): Suggestion[] {
@@ -55,6 +62,7 @@ export class NotificationRouter {
       n.routingSuggestionId ||
       n.resolvedAt !== undefined ||
       (n.expiresAt ?? Infinity) <= Date.now() ||
+      (n.kind === 'initiative' && (!this.initiative?.enabled(n) || (n.remindAt ?? 0) > Date.now())) ||
       (n.taskId && task?.version !== n.taskVersion)
     )
       return []
@@ -71,17 +79,20 @@ export class NotificationRouter {
           s.bindTo.generation === n.decisionDelivery?.generation &&
           s.consumedAt === undefined &&
           s.expiresAt > Date.now() &&
-          (!n.choices?.includes('change-direction') || s.bindTo.goalVersion === goalVersion),
+          ((!n.initiative && !n.choices?.includes('change-direction')) ||
+            s.bindTo.goalVersion === goalVersion),
       )
     )
       return old
-    const options = buildSuggestions(n, task, this.store.notificationChoices.list(), {
-      clock: productionClock,
-      idGen: productionIdGen,
-      locale: this.locale(),
-      scope,
-      ...(goalVersion === undefined ? {} : { goalVersion }),
-    })
+    const options = n.initiative
+      ? this.initiative!.options(n, goalVersion!, Date.now())
+      : buildSuggestions(n, task, this.store.notificationChoices.list(), {
+          clock: productionClock,
+          idGen: productionIdGen,
+          locale: this.locale(),
+          scope,
+          ...(goalVersion === undefined ? {} : { goalVersion }),
+        })
     this.store.transaction(() => {
       for (const s of options) this.store.suggestions.insert(s)
       this.store.notifications.update({
@@ -116,7 +127,14 @@ export class NotificationRouter {
     )
       throw Error('option-task-changed')
     let action: ActionIntent
-    if (s.intent.type === 'panel-decision') {
+    if (n.kind === 'initiative') {
+      const goal = this.store.goals.get(n.goalId)
+      if (!goal || !s.initiative || !this.initiative?.allows(n, s, goal.version))
+        throw Error('option-not-offered')
+      if (s.initiative.choice !== 'pause' && s.initiative.choice !== 'idle-pause') return n
+      action = { type: 'pause-goal', goalId: n.goalId }
+    } else if (s.initiative) throw Error('option-not-offered')
+    else if (s.intent.type === 'panel-decision') {
       if (!n.choices?.includes(s.intent.choice)) throw Error('option-not-offered')
       if (s.intent.choice === 'rollback') {
         const checkpoint = this.store.checkpoints
@@ -185,23 +203,43 @@ export class NotificationRouter {
         this.store.notifications.update({ ...n, routingSuggestionId: s.id, lastSelectionId: s.id })
         choiceId = productionIdGen.next('choice')
         const action =
-          s.intent.type === 'panel-decision'
+          s.initiative?.choice ??
+          (s.intent.type === 'panel-decision'
             ? s.intent.choice
             : s.intent.type === 'notification-action'
               ? s.intent.action
-              : 'unsupported'
+              : 'unsupported')
         this.store.notificationChoices.insert({
           id: choiceId,
           goalId: n.goalId,
           notificationId: n.id,
           suggestionId: s.id,
-          reason: notificationReason(n),
+          reason: n.initiative ? 'initiative' : notificationReason(n),
           action,
           source: input.source,
           at: Date.now(),
           result: 'pending',
         })
       })
+      if (n!.initiative && s!.initiative) {
+        const result = this.store.transaction(() => {
+          const result = this.initiative!.apply(n!, s!, Date.now())
+          const current = this.store.notifications.get(n!.id)!
+          this.store.notifications.update({
+            ...current,
+            routingSuggestionId: undefined,
+            ...(current.resolvedAt === undefined ? {} : { resolvedSource: input.source }),
+          })
+          this.store.notificationChoices.update({
+            ...this.store.notificationChoices.get(choiceId!)!,
+            result: 'succeeded',
+            detail: result.draftId ?? result.evidenceId ?? result.decisionId,
+          })
+          return result
+        })
+        this.wake(n!.goalId)
+        return result
+      }
       let result: RouteResult = { ok: true, goalId: n!.goalId }
       if (
         s!.intent.type === 'panel-decision' &&
@@ -278,10 +316,10 @@ export class NotificationRouter {
         'contains-secret',
         'panel-confirmation-required',
       ].includes(reason)
-      if (input.source === 'inbox' && n && !invalidText) this.expired(n)
+      if (input.source === 'inbox' && n && !n.initiative && !invalidText) this.expired(n)
       else if (input.source === 'inbox' && s && !invalidText) {
         const notice = this.store.notifications.get(s.notificationId)
-        if (notice) this.expired(notice)
+        if (notice && !notice.initiative) this.expired(notice)
       }
       return { ok: false, reason }
     }
@@ -303,6 +341,7 @@ export class NotificationRouter {
       scope = n && this.scopes.activeScopeFor(n.goalId)
     if (!n || !scope || n.resolvedAt !== undefined || n.routingSuggestionId)
       return { ok: false, reason: 'option-stale-or-consumed' }
+    if (n.kind === 'initiative') return { ok: false, reason: 'option-not-offered' }
     if (action !== 'snooze' && action !== 'open-panel' && !n.choices?.includes(action))
       return { ok: false, reason: 'option-not-offered' }
     const task = n.taskId ? this.store.tasks.get(n.taskId) : undefined

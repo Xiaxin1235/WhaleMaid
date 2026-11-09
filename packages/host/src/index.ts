@@ -42,9 +42,14 @@ import { ConversationCodex, installConversationCodex } from './codex/service.js'
 import { CodexRunner } from './codex/runner.js'
 import { installCompanionPermission } from './companion/permission.js'
 import { startWork } from './companion/work.js'
-import { InitiativeConfigSchema, readInitiativeConfig } from './initiative/config.js'
+import {
+  InitiativeConfigSchema,
+  readInitiativeConfig,
+  isLegacyInitiativePanelSnapshot,
+} from './initiative/config.js'
 import type { InitiativeConfig, InitiativeConfigInput } from './initiative/config.js'
 import { InitiativeService } from './initiative/service.js'
+import { InitiativeCards } from './initiative/cards.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -216,6 +221,12 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       },
     )
     const notificationLocale = () => resolveLocale(config.language?.get() ?? 'auto', hostLocale())
+    const profileEntry = ctx.fiber.entry
+    const initiativeSettings = () => {
+      const raw = profileEntry?.options.config as { initiative?: unknown } | undefined
+      return readInitiativeConfig(config.initiative, isLegacyInitiativePanelSnapshot(raw?.initiative))
+    }
+    const initiativeCards = new InitiativeCards(store, scopes, intake, initiativeSettings, notificationLocale)
     const notificationRouter = new NotificationRouter(
       store,
       scopes,
@@ -223,6 +234,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       notificationLocale,
       (id) => autopilot.mark(id),
       new GoalDecisions(store, scopes, (id) => execution.stopGoal(id)),
+      initiativeCards,
     )
     const notificationInbox = dshInbox(ctx, store)
     const notifier = new NotificationDeliverer(
@@ -288,15 +300,23 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       log: (message) => debug.host(message),
     })
     companion.recall = recall
-    const initiative = new InitiativeService(store, scopes, {
-      settings: () => readInitiativeConfig(config.initiative),
-      locale: notificationLocale,
-      log: (message, error) => debug.host(message, error),
-    })
+    const initiative = new InitiativeService(
+      store,
+      scopes,
+      {
+        settings: initiativeSettings,
+        locale: notificationLocale,
+        log: (message, error) => debug.host(message, error),
+      },
+      initiativeCards,
+    )
     companion.findings = (sessionId) => {
       if (!sessionId || !companionSessions.allSessionIds().includes(sessionId)) throw Error('companion-only')
       return initiative.query()
     }
+    ctx.on('settings/document-updated', () => {
+      initiative.refresh()
+    })
     const brief = new CompanionDailyBrief(store, scopes, {
       enabled: () =>
         (config.companion?.enabled ?? true) && (config.companion?.dailyBrief?.enabled?.get() ?? true),

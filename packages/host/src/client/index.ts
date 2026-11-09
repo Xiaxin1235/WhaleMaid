@@ -37,7 +37,8 @@ import { AboutSettings, openWelcome, WelcomeOverlay } from './welcome.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
-let pendingNavigationGoal: string | undefined
+type NoticeNavigation = { kind: 'goal' | 'notice' | 'evidence'; id: string }
+let pendingNavigation: NoticeNavigation | undefined
 
 interface Face {
   ctx: Context
@@ -56,18 +57,28 @@ function Panel({ ctx, connection }: Face) {
   const [revision, refresh] = useState(0)
   const [creating, setCreating] = useState(false)
   const [initialDraftId, setInitialDraftId] = useState<string>()
-  const [selectedGoal, setSelectedGoal] = useState<string | undefined>(() => pendingNavigationGoal)
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
-  const [notificationId, setNotificationId] = useState<string>()
+  const [selectedGoal, setSelectedGoal] = useState(() =>
+    pendingNavigation?.kind === 'goal' ? pendingNavigation.id : undefined,
+  )
+  const [notificationsOpen, setNotificationsOpen] = useState(() => pendingNavigation?.kind === 'notice')
+  const [notificationId, setNotificationId] = useState(() =>
+    pendingNavigation?.kind === 'notice' ? pendingNavigation.id : undefined,
+  )
+  const [initiativeEvidence, setInitiativeEvidence] = useState(() =>
+    pendingNavigation?.kind === 'evidence' ? pendingNavigation.id : undefined,
+  )
   useEffect(() => {
-    pendingNavigationGoal = undefined
+    pendingNavigation = undefined
     const open = (event: Event) => {
-      setSelectedGoal((event as CustomEvent<string>).detail)
-      setNotificationsOpen(false)
+      const navigation = (event as CustomEvent<NoticeNavigation>).detail
+      setSelectedGoal(navigation.kind === 'goal' ? navigation.id : undefined)
+      setNotificationsOpen(navigation.kind === 'notice')
+      setNotificationId(navigation.kind === 'notice' ? navigation.id : undefined)
+      setInitiativeEvidence(navigation.kind === 'evidence' ? navigation.id : undefined)
       setCreating(false)
     }
-    window.addEventListener('whaledot-open-goal', open)
-    return () => window.removeEventListener('whaledot-open-goal', open)
+    window.addEventListener('whaledot-notification-navigation', open)
+    return () => window.removeEventListener('whaledot-notification-navigation', open)
   }, [])
   const locale = resolveLocale(status?.language ?? 'auto', hostLocale.active)
   const text = (key: Parameters<typeof t>[1]) => t(locale, key)
@@ -175,6 +186,15 @@ function Panel({ ctx, connection }: Face) {
     }
   }
 
+  const openDraft = (id: string) => {
+    setInitialDraftId(id)
+    setNotificationsOpen(false)
+    setCreating(true)
+  }
+  const openNotice = (id: string) => {
+    setNotificationId(id)
+    setNotificationsOpen(true)
+  }
   if (notificationsOpen)
     return h(
       'main',
@@ -184,6 +204,13 @@ function Panel({ ctx, connection }: Face) {
         connection,
         locale,
         notificationId,
+        onDraft: openDraft,
+        onDecision: openNotice,
+        onEvidence: (id: string) => {
+          setInitiativeEvidence(id)
+          setNotificationsOpen(false)
+          setSelectedGoal(undefined)
+        },
         onOpenGoal: (id: string) => {
           setNotificationsOpen(false)
           setSelectedGoal(id)
@@ -256,7 +283,14 @@ function Panel({ ctx, connection }: Face) {
         setNotificationsOpen(true)
       },
     }),
-    h(InitiativeView, { connection, locale, onOpenGoal: setSelectedGoal }),
+    h(InitiativeView, {
+      connection,
+      locale,
+      onOpenGoal: setSelectedGoal,
+      onCard: openNotice,
+      onDraft: openDraft,
+      evidenceId: initiativeEvidence,
+    }),
     h(
       'section',
       { 'aria-label': text('status') },
@@ -575,9 +609,15 @@ export function apply(ctx: Context): void {
           !controller.signal.aborted
         ) {
           sessionStorage.setItem('whaledot:last-navigation', choice.id)
-          pendingNavigationGoal = choice.goalId
+          const navigation: NoticeNavigation =
+            choice.detail && choice.action === 'evidence'
+              ? { kind: 'evidence', id: choice.detail }
+              : choice.detail && choice.action === 'open-decision'
+                ? { kind: 'notice', id: choice.detail }
+                : { kind: 'goal', id: choice.goalId }
+          pendingNavigation = navigation
           ;(ctx.get('layout') as Context['layout'] | undefined)?.selectPanel(PANEL_ID as MainPanelId)
-          window.dispatchEvent(new CustomEvent('whaledot-open-goal', { detail: choice.goalId }))
+          window.dispatchEvent(new CustomEvent('whaledot-notification-navigation', { detail: navigation }))
         }
       } catch {
         /* An absent host or anonymous client cannot authorize navigation. */

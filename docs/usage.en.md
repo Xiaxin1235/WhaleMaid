@@ -2,7 +2,7 @@
 
 [中文](usage.md) | English
 
-For WhaleMaid 1.3.1 and DSH Desktop 0.2.x from 0.2.1-rc.2. See [installation](install.en.md) for setup, fixed-copy updates and removal, and the [documentation index, in Chinese](README.md) for implementation evidence. This guide distinguishes WhaleMaid features from those of the independent whale desktop pet.
+For WhaleMaid 1.4.0 and DSH Desktop 0.2.x from 0.2.1-rc.2. See [installation](install.en.md) for setup, fixed-copy updates and removal, and the [documentation index, in Chinese](README.md) for implementation evidence. This guide distinguishes WhaleMaid features from those of the independent whale desktop pet.
 
 ## First launch
 
@@ -131,11 +131,11 @@ Briefs and daily execution allowances use the host's local calendar day (America
 
 ## Initiative
 
-Open **Initiative** on the WhaleMaid panel to see repeated acceptance failures, early signs of a stall, limited acceptance evidence, a nearly exhausted budget, unanswered decisions, idle authorized goals, and remaining work on completed goals. Findings are grouped by goal. Expand a finding to inspect its evidence and open the goal details. **Last 7 days** counts new findings by detector.
+Open WhaleMaid → Initiative to see rule-based findings and their evidence. Suggestion cards are enabled by default and can be turned off at the top of the section. Proactive questions are off by default. Findings can still appear in the panel and daily brief.
 
-In **Settings**, switch initiative off entirely or adjust each detector and its maximum level. Switching a detector off keeps existing records, and individual findings can be deleted after confirmation. With the brief channel on, each new daily brief can include up to three findings ranked by score. The day's existing brief stays fixed. You can also ask Da Fei Yu about recent findings.
+Cards appear in the notification center and pet envelope, respecting quiet hours, mute, and the shared hourly limit. By default, cards for the same goal are spaced at least four hours apart and repeated findings have a seven-day cooldown. Both are configurable. Choose Later to be reminded in one hour, dismiss the card, mark it inaccurate, or mute that type of finding for the current goal. You can undo muting and automatic adjustments in the panel.
 
-This phase surfaces findings in the panel and daily brief, without separate notifications, pet envelopes, or automatic actions. Suggestion cards and questions are disabled in the panel.
+Adopting an investigation or follow-up suggestion creates a draft. Use **Review goal draft** to authorize and create the goal. Pause, notes, and navigation use existing flows. The panel shows delivery, acceptance, unhelpful interruptions, progress, and inaccurate feedback over 7 and 30 days. Verified progress within 48 hours of adoption can be recorded in Da Fei Yu’s journal. Initiative uses no model calls.
 
 ## Everyday auto-approval
 

@@ -7,6 +7,7 @@ import {
   idleGoal,
   initiativeFindingCopy,
   INITIATIVE_TTL,
+  INITIATIVE_DAY,
   leftovers,
   noAcceptance,
   pendingBacklog,
@@ -30,6 +31,7 @@ import type {
 import { localDay } from '../autopilot/day.js'
 import type { ScopeService } from '../scope-service.js'
 import { sha256, type WhaleStore } from '../store/index.js'
+import type { InitiativeCards } from './cards.js'
 
 const DEBOUNCE_MS = 30000
 const SCAN_TIMEOUT_MS = 2000
@@ -57,6 +59,8 @@ export class InitiativeService {
   private timer: ReturnType<typeof setTimeout> | undefined
   private midnight: ReturnType<typeof setTimeout> | undefined
   private running: Promise<void> | undefined
+  private cardTimer: ReturnType<typeof setInterval> | undefined
+  private recoveredCards = false
 
   constructor(
     private readonly store: WhaleStore,
@@ -67,6 +71,7 @@ export class InitiativeService {
       log(message: string, error?: unknown): void
       now?(): number
     },
+    private readonly cards?: InitiativeCards,
   ) {}
 
   private now() {
@@ -83,6 +88,10 @@ export class InitiativeService {
     })
     this.refresh()
     this.scheduleMidnight()
+    if (this.cards) {
+      this.cardTimer = setInterval(() => this.schedule(0), 60000)
+      this.cardTimer.unref()
+    }
   }
 
   refresh(): void {
@@ -130,14 +139,19 @@ export class InitiativeService {
 
   private async detect(): Promise<void> {
     if (this.stopped || this.store.status().state !== 'ok') return
+    if (this.cards && !this.recoveredCards) {
+      this.cards.recover()
+      this.recoveredCards = true
+    }
+    const now = this.now()
     if (!this.settings().enabled) {
       this.pending.clear()
       this.tasks.clear()
       this.full = false
+      this.cards?.tick(now)
       return
     }
     const deadline = performance.now() + SCAN_TIMEOUT_MS
-    const now = this.now()
     const day = localDay(now)
     this.store.opportunities.expire(now)
     if (this.full || this.lastDay !== day) {
@@ -170,6 +184,7 @@ export class InitiativeService {
         this.deps.log('initiative goal scan failed', error)
       }
     }
+    this.cards?.tick(now)
   }
 
   private detectGoal(id: GoalId, kind: ScanKind, now: number, day: string, deadline: number): void {
@@ -218,8 +233,23 @@ export class InitiativeService {
     this.store.transaction(() => {
       if (previousIdle?.key !== idle?.key || previousIdle?.since !== idle?.since)
         this.store.setInitiativeIdle(goal.id, idle)
-      for (const candidate of candidates)
-        this.store.opportunities.save(candidate, resolveLevel(candidate, this.available(settings)), now)
+      const previous = this.cards ? this.store.opportunities.list(id) : []
+      for (const candidate of candidates) {
+        if (
+          previous.some(
+            (row) =>
+              row.dedupeKey === candidate.dedupeKey &&
+              row.deliveredAt !== undefined &&
+              row.deliveredAt + settings.limits.cooldownDays * INITIATIVE_DAY > now,
+          )
+        )
+          continue
+        this.store.opportunities.save(
+          candidate,
+          this.cards?.level(candidate, settings) ?? resolveLevel(candidate, settings),
+          now,
+        )
+      }
     })
   }
 
@@ -265,8 +295,10 @@ export class InitiativeService {
     return this.deps.settings()
   }
 
-  private available(settings: InitiativeSettings) {
-    return { ...settings, channels: { ...settings.channels, cards: false, asks: false } }
+  restore(input: Parameters<InitiativeCards['restore']>[0]) {
+    if (!this.cards) throw Error('initiative-unavailable')
+    this.cards.restore(input, this.now())
+    this.refresh()
   }
 
   panel() {
@@ -275,6 +307,9 @@ export class InitiativeService {
     const settings = this.settings()
     return {
       settings,
+      ...(this.store.status().state !== 'error' && this.cards
+        ? this.cards.panel(rows, now)
+        : { metrics: [], muted: [] }),
       findings: rows.sort(dateOrder).map((row) => ({
         ...row,
         status: row.status === 'open' && row.expiresAt <= now ? ('expired' as const) : row.status,
@@ -292,11 +327,14 @@ export class InitiativeService {
   }
 
   brief(now: number) {
-    const settings = this.available(this.settings())
+    const settings = this.settings()
     if (!settings.enabled || !settings.channels.brief) return []
     try {
       return this.recent(now)
-        .filter((row) => row.level !== 'L0' && resolveLevel(row, settings) !== 'L0')
+        .filter(
+          (row) =>
+            row.level !== 'L0' && (this.cards?.level(row, settings) ?? resolveLevel(row, settings)) === 'L1',
+        )
         .sort(scoreOrder)
         .slice(0, 3)
         .map((row) => ({
@@ -392,6 +430,7 @@ export class InitiativeService {
   }
 
   delete(id: string): boolean {
+    if (this.store.opportunities.get(id)?.notificationId) throw Error('initiative-card-history')
     return this.store.opportunities.delete(id)
   }
 
@@ -400,6 +439,7 @@ export class InitiativeService {
     this.unwatch?.()
     clearTimeout(this.timer)
     clearTimeout(this.midnight)
+    clearInterval(this.cardTimer)
     await this.running
   }
 }

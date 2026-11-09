@@ -1,6 +1,12 @@
 import { createElement as h, useEffect, useState, useRef } from 'react'
 import { MemoryProposals } from './memory-proposals.js'
-import { t, notificationMessages, NotificationPreferencesSchema } from '@whalemaid/core'
+import {
+  t,
+  notificationMessages,
+  NotificationPreferencesSchema,
+  InitiativeChoiceSchema,
+  initiativeChoiceCopy,
+} from '@whalemaid/core'
 import type { Locale } from '@whalemaid/core'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
 import {
@@ -18,12 +24,18 @@ export function NotificationCenter({
   onOpenGoal,
   goalId,
   notificationId,
+  onDraft,
+  onEvidence,
+  onDecision,
 }: {
   connection: ConnectionHandle
   locale: Locale
   onOpenGoal: (id: string) => void
   goalId?: string
   notificationId?: string | undefined
+  onDraft(id: string): void
+  onEvidence(id: string): void
+  onDecision(id: string): void
 }) {
   const [data, setData] = useState<z.infer<typeof NotificationCenterSchema>>()
   const focused = useRef<string>()
@@ -88,7 +100,10 @@ export function NotificationCenter({
       if (method === 'route-suggestion') {
         const r = RouteResultSchema.parse(value)
         if (!r.ok) throw new Error(r.reason ?? 'option-rejected')
-        if (r.stat !== undefined) setPreview(r.stat || text('noFileDifferences'))
+        if (r.draftId) onDraft(r.draftId)
+        else if (r.evidenceId) onEvidence(r.evidenceId)
+        else if (r.decisionId) onDecision(r.decisionId)
+        else if (r.stat !== undefined) setPreview(r.stat || text('noFileDifferences'))
         else if (r.openPanel && r.goalId) onOpenGoal(r.goalId)
       }
       setError('')
@@ -140,6 +155,7 @@ export function NotificationCenter({
           'owner-reminded': '用户请求了新的提醒',
           'authorization-invalid': '授权已失效或被撤销',
           'decision-no-longer-current': '目标、任务状态或执行记录已变化',
+          'initiative-context-changed': '目标、授权或证据已变化',
           'inbox-preparation-failed': '通知会话准备失败',
           'question-service-failed': '提问服务失败',
           'response-processing-failed': '已收到回答，处理时出错',
@@ -173,6 +189,7 @@ export function NotificationCenter({
           'owner-reminded': 'Owner requested another reminder',
           'authorization-invalid': 'Authorization is invalid or revoked',
           'decision-no-longer-current': 'Goal, task state or run changed',
+          'initiative-context-changed': 'The goal, authorization or evidence changed',
           'inbox-preparation-failed': 'Could not prepare the notification chat',
           'question-service-failed': 'Question service failed',
           'response-processing-failed': 'Answer received. Processing failed.',
@@ -189,7 +206,7 @@ export function NotificationCenter({
       const reason = reasonText(n.deliveryReason)
       const next = n.nextDeliveryAt
       return [
-        n.resolvedChoice
+        n.resolvedChoice || (n.initiative && n.resolvedAt !== undefined && !n.resolvedReason)
           ? phrases.answered
           : n.resolvedReason
             ? [phrases[n.resolvedReason], reason].filter(Boolean).join(' · ')
@@ -316,7 +333,7 @@ export function NotificationCenter({
                   },
                   h('strong', null, item.copy.header),
                   h('p', null, item.copy.question),
-                  h('small', null, item.copy.detail),
+                  h('small', { style: { whiteSpace: 'pre-line' } }, item.copy.detail),
                   h('p', null, delivery(item)),
                   item.deliveries?.length
                     ? h(
@@ -358,8 +375,11 @@ export function NotificationCenter({
                       ': ',
                       text(c.source === 'inbox' ? 'choiceInbox' : 'choicePanel'),
                       ' · ',
-                      notificationMessages[locale][c.action as keyof typeof notificationMessages.en]?.[0] ??
-                        c.action,
+                      item.notification.initiative && InitiativeChoiceSchema.safeParse(c.action).success
+                        ? initiativeChoiceCopy(locale, InitiativeChoiceSchema.parse(c.action)).label
+                        : (notificationMessages[locale][
+                            c.action as keyof typeof notificationMessages.en
+                          ]?.[0] ?? c.action),
                       ' · ',
                       text(
                         c.result === 'succeeded'
@@ -368,7 +388,7 @@ export function NotificationCenter({
                             ? 'choiceFailed'
                             : 'choicePending',
                       ),
-                      c.detail ? ' · ' + c.detail : '',
+                      c.detail && !item.notification.initiative ? ' · ' + c.detail : '',
                     ),
                   ),
                   ...item.suggestions

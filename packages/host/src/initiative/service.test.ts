@@ -39,6 +39,7 @@ function setup() {
   store.goals.insert(goal)
   store.tasks.insert(task)
   const settings = defaultInitiativeSettings()
+  settings.channels.cards = false
   const scopes = { activeScopeFor: () => scope }
   const initiative = new InitiativeService(store, scopes, {
     now: () => now,
@@ -174,13 +175,13 @@ test('a goal interrupted by the scan time limit stays queued for the next batch'
   expect(f.initiative.panel().counts.repeatedFailure).toBe(1)
 })
 
-test('disabling a detector retains existing records, and reserved channels never promote findings', async () => {
+test('enabling cards promotes findings and disabling a detector retains its records', async () => {
   const f = setup()
   for (const id of ['r1', 'r2', 'r3']) f.addFailure(id)
   f.settings.channels.cards = true
   await f.initiative.scan()
   const [first] = f.store.opportunities.list()
-  expect(first?.level).toBe('L1')
+  expect(first?.level).toBe('L2')
   f.settings.detectors.repeatedFailure.enabled = false
   for (const id of ['r4', 'r5', 'r6']) f.addFailure(id, 'EACCES access denied')
   f.initiative.refresh()

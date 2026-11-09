@@ -1,7 +1,7 @@
 # Start the isolated WhaleMaid test host (DSH Desktop's own CLI, DSH_HOME=.dsh-dev).
 # The API key is read without echo and lives only in this shell process.
 # -UseUiKey: ignore any DEEPSEEK_API_KEY in the environment and use the key saved in the test UI settings.
-param([string]$Profile = 'whaledot-p02', [switch]$UseUiKey, [string]$TestHome)
+param([string]$Profile = 'whaledot-p02', [switch]$UseUiKey, [string]$TestHome, [switch]$NoOpen)
 
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path -Parent $PSScriptRoot
@@ -33,5 +33,7 @@ $prompt = if ($env:DEEPSEEK_API_KEY) { 'Paste DeepSeek API Key (hidden; Enter ke
 
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
 Write-Host "DSH_HOME=$env:DSH_HOME profile=$Profile"
-& $dsh --profile $Profile
+$dshArgs = @('--profile', $Profile)
+if ($NoOpen) { $dshArgs += '--no-open' }
+& $dsh @dshArgs
 Write-Host "dsh exited with code $LASTEXITCODE"

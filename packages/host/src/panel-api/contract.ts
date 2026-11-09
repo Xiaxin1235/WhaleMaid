@@ -28,6 +28,9 @@ import {
   InitiativeSettingsSchema,
   OpportunityEvidenceSchema,
   OpportunitySchema,
+  InitiativeLimitsSchema,
+  InitiativeMetricsSchema,
+  InitiativeAdjustmentSchema,
 } from '@whalemaid/core'
 
 export const LanguageSchema = z.enum(['auto', 'zh-CN', 'en'])
@@ -41,10 +44,23 @@ export const InitiativePanelSchema = z.strictObject({
   settings: InitiativeSettingsSchema,
   findings: z.array(OpportunitySchema.extend({ goalTitle: z.string() })),
   counts: z.record(DetectorSchema, z.int().nonnegative()),
+  metrics: z.array(
+    z.strictObject({
+      detector: DetectorSchema,
+      week: InitiativeMetricsSchema,
+      month: InitiativeMetricsSchema,
+      adjustment: InitiativeAdjustmentSchema.optional(),
+    }),
+  ),
+  muted: z.array(z.strictObject({ goalId: GoalIdSchema, detector: DetectorSchema, title: z.string() })),
 })
 export const InitiativeSettingsPatchSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('enabled'), value: z.boolean() }),
   z.strictObject({ kind: z.literal('brief'), value: z.boolean() }),
+  z.strictObject({ kind: z.literal('cards'), value: z.boolean() }),
+  z.strictObject({ kind: z.literal('asks'), value: z.boolean() }),
+  z.strictObject({ kind: z.literal('journal'), value: z.boolean() }),
+  z.strictObject({ kind: z.literal('limits'), value: InitiativeLimitsSchema }),
   z.strictObject({ kind: z.literal('detector-enabled'), detector: DetectorSchema, value: z.boolean() }),
   z.strictObject({
     kind: z.literal('detector-level'),
@@ -55,6 +71,10 @@ export const InitiativeSettingsPatchSchema = z.discriminatedUnion('kind', [
 ])
 export type InitiativeSettingsPatch = z.infer<typeof InitiativeSettingsPatchSchema>
 export const InitiativeFindingRequestSchema = z.strictObject({ id: z.string().min(1).max(200) })
+export const InitiativeRestoreSchema = z.strictObject({
+  detector: DetectorSchema,
+  goalId: GoalIdSchema.optional(),
+})
 export const InitiativeDeleteSchema = InitiativeFindingRequestSchema.extend({ confirm: z.literal(true) })
 export const InitiativeEvidenceResponseSchema = z.array(
   OpportunityEvidenceSchema.extend({
@@ -127,6 +147,9 @@ export const RouteResultSchema = z.strictObject({
   state: z.string().optional(),
   files: z.array(z.string()).optional(),
   stat: z.string().optional(),
+  draftId: z.string().optional(),
+  evidenceId: z.string().optional(),
+  decisionId: z.string().optional(),
 })
 export const ReminderSchema = z.strictObject({ notificationId: z.string().min(1) })
 export const WelcomeStatusSchema = z.strictObject({
@@ -152,6 +175,7 @@ export const PANEL_METHODS = [
   'initiative-settings',
   'initiative-evidence',
   'initiative-delete',
+  'initiative-restore',
   'companion-archives',
   'companion-restore',
   'companion-archive-settings',

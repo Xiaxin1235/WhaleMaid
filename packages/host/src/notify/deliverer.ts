@@ -1,5 +1,5 @@
 import {
-  isDecision,
+  isReliableQuestion,
   quietHoursActive,
   decideDelivery,
   notificationCopy,
@@ -93,7 +93,7 @@ export class NotificationDeliverer {
     const prefs = this.store.notificationPreferences()
     if (prefs.muted) return 'muted'
     const date = new Date()
-    if (isDecision(n) && quietHoursActive(prefs.quietHours, date.getHours() * 60 + date.getMinutes()))
+    if (isReliableQuestion(n) && quietHoursActive(prefs.quietHours, date.getHours() * 60 + date.getMinutes()))
       return 'quiet-hours'
     return undefined
   }
@@ -103,6 +103,7 @@ export class NotificationDeliverer {
       !n.routingSuggestionId &&
       (n.expiresAt ?? Infinity) > Date.now() &&
       !!this.scopes.activeScopeFor(n.goalId) &&
+      (n.kind !== 'initiative' || this.router.initiative?.enabled(n) === true) &&
       (!n.taskId || this.store.tasks.get(n.taskId)?.version === n.taskVersion)
     )
   }
@@ -125,11 +126,11 @@ export class NotificationDeliverer {
               : undefined
           })(),
           notification: this.store.notifications.get(n.id)!,
-          copy: notificationCopy(n, this.facts(n), this.locale()),
+          copy: this.copy(n),
           suggestions,
           notes: this.store.userNotes.list(n.goalId).filter((note) => note.notificationId === n.id),
           choices: this.store.notificationChoices.list(n.goalId).filter((c) => c.notificationId === n.id),
-          ...(isDecision(n)
+          ...(isReliableQuestion(n)
             ? {
                 deliveries: this.store.notificationDeliveries
                   .list(n.goalId)
@@ -139,6 +140,11 @@ export class NotificationDeliverer {
         }
       })
     return { preferences: this.store.notificationPreferences(), items }
+  }
+  private copy(n: Notification) {
+    return n.kind === 'initiative' && this.router.initiative
+      ? this.router.initiative.copy(n)
+      : notificationCopy(n, this.facts(n), this.locale())
   }
   /** Structured evidence only; absence is displayed as unknown, never synthesized as zero. */
   facts(n: Notification): NotificationFacts {
@@ -183,7 +189,10 @@ export class NotificationDeliverer {
       if (decision.action !== 'deliver-now') {
         if (decision.until !== undefined) wakeAt = Math.min(wakeAt, decision.until)
         const state = decision.action === 'digest' ? 'digest' : decision.reason === 'muted' ? 'muted' : 'held'
-        if (decision.action !== 'drop' || (isDecision(n) && decision.reason === 'duplicate-unresolved')) {
+        if (
+          decision.action !== 'drop' ||
+          (isReliableQuestion(n) && decision.reason === 'duplicate-unresolved')
+        ) {
           if (
             n.deliveryState !== state ||
             n.deliveryReason !== decision.reason ||
@@ -196,7 +205,7 @@ export class NotificationDeliverer {
                 deliveryReason: decision.reason,
                 nextDeliveryAt: decision.until,
               })
-              if (isDecision(n)) this.audit(n, 'held', decision.reason)
+              if (isReliableQuestion(n)) this.audit(n, 'held', decision.reason)
             })
         }
         continue
@@ -222,7 +231,7 @@ export class NotificationDeliverer {
       const fresh = this.store.notifications.get(n.id)!
       if (fresh.deliveryAttemptedAt !== n.deliveryAttemptedAt || !this.valid(fresh)) return undefined
       if (
-        isDecision(fresh) &&
+        isReliableQuestion(fresh) &&
         this.store.notifications
           .forGoal(n.goalId)
           .some((other) => other.decisionDelivery?.outcome === 'asking' && other.resolvedAt === undefined)
@@ -237,7 +246,7 @@ export class NotificationDeliverer {
         deliveryState: 'delivered',
         deliveryReason: 'dispatched',
         nextDeliveryAt: undefined,
-        ...(isDecision(fresh)
+        ...(isReliableQuestion(fresh)
           ? {
               decisionDelivery: {
                 generation: (fresh.decisionDelivery?.generation ?? 0) + 1,
@@ -285,7 +294,8 @@ export class NotificationDeliverer {
       }
       const choices = this.router.options(fresh)
       phase = 'question-service-failed'
-      const copy = notificationCopy(n, this.facts(n), this.locale())
+      const copy = this.copy(fresh)
+      if (fresh.initiative) this.router.initiative?.delivered(fresh, n.deliveryAttemptedAt ?? Date.now())
       const answer = await this.inbox.ask(
         n.goalId,
         {
@@ -296,7 +306,10 @@ export class NotificationDeliverer {
           )
             ? { detail: copy.detail + '\n\n' + goalDecisionCopy(this.locale()).inboxHint }
             : {}),
-          options: choices.map((s) => ({ label: s.label, description: s.description! })),
+          options: choices.map((s) => ({
+            label: s.label,
+            ...(s.description === undefined ? {} : { description: s.description }),
+          })),
           multiSelect: false,
         },
         signal,
@@ -330,7 +343,7 @@ export class NotificationDeliverer {
             at: Date.now(),
             text: Array.from(item.custom.trim()).slice(0, 500).join(''),
           })
-        const selected = item?.selected ?? []
+        const selected = n.initiative && item?.custom?.trim() ? [] : (item?.selected ?? [])
         if (selected.length === 1) {
           const s = choices.find((s) => s.label === selected[0])
           if (s) {
@@ -342,14 +355,20 @@ export class NotificationDeliverer {
       this.finish(
         n,
         deliveryId,
-        !isDecision(n) || item?.selected.length || item?.custom?.trim() ? 'answered' : 'unanswered',
+        !isReliableQuestion(n) || item?.selected.length || item?.custom?.trim() ? 'answered' : 'unanswered',
       )
     } catch (error) {
       if (this.store.status().state !== 'ok') return
+      if (n.initiative && phase === 'question-service-failed' && !signal.aborted) {
+        const code = error && typeof error === 'object' && 'code' in error ? error.code : undefined
+        this.log(
+          `initiative question service failed (${typeof code === 'string' && /^[A-Z_]{3,40}$/.test(code) ? code : 'unknown'})`,
+        )
+      }
       if (signal.aborted) this.finish(n, deliveryId, 'cancelled', String(signal.reason))
       else if (phase === 'response-processing-failed') this.finish(n, deliveryId, 'answered', phase)
       else if (
-        isDecision(n) &&
+        isReliableQuestion(n) &&
         phase === 'question-service-failed' &&
         error &&
         typeof error === 'object' &&
@@ -383,6 +402,7 @@ export class NotificationDeliverer {
         this.store.notificationDeliveries.update({ ...attempt, result, detail: reason, endedAt: now })
       }
       if (!owner) return
+      if (result === 'failed' && current.initiative) this.router.initiative?.failedDelivery(current)
       const terminal = current.resolvedAt !== undefined
       const reminded = (current.remindAt ?? 0) > (current.deliveryAttemptedAt ?? 0)
       if (decision && (result !== 'answered' || terminal)) this.store.suggestions.consume(n.id, now)
@@ -424,7 +444,7 @@ export class NotificationDeliverer {
       at: Date.now(),
       result,
       detail,
-      generation: isDecision(n) ? (n.decisionDelivery?.generation ?? 0) : undefined,
+      generation: isReliableQuestion(n) ? (n.decisionDelivery?.generation ?? 0) : undefined,
     })
   }
   private info(n: Notification, reason: string): void {

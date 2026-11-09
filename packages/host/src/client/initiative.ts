@@ -4,6 +4,7 @@ import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client
 import {
   DETECTORS,
   InitiativeLevelSchema,
+  InitiativeLimitsSchema,
   InitiativeSettingsSchema,
   initiativeFindingCopy,
   LEVELS,
@@ -22,13 +23,23 @@ const labels = {
     title: '主动性',
     findings: '发现',
     settings: '开关',
-    stats: '近 7 天统计',
-    explanation: 'L0 留在面板，L1 可进入每日简报。建议卡和询问将在下一版本提供。',
+    stats: '主动性效果',
+    explanation: '建议卡默认开启，可在这里关闭。发现仍会保留在面板，或加入每日简报。',
     empty: '还没有发现。',
     enabled: '启用主动性',
     brief: '加入每日简报',
-    cards: '建议卡（下一版本提供）',
-    asks: '询问（下一版本提供）',
+    cards: '主动建议卡',
+    asks: '主动询问',
+    journal: '把有进展的建议写入大肥鱼的经历',
+    interval: '同一目标建议间隔（小时）',
+    cooldown: '同类发现冷却期（天）',
+    save: '保存限制',
+    card: '查看建议卡',
+    review: '审核目标草案',
+    muted: '已静默的提醒',
+    columns: ['检测器', '周期', '投递', '采纳率', '无效打扰率', '采纳后进展率', '误触发', '模型成本'],
+    days: (n: number) => `近 ${n} 天`,
+    adjusted: (level: string, score: number) => `已调整至 ${level} · 最低得分 ${score}`,
     reset: '恢复默认',
     maximum: '最高分级',
     evidence: '证据',
@@ -49,14 +60,33 @@ const labels = {
     title: 'Initiative',
     findings: 'Findings',
     settings: 'Settings',
-    stats: 'Last 7 days',
+    stats: 'Initiative effectiveness',
     explanation:
-      'L0 stays on this panel. L1 can appear in the daily brief. Suggestion cards and questions are planned for the next version.',
+      'Suggestion cards are on by default. Turn them off here to keep findings on this panel or in the daily brief.',
     empty: 'No findings yet.',
     enabled: 'Enable initiative',
     brief: 'Include in daily brief',
-    cards: 'Suggestion cards (next version)',
-    asks: 'Questions (next version)',
+    cards: 'Proactive suggestion cards',
+    asks: 'Proactive questions',
+    journal: 'Record suggestions that led to progress in Da Fei Yu’s journal',
+    interval: 'Hours between cards for the same goal',
+    cooldown: 'Days before repeating the same finding',
+    save: 'Save limits',
+    card: 'View suggestion card',
+    review: 'Review goal draft',
+    muted: 'Muted reminders',
+    columns: [
+      'Detector',
+      'Period',
+      'Delivered',
+      'Acceptance',
+      'Unhelpful',
+      'Progress after acceptance',
+      'Inaccurate',
+      'Model cost',
+    ],
+    days: (n: number) => `Last ${n} days`,
+    adjusted: (level: string, score: number) => `Adjusted to ${level} · Minimum score ${score}`,
     reset: 'Restore defaults',
     maximum: 'Maximum level',
     evidence: 'Evidence',
@@ -90,12 +120,18 @@ function FindingRow({
   finding,
   onOpenGoal,
   onDelete,
+  onCard,
+  onDraft,
+  evidenceId,
 }: {
   connection: ConnectionHandle
   locale: Locale
   finding: Finding
   onOpenGoal: (id: GoalId) => void
   onDelete: (id: string) => Promise<void>
+  onCard: (id: string) => void
+  onDraft: (id: string) => void
+  evidenceId?: string | undefined
 }) {
   const c = labels[locale]
   const copy = initiativeFindingCopy(locale, finding.detector)
@@ -105,6 +141,13 @@ function FindingRow({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const refs = JSON.stringify(finding.evidence)
+  const details = useRef<HTMLDetailsElement>(null)
+  useEffect(() => {
+    if (evidenceId !== finding.id || !details.current) return
+    details.current.open = true
+    setOpen(true)
+    details.current.scrollIntoView({ block: 'center' })
+  }, [evidenceId, finding.id])
   useEffect(() => {
     if (!open) return
     const abort = new AbortController()
@@ -136,7 +179,10 @@ function FindingRow({
     finding.status === 'expired' && h('small', null, ' · ' + c.expired),
     h(
       'details',
-      { onToggle: (event: React.SyntheticEvent<HTMLDetailsElement>) => setOpen(event.currentTarget.open) },
+      {
+        ref: details,
+        onToggle: (event: React.SyntheticEvent<HTMLDetailsElement>) => setOpen(event.currentTarget.open),
+      },
       h('summary', null, c.evidence),
       !evidence && !error && h('p', null, c.loading),
       h(
@@ -160,26 +206,29 @@ function FindingRow({
         ),
       ),
     ),
-    confirming
-      ? h(
-          'div',
-          null,
-          h(
-            'button',
-            {
-              disabled: busy,
-              onClick: () => {
-                setBusy(true)
-                void onDelete(finding.id)
-                  .catch(() => setError(c.deleteError))
-                  .finally(() => setBusy(false))
+    finding.notificationId && h('button', { onClick: () => onCard(finding.notificationId!) }, c.card),
+    finding.draft && h('button', { onClick: () => onDraft(finding.draft!.id) }, c.review),
+    !finding.notificationId &&
+      (confirming
+        ? h(
+            'div',
+            null,
+            h(
+              'button',
+              {
+                disabled: busy,
+                onClick: () => {
+                  setBusy(true)
+                  void onDelete(finding.id)
+                    .catch(() => setError(c.deleteError))
+                    .finally(() => setBusy(false))
+                },
               },
-            },
-            c.confirm,
-          ),
-          h('button', { disabled: busy, onClick: () => setConfirming(false) }, c.cancel),
-        )
-      : h('button', { onClick: () => setConfirming(true) }, c.remove),
+              c.confirm,
+            ),
+            h('button', { disabled: busy, onClick: () => setConfirming(false) }, c.cancel),
+          )
+        : h('button', { onClick: () => setConfirming(true) }, c.remove)),
     error && h('p', { role: 'alert' }, error),
   )
 }
@@ -188,15 +237,22 @@ export function InitiativeView({
   connection,
   locale,
   onOpenGoal,
+  onCard,
+  onDraft,
+  evidenceId,
 }: {
   connection: ConnectionHandle
   locale: Locale
   onOpenGoal: (id: GoalId) => void
+  onCard: (id: string) => void
+  onDraft: (id: string) => void
+  evidenceId?: string | undefined
 }) {
   const c = labels[locale]
   const [data, setData] = useState<Data>()
   const [error, setError] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [limits, setLimits] = useState<Data['settings']['limits']>()
   const revision = useRef(0)
   useEffect(() => {
     const abort = new AbortController()
@@ -241,6 +297,15 @@ export function InitiativeView({
     revision.current += 2
     setData((state) => state && { ...state, findings: state.findings.filter((row) => row.id !== id) })
   }
+  const restore = (detector: string, goalId?: GoalId) => {
+    setBusy(true)
+    void rpc(connection, 'initiative-restore', { detector, ...(goalId ? { goalId } : {}) })
+      .catch(() => setError(true))
+      .finally(() => setBusy(false))
+  }
+  const currentLimits = limits ?? data?.settings.limits
+  const rate = (n: number, d: number) =>
+    d ? new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 1 }).format(n / d) : '—'
   const check = (label: string, value: boolean, change?: (value: boolean) => void) =>
     h(
       'label',
@@ -265,6 +330,7 @@ export function InitiativeView({
     { 'aria-label': c.title, 'data-initiative': '' },
     h('h2', null, c.title),
     h('p', null, c.explanation),
+    data && check(c.cards, data.settings.channels.cards, (value) => patch({ kind: 'cards', value })),
     h('h3', null, c.findings),
     groups.size === 0 && h('p', null, data ? c.empty : c.loading),
     ...[...groups].map(([id, rows]) =>
@@ -282,7 +348,17 @@ export function InitiativeView({
           'ul',
           null,
           ...rows.map((finding) =>
-            h(FindingRow, { key: finding.id, connection, locale, finding, onOpenGoal, onDelete: remove }),
+            h(FindingRow, {
+              key: finding.id,
+              connection,
+              locale,
+              finding,
+              onOpenGoal,
+              onDelete: remove,
+              onCard,
+              onDraft,
+              evidenceId,
+            }),
           ),
         ),
       ),
@@ -313,7 +389,9 @@ export function InitiativeView({
                     value: InitiativeLevelSchema.parse(event.target.value),
                   }),
               },
-              ...LEVELS.map((level) => h('option', { key: level, value: level }, level)),
+              ...LEVELS.filter(
+                (level) => level !== 'L3' || detector === 'budgetBurn' || setting.maxLevel === 'L3',
+              ).map((level) => h('option', { key: level, value: level }, level)),
             ),
           )
         }),
@@ -322,18 +400,112 @@ export function InitiativeView({
           null,
           check(c.brief, data.settings.channels.brief, (value) => patch({ kind: 'brief', value })),
         ),
-        h('div', null, check(c.cards, false), check(c.asks, false)),
+        h(
+          'div',
+          null,
+          check(c.asks, data.settings.channels.asks, (value) => patch({ kind: 'asks', value })),
+        ),
+        h(
+          'div',
+          null,
+          check(c.journal, data.settings.companion.journal, (value) => patch({ kind: 'journal', value })),
+        ),
+        currentLimits &&
+          h(
+            'div',
+            null,
+            ...(['cardIntervalHours', 'cooldownDays'] as const).map((key) =>
+              h(
+                'label',
+                { key },
+                key === 'cardIntervalHours' ? c.interval : c.cooldown,
+                h('input', {
+                  type: 'number',
+                  min: 1,
+                  max: key === 'cardIntervalHours' ? 168 : 30,
+                  value: currentLimits[key],
+                  onChange: (event: ChangeEvent<HTMLInputElement>) =>
+                    setLimits({ ...currentLimits, [key]: Number(event.target.value) }),
+                }),
+              ),
+            ),
+            h(
+              'button',
+              {
+                disabled: busy || !limits || !InitiativeLimitsSchema.safeParse(limits).success,
+                onClick: () => {
+                  if (limits) patch({ kind: 'limits', value: limits })
+                  setLimits(undefined)
+                },
+              },
+              c.save,
+            ),
+          ),
         h('button', { disabled: busy, onClick: () => patch({ kind: 'reset' }) }, c.reset),
       ),
     h('h3', null, c.stats),
     data &&
       h(
-        'dl',
+        'table',
         null,
-        ...DETECTORS.flatMap((id) => [
-          h('dt', { key: id + '-name' }, initiativeFindingCopy(locale, id).name),
-          h('dd', { key: id + '-count' }, data.counts[id]),
-        ]),
+        h(
+          'thead',
+          null,
+          h('tr', null, ...c.columns.map((label) => h('th', { key: label, scope: 'col' }, label))),
+        ),
+        h(
+          'tbody',
+          null,
+          ...data.metrics.flatMap((row) =>
+            ([7, 30] as const).map((days) => {
+              const m = days === 7 ? row.week : row.month
+              return h(
+                'tr',
+                { key: `${row.detector}:${days}` },
+                h(
+                  'th',
+                  { scope: 'row' },
+                  initiativeFindingCopy(locale, row.detector).name,
+                  days === 30 &&
+                    row.adjustment &&
+                    h(
+                      'div',
+                      null,
+                      c.adjusted(row.adjustment.level, row.adjustment.minimumScore),
+                      ' ',
+                      h('button', { disabled: busy, onClick: () => restore(row.detector) }, c.reset),
+                    ),
+                ),
+                ...[
+                  c.days(days),
+                  m.delivered,
+                  rate(m.accepted, m.delivered),
+                  rate(m.interruptions, m.delivered),
+                  rate(m.progressed, m.accepted),
+                  `${m.inaccurate} (${rate(m.inaccurate, m.delivered)})`,
+                  m.modelCost,
+                ].map((value, index) => h('td', { key: index }, value)),
+              )
+            }),
+          ),
+        ),
+      ),
+    !!data?.muted.length &&
+      h(
+        'section',
+        null,
+        h('h3', null, c.muted),
+        ...data.muted.map((row) =>
+          h(
+            'div',
+            { key: `${row.goalId}:${row.detector}` },
+            row.title,
+            ' · ',
+            initiativeFindingCopy(locale, row.detector).name,
+            ' ',
+            h('button', { disabled: busy, onClick: () => restore(row.detector, row.goalId) }, c.reset),
+          ),
+        ),
       ),
     error && h('p', { role: 'alert' }, c.error),
   )

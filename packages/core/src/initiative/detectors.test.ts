@@ -225,7 +225,7 @@ test('a resolved, undelivered, superseded or non-blocking notice cannot create b
 
 const levels: [string, DetectorId, number, (settings: InitiativeSettings) => void, InitiativeLevel][] = [
   ['low score', 'budgetBurn', 0.29, () => {}, 'L0'],
-  ['exact score threshold', 'budgetBurn', 0.3, () => {}, 'L1'],
+  ['exact score threshold', 'budgetBurn', 0.3, () => {}, 'L2'],
   [
     'detector cap',
     'budgetBurn',
@@ -236,14 +236,14 @@ const levels: [string, DetectorId, number, (settings: InitiativeSettings) => voi
     'L0',
   ],
   [
-    'default cap',
+    'explicit level is limited to a card outside the budget detector',
     'noAcceptance',
     1,
     (s) => {
       s.detectors.noAcceptance.maxLevel = 'L3'
       s.channels.asks = true
     },
-    'L1',
+    'L2',
   ],
   [
     'asks enabled',
@@ -264,13 +264,13 @@ const levels: [string, DetectorId, number, (settings: InitiativeSettings) => voi
     'L2',
   ],
   [
-    'no asks falls to brief even with cards on',
+    'no asks falls to cards when enabled',
     'budgetBurn',
     1,
     (s) => {
       s.channels.cards = true
     },
-    'L1',
+    'L2',
   ],
   [
     'brief off after channel fallback',
@@ -278,6 +278,7 @@ const levels: [string, DetectorId, number, (settings: InitiativeSettings) => voi
     1,
     (s) => {
       s.channels.brief = false
+      s.channels.cards = false
     },
     'L0',
   ],

@@ -16,6 +16,7 @@ import {
   PlannerStateSchema,
   NotificationSchema,
   isDecision,
+  isReliableQuestion,
   SuggestionSchema,
   NotificationPreferencesSchema,
   UserNoteSchema,
@@ -43,6 +44,7 @@ import type {
   IdGen,
   InitiativeLevel,
   OpportunityCandidate,
+  Opportunity,
   ScopeHasher,
   TaskId,
 } from '@whalemaid/core'
@@ -396,7 +398,7 @@ export class WhaleStore {
           this.writer()
             .prepare('INSERT INTO notifications(id,data) VALUES(?,?)')
             .run(row.id, JSON.stringify(row))
-          if (isDecision(row))
+          if (isReliableQuestion(row))
             this.notificationDeliveries.insert({
               id: productionIdGen.next('delivery'),
               goalId: row.goalId,
@@ -544,12 +546,18 @@ export class WhaleStore {
     get: (id: string) => this.one('opportunities', id, OpportunitySchema),
     list: (goalId?: GoalId) =>
       this.rows('opportunities', OpportunitySchema, goalId ? 'goal_id' : undefined, goalId),
+    update: (input: Opportunity) => {
+      const row = OpportunitySchema.parse(input)
+      this.writer()
+        .prepare('UPDATE opportunities SET status=?,data=? WHERE id=?')
+        .run(row.status, JSON.stringify(row), row.id)
+    },
     expire: (now: number) => {
       this.writer()
         .prepare(
           `
         UPDATE opportunities SET status='expired',data=json_set(data,'$.status','expired','$.outcomeAt',?)
-        WHERE status='open' AND expires_at<=? AND json_valid(data)
+        WHERE status='open' AND expires_at<=? AND json_valid(data) AND json_extract(data,'$.notificationId') IS NULL
       `,
         )
         .run(now, now)
@@ -560,6 +568,7 @@ export class WhaleStore {
         .prepare("SELECT * FROM opportunities WHERE dedupe_key=? AND status='open'")
         .get(candidate.dedupeKey)
       let previous = existing && this.decode('opportunities', existing, OpportunitySchema)
+      if (previous?.notificationId) return previous
       if (previous && opportunityNovelty(now, { cooldownUntil: previous.expiresAt }) > 0) {
         this.opportunities.expire(now)
         previous = undefined

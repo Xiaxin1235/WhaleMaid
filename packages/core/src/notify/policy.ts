@@ -1,4 +1,4 @@
-import { isDecision } from '../model/notification.js'
+import { isReliableQuestion } from '../model/notification.js'
 import type { Notification } from '../model/notification.js'
 import type { NotificationPreferences } from './model.js'
 /** Shared interruption policy also serves memory proposals, which need no task/authorization binding. */
@@ -48,7 +48,7 @@ export function decideDelivery(n: DeliveryNotice, c: DeliveryContext): DeliveryD
   })
   if (n.resolvedAt !== undefined || (n.expiresAt ?? Infinity) <= c.now)
     return result('drop', 'resolved-or-expired')
-  const delivery = isDecision(n) ? n.decisionDelivery : undefined
+  const delivery = isReliableQuestion(n) ? n.decisionDelivery : undefined
   const reminded = n.remindAt !== undefined && n.remindAt > (n.deliveryAttemptedAt ?? -Infinity)
   if (delivery?.outcome === 'asking') return result('drop', 'asking')
   if (!reminded) {

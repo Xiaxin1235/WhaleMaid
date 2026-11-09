@@ -6,7 +6,7 @@
 
 WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确认的范围内规划和执行任务，独立验收结果，需要决定时再找你。
 
-**1.3.1** 文档。目标宿主为 DSH Desktop **0.2.1-rc.2 起的 0.2.x**。从源码构建需要 Node.js ≥22.19。预览版限制，见[使用说明](docs/usage.md)。
+**1.4.0** 文档。目标宿主为 DSH Desktop **0.2.1-rc.2 起的 0.2.x**。从源码构建需要 Node.js ≥22.19。预览版限制，见[使用说明](docs/usage.md)。
 
 ## 当前能做什么
 
@@ -15,7 +15,7 @@ WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确�
 | 目标与授权         | 自然语言起草目标，在面板逐项确认项目目录、保护项、动作、精确验收命令和预算。                                                                                           |
 | 自动推进与独立验收 | Git 项目在独立 worktree 中执行依赖任务；宿主独立运行已确认的验收命令，依据证据继续、停止或请求决定。                                                                   |
 | 通知与决策         | 通知中心和 DSH 原生提问承载待决定事项，支持勿扰、静音、频率限制、暂停，以及由你操作的放弃和改方向。投递失败会自动重试，重启或解除静音后会重新问你。                    |
-| 主动性             | 用规则发现反复失败、即将停滞、预算将尽、决定积压等情况，在面板和每日简报里提前提醒你；不发通知、不调用模型。见[使用说明](docs/usage.md#主动性)。                       |
+| 主动性             | 用规则发现反复失败、停滞等问题，提供带证据的建议卡和反馈，面板显示近 7 / 30 天效果。无需模型。见[使用说明](docs/usage.md#主动性)。                                     |
 | 大肥鱼             | 专属伙伴对话、经确认的长期记忆、对话回顾与经历、需要本人确认的管理提议、每天首次聊天的进展简报。                                                                       |
 | 高权限执行         | 在可写目标中另外确认后放行普通命令；已识别的危险命令仍须实时单次审批。任意脚本的内部行为不能靠命令文字完整约束。                                                       |
 | 日常自动审批       | 默认关闭。开启后，普通会话中能识别为普通操作的命令自动“允许一次”，删除、发布、安装等危险操作仍交给你；目标任务会话不受影响。见[使用说明](docs/usage.md#日常自动审批)。 |
@@ -74,14 +74,14 @@ WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确�
 也可在 **插件 → 添加插件** 中填写完整安装包地址：
 
 ```text
-https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.1/dsh-whalemaid-full-1.3.1.tgz
+https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.4.0/dsh-whalemaid-full-1.4.0.tgz
 ```
 
 也可完全退出 Harness，在未设置测试 DSH_HOME 的终端里使用桌面版自带 CLI：
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.3.1/dsh-whalemaid-full-1.3.1.tgz'
+& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.4.0/dsh-whalemaid-full-1.4.0.tgz'
 ```
 
 重新打开 Harness，应同时看到 **WhaleMaid** 面板和 **Settings → 桌宠**。原来分别安装两份源码的用户，请先按[安装说明](docs/install.md#complete-installation)备份和迁移，避免同时启用两份桌宠；目标、记忆和桌宠设置保留。Decisions API 表情仍需在桌宠设置中单独配置，默认关闭。

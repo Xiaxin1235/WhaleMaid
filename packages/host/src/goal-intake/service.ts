@@ -127,10 +127,32 @@ export class GoalIntake {
     if (!job) throw new Error('draft-expired')
     return structuredClone(job.status)
   }
+  /** A deterministic initiative proposal uses the same editor, without a model job. */
+  async preparedStatus(input: unknown, peer: PeerScope): Promise<DraftStatus> {
+    owner(peer)
+    const { draftId } = DraftIdRequestSchema.parse(input)
+    if (!draftId.startsWith('initiative:')) return this.status(input, peer)
+    const draft = this.prepared(draftId).draft!
+    const projectFacts = await this.inspect(draft.projectRoot)
+    owner(peer)
+    this.prepared(draftId)
+    return { state: 'ready', draft: draft.content, projectFacts }
+  }
+  private prepared(draftId: string) {
+    const row = this.store.opportunities.get(draftId.slice('initiative:'.length))
+    if (row?.status !== 'accepted' || row.draft?.id !== draftId || row.progressGoal)
+      throw Error('draft-expired')
+    return row
+  }
   /** Abort a proposal and discard its stored result. */
   cancel(input: unknown, peer: PeerScope) {
     owner(peer)
     const { draftId } = DraftIdRequestSchema.parse(input)
+    if (draftId.startsWith('initiative:')) {
+      const row = this.prepared(draftId)
+      this.store.opportunities.update({ ...row, draft: undefined, awaitsDraft: false })
+      return { cancelled: true }
+    }
     this.jobs.get(draftId)?.controller.abort()
     clearTimeout(this.jobs.get(draftId)?.expiry)
     this.jobs.delete(draftId)
@@ -149,10 +171,25 @@ export class GoalIntake {
     owner(peer)
     const records = draftToRecords(undefined, form, { clock: this.clock, idGen: this.idGen })
     const result = this.store.transaction(() => {
+      const prepared = form.draftId?.startsWith('initiative:') ? this.prepared(form.draftId) : undefined
+      if (
+        prepared &&
+        (form.projectRoot !== prepared.draft!.projectRoot ||
+          form.permissionPreset !== 'read-only' ||
+          form.mode !== 'suggest' ||
+          form.commandMode !== 'confirmed' ||
+          form.verifyCommands.length ||
+          form.allowedActions.some(
+            (action) =>
+              !['read-file', 'continue-goal', 'pause-goal', 'resume-goal', 'open-workbench'].includes(action),
+          ))
+      )
+        throw Error('initiative-draft-requires-read-only')
       this.store.goals.insert(records.goal)
       const scope = this.scopes.grant(records.scopeDraft, peer)
       records.tasks.forEach((task) => this.store.tasks.insert(task))
       const goal = this.store.goals.get(records.goal.id)!
+      if (prepared) this.store.opportunities.update({ ...prepared, draft: undefined, progressGoal: goal.id })
       return { goal, scope, rejected: records.rejected }
     })
     if (form.draftId) {

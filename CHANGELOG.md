@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0
+
+- Initiative suggestion cards and optional questions share the notification center and pet envelope. Cards are enabled by default and respect quiet hours, muting and delivery limits.
+- Suggestions link to evidence and offer existing management actions, snoozing and feedback. Read-only investigation drafts use the existing authorization editor.
+- The Initiative panel tracks effectiveness, explains reversible adjustments and can record suggestions that led to verified progress in Da Fei Yu’s journal.
+
+### 中文
+
+- 主动建议卡默认开启，可选的主动询问默认关闭。通知中心和桌宠信封共用建议卡，遵守勿扰、静音和投递上限。
+- 建议附带证据、已有管理动作、稍后提醒与反馈。只读排查草案仍需通过面板审核授权。
+- 主动性面板显示建议效果和可撤销的自动调整，带来可验证进展的建议可写入大肥鱼的经历。
+
 ## 1.3.1
 
 - Support DSH 0.2.2-rc.1 and open the compatibility window to 0.2.x starting at 0.2.1-rc.2. The complete package includes Coopanion 0.5.8.

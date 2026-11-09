@@ -56,6 +56,7 @@ import {
   ConfirmResultSchema,
   InitiativePanelSchema,
   InitiativeSettingsPatchSchema,
+  InitiativeRestoreSchema,
   InitiativeFindingRequestSchema,
   InitiativeEvidenceResponseSchema,
   InitiativeDeleteSchema,
@@ -176,6 +177,10 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
           break
         case 'initiative-delete':
           result = { deleted: runtime.initiative!.delete(InitiativeDeleteSchema.parse(input).id) }
+          break
+        case 'initiative-restore':
+          runtime.initiative!.restore(InitiativeRestoreSchema.parse(input))
+          result = { restored: true }
           break
         case 'companion-archives':
           z.strictObject({}).parse(input)
@@ -323,7 +328,7 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
                 (c) =>
                   c.source === 'inbox' &&
                   c.result === 'succeeded' &&
-                  ['open-panel', 'view-diff'].includes(c.action) &&
+                  ['open-panel', 'view-diff', 'open-goal', 'open-decision', 'evidence'].includes(c.action) &&
                   c.at > Date.now() - 300000,
               )
               .at(-1) ?? null
@@ -374,7 +379,7 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
           result = DraftStartedSchema.parse(runtime.intake!.start(input, peer))
           break
         case 'draft-status':
-          result = DraftStatusSchema.parse(runtime.intake!.status(input, peer))
+          result = DraftStatusSchema.parse(await runtime.intake!.preparedStatus(input, peer))
           break
         case 'cancel-draft':
           result = runtime.intake!.cancel(input, peer)
@@ -473,6 +478,7 @@ export function installPanelApi(
     | 'codex'
   >,
 ): void {
+  const settingsEntryId = ctx.fiber.entry?.options.id
   ctx.inject(['connection'], (child) => {
     const runtime: PanelRuntime = {
       snapshot,
@@ -480,17 +486,20 @@ export function installPanelApi(
       async setInitiative(patch) {
         const initiative = storage.initiative!
         const settings = child.get('settings') as Context['settings'] | undefined
-        const editor = child.get('configEditor') as Context['configEditor'] | undefined
-        const entry = editor?.entries().find((entry) => entry.fiber === ctx.fiber)
-        const form = settings?.describe().find((form) => form.ns === entry?.options.id)
+        const form = settings?.describe().find((form) => form.ns === settingsEntryId)
         if (!form || !settings) throw Error('settings-unavailable')
         const next = patch.kind === 'reset' ? defaultInitiativeSettings() : initiative.settings()
         if (patch.kind === 'enabled') next.enabled = patch.value
         if (patch.kind === 'brief') next.channels.brief = patch.value
+        if (patch.kind === 'cards') next.channels.cards = patch.value
+        if (patch.kind === 'asks') next.channels.asks = patch.value
+        if (patch.kind === 'journal') next.companion.journal = patch.value
+        if (patch.kind === 'limits') next.limits = patch.value
         if (patch.kind === 'detector-enabled') next.detectors[patch.detector].enabled = patch.value
         if (patch.kind === 'detector-level') next.detectors[patch.detector].maxLevel = patch.value
         await settings.update(form.ns, { initiative: next }, form.revision)
         initiative.refresh()
+        void storage.notifier?.sweep().catch((error) => storage.logFailure?.('initiative-settings', error))
         return next
       },
       async setDailyBrief(enabled) {
