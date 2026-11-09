@@ -1,6 +1,6 @@
 {
   "name": "dsh-whalemaid",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Authorized project autopilot, independent verification and companion conversations for DeepSeek Harness",
   "repository": {
     "type": "git",
@@ -71,6 +71,8 @@
     "@deepseek-ai/dsh-home-paths": "^0.2.1-rc.2",
     "@deepseek-ai/schemastery": "^3.18.4",
     "@whalemaid/core": "workspace:*",
+    "semver": "7.8.5",
+    "smol-toml": "1.9.1",
     "zod": "4.6.7"
   },
   "peerDependencies": {
@@ -90,6 +92,7 @@
     "@deepseek-ai/dsh-client-ui-slots": "0.2.1-rc.2",
     "@deepseek-ai/dsh-client-ui-workspace": "0.2.1-rc.2",
     "@deepseek-ai/dsh-config-editor": "0.2.1-rc.2",
+    "@deepseek-ai/dsh-credentials": "0.2.1-rc.2",
     "@deepseek-ai/dsh-llm": "0.2.1-rc.2",
     "@deepseek-ai/dsh-permission-presets": "0.2.1-rc.2",
     "@deepseek-ai/dsh-session": "0.2.1-rc.2",
@@ -99,6 +102,7 @@
     "@deepseek-ai/dsh-user-approval": "0.2.1-rc.2",
     "@deepseek-ai/dsh-user-questions": "0.2.1-rc.2",
     "@types/react": "18.3.31",
+    "@types/semver": "7.8.0",
     "esbuild": "0.25.12",
     "react": "18.3.1"
   },

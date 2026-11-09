@@ -68,6 +68,8 @@ export const CompanionSessionRecordSchema = z.strictObject({
 })
 export type CompanionSessionRecord = z.infer<typeof CompanionSessionRecordSchema>
 import { MIGRATIONS } from './migrations.js'
+import { RadarObservationSchema, RadarSubscriptionSchema } from '@whalemaid/core'
+import type { RadarObservation, RadarSubscription } from '@whalemaid/core'
 import type { Migration } from './migrations.js'
 import { EverydayApprovalPanelSchema, EverydayApprovalRecordSchema } from '../everyday-approval/contract.js'
 import type { EverydayApprovalRecord } from '../everyday-approval/contract.js'
@@ -627,6 +629,42 @@ export class WhaleStore {
       .prepare('SELECT id FROM goals ORDER BY rowid')
       .all()
       .map((row) => GoalIdSchema.parse(row.id))
+  }
+
+  readonly radar = {
+    get: (id: GoalId) => this.one('radar_subscriptions', id, RadarSubscriptionSchema),
+    blocks: (id: GoalId, scope: { id: string; hash: string } | undefined) => {
+      const row = this.radar.get(id)
+      return !!row?.hold && scope?.id === row.scopeId && scope?.hash === row.scopeHash
+    },
+    list: () => this.rows('radar_subscriptions', RadarSubscriptionSchema),
+    update: (record: RadarSubscription) => {
+      this.writer()
+        .prepare(
+          'INSERT INTO radar_subscriptions(id,data) VALUES(?,?) ON CONFLICT(id) DO UPDATE SET data=excluded.data',
+        )
+        .run(record.id, JSON.stringify(RadarSubscriptionSchema.parse(record)))
+    },
+    observations: (id: GoalId) => this.rows('radar_observations', RadarObservationSchema, 'goal_id', id),
+    observation: (id: string) => this.one('radar_observations', id, RadarObservationSchema),
+    insert: (record: RadarObservation) => {
+      this.writer()
+        .prepare('INSERT INTO radar_observations(id,goal_id,data) VALUES(?,?,?)')
+        .run(record.id, record.goalId, JSON.stringify(RadarObservationSchema.parse(record)))
+      // Keep each source independently so frequent Git checks cannot erase network history.
+      const hold = this.radar.get(record.goalId)?.hold?.hash ?? ''
+      this.writer()
+        .prepare(
+          `
+        DELETE FROM radar_observations WHERE rowid IN (
+          SELECT rowid FROM radar_observations WHERE goal_id=? AND json_extract(data,'$.source')=?
+          AND (COALESCE(json_extract(data,'$.git.conflict.hash'),'') <> ? OR ? = '')
+          ORDER BY rowid DESC LIMIT -1 OFFSET 96
+        )
+      `,
+        )
+        .run(record.goalId, record.source, hold, hold)
+    },
   }
 
   private initiativeRows<T>(

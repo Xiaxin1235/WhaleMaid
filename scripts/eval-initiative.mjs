@@ -17,6 +17,7 @@ import {
   leftovers,
   noAcceptance,
   pendingBacklog,
+  radarDetectors,
   repeatedFailure,
   resolveLevel,
   stallWarning,
@@ -84,6 +85,47 @@ const remaining = (state, at) => ({
   goal: { ...goal, status: 'completed' },
   tasks: [task('task_rest', { state, createdAt: at })],
 })
+const observed = (source, data) => ({
+  id: 'observation',
+  goalId: goal.id,
+  revision: 'confirmed',
+  source,
+  at: now,
+  requests: 0,
+  cacheHits: 0,
+  etags: [],
+  ...data,
+})
+const digest = 'a'.repeat(64)
+const dep = (flags) => ({
+  goal,
+  dependencies: observed('dependencies', {
+    versions: [
+      { ecosystem: 'npm', name: 'fixture', current: '1.0.0', latest: '2.0.0', hash: digest, ...flags },
+    ],
+  }),
+})
+const github = (runs, related = [], status = 'active') => ({
+  goal: { ...goal, status },
+  github: observed('github', {
+    github: { branch: 'main', related, runs: runs.map((failure, i) => ({ id: i + 1, failure })) },
+  }),
+})
+const git = (conflict, status = 'active') => ({
+  goal: { ...goal, status },
+  localGit: observed('localGit', {
+    git: {
+      head: 'a'.repeat(40),
+      changes: [],
+      dirty: [],
+      external: [],
+      ...(conflict
+        ? { conflict: { hash: digest, previous: 'a'.repeat(40), head: 'b'.repeat(40), paths: ['src/file'] } }
+        : {}),
+    },
+  }),
+})
+const issue = { number: 1, kind: 'issue', hash: digest }
 
 // Each detector has a clear hit, a clear miss and a boundary that can catch an off-by-one change.
 const fixtures = [
@@ -123,6 +165,34 @@ const fixtures = [
     [remaining('CANCELLED', now - 1), true],
     [remaining('SUCCEEDED', now - 1), false],
     [remaining('CANCELLED', now + 1), false],
+  ],
+  [
+    'radarDependency',
+    radarDetectors.radarDependency,
+    [dep({ incompatible: true }), true],
+    [dep({ incompatible: false, breaking: false, deprecated: false }), false],
+    [dep({ deprecated: true }), true],
+  ],
+  [
+    'radarCI',
+    radarDetectors.radarCI,
+    [github([true, true, true]), true],
+    [github([true, false, true]), false],
+    [github([true, true]), true],
+  ],
+  [
+    'radarConflict',
+    radarDetectors.radarConflict,
+    [git(true), true],
+    [git(false), false],
+    [git(true, 'completed'), false],
+  ],
+  [
+    'radarRelated',
+    radarDetectors.radarRelated,
+    [github([], [issue]), true],
+    [github([]), false],
+    [{ ...github([], [issue]), github: { ...github([], [issue]).github, failure: 'timeout' } }, false],
   ],
 ]
 let correct = 0

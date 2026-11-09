@@ -19,6 +19,7 @@ import {
   resolveLevel,
   briefTitle,
   DailyGoalChangesSchema,
+  RADAR_DETECTOR_SOURCE,
 } from '@whalemaid/core'
 import type {
   DetectorId,
@@ -30,12 +31,14 @@ import type {
   Opportunity,
   ProjectGoal,
   Suggestion,
+  RadarDetector,
 } from '@whalemaid/core'
 import { managementConsent } from '../companion/consent.js'
 import type { GoalIntake } from '../goal-intake/service.js'
 import type { ScopeService } from '../scope-service.js'
 import type { RouteResult } from '../notify/router.js'
 import { productionIdGen, sha256, type WhaleStore } from '../store/index.js'
+import type { RadarService } from '../radar/service.js'
 
 const DetectorFeedback = z.strictObject({
   since: z.number(),
@@ -47,16 +50,28 @@ const adjustKey = (detector: DetectorId) => `initiative.adjust:${detector}`
 const fingerprint = (goal: ProjectGoal) =>
   sha256.hash(JSON.stringify({ ...goal, version: 0, inboxSessionId: undefined }))
 
-function draftFor(choice: 'draft-diagnosis' | 'draft-followup', locale: Locale): GoalDraft {
+function draftFor(
+  choice: 'draft-diagnosis' | 'draft-followup',
+  locale: Locale,
+  detector: DetectorId,
+): GoalDraft {
   const zh = locale === 'zh-CN'
   const title =
-    choice === 'draft-diagnosis'
+    detector === 'radarDependency'
       ? zh
-        ? '只读排查重复验收失败'
-        : 'Investigate repeated acceptance failures (read-only)'
-      : zh
-        ? '检查已完成目标的遗留事项'
-        : 'Review remaining work from the completed goal'
+        ? '升级影响排查'
+        : 'Review dependency upgrade impact'
+      : detector === 'radarCI'
+        ? zh
+          ? '只读排查默认分支 CI'
+          : 'Investigate default branch CI (read-only)'
+        : choice === 'draft-diagnosis'
+          ? zh
+            ? '只读排查重复验收失败'
+            : 'Investigate repeated acceptance failures (read-only)'
+          : zh
+            ? '检查已完成目标的遗留事项'
+            : 'Review remaining work from the completed goal'
   const check = zh
     ? '只读检查环境、依赖和数据，记录有证据的原因及后续建议。'
     : 'Inspect environment, dependencies and data read-only. Report supported causes and next steps.'
@@ -85,6 +100,7 @@ export class InitiativeCards {
     private readonly intake: Pick<GoalIntake, 'setPaused'>,
     private readonly settings: () => InitiativeSettings,
     private readonly locale: () => Locale,
+    private readonly radar?: RadarService,
   ) {}
 
   private feedback(detector: DetectorId) {
@@ -93,6 +109,15 @@ export class InitiativeCards {
 
   private muted(goalId: GoalId, detector: DetectorId) {
     return this.store.recallState(muteKey(goalId, detector), z.boolean()) === true
+  }
+
+  findingLive(row: Opportunity) {
+    if (!(row.detector in RADAR_DETECTOR_SOURCE)) return true
+    const id = row.subject.goalId
+    const ref = row.evidence[0]
+    if (!id || !ref) return false
+    if (row.detector === 'radarConflict') return !!ref.hash && this.radar?.hold(id)?.hash === ref.hash
+    return this.radar?.findingLive(id, row.detector as RadarDetector, ref.id) === true
   }
 
   level(row: Pick<Opportunity, 'score' | 'detector'>, settings = this.settings()) {
@@ -152,13 +177,15 @@ export class InitiativeCards {
     const goal = this.store.goals.get(n.goalId)
     const scope = this.scopes.activeScopeFor(n.goalId)
     const rows = this.rows(n)
+    const conflict = rows.length === 1 && rows[0]?.detector === 'radarConflict'
     const outdated =
       !goal ||
       !scope ||
       scope.id !== n.decisionBinding?.scopeId ||
       scope.hash !== n.decisionBinding.scopeHash ||
-      fingerprint(goal) !== n.initiative.goalFingerprint ||
-      rows.length !== n.initiative.ids.length
+      (!conflict && fingerprint(goal) !== n.initiative.goalFingerprint) ||
+      rows.length !== n.initiative.ids.length ||
+      rows.some((row) => !this.findingLive(row))
     const expired = (n.expiresAt ?? 0) <= now
     if (!outdated && !expired) return n
     const retired: Notification = {
@@ -190,13 +217,34 @@ export class InitiativeCards {
   enabled(n: Notification) {
     if (!n.initiative) return false
     const settings = this.settings()
+    const rows = this.rows(n)
+    if (rows.some((row) => row.detector === 'radarConflict' && this.findingLive(row))) return true
     return (
       settings.enabled &&
       (n.initiative.level === 'L3' ? settings.channels.asks : settings.channels.cards) &&
-      this.rows(n).every(
-        (row) => settings.detectors[row.detector].enabled && !this.muted(n.goalId, row.detector),
+      rows.every(
+        (row) =>
+          this.findingLive(row) &&
+          settings.detectors[row.detector].enabled &&
+          !this.muted(n.goalId, row.detector),
       )
     )
+  }
+
+  canDeliver(n: Notification) {
+    const conflict = this.rows(n).find((row) => row.detector === 'radarConflict')
+    if (!conflict) return this.enabled(n)
+    return this.findingLive(conflict) && ['L2', 'L3'].includes(this.level(conflict))
+  }
+
+  conflictNotice(id: GoalId) {
+    return this.store.notifications
+      .forGoal(id)
+      .findLast(
+        (notice) =>
+          notice.resolvedAt === undefined &&
+          this.rows(notice).some((row) => row.detector === 'radarConflict' && this.findingLive(row)),
+      )
   }
 
   private rows(n: Notification) {
@@ -212,6 +260,10 @@ export class InitiativeCards {
     const title = briefTitle(this.store.goals.get(n.goalId)?.title ?? '')
     const counts = new Map<DetectorId, number>()
     for (const row of this.rows(n)) counts.set(row.detector, (counts.get(row.detector) ?? 0) + 1)
+    if (counts.has('radarConflict')) {
+      const copy = initiativeFindingCopy(locale, 'radarConflict')
+      return { header: zh ? '项目雷达' : 'Project radar', question: copy.name, detail: copy.summary }
+    }
     return {
       header:
         n.initiative?.level === 'L3'
@@ -236,7 +288,11 @@ export class InitiativeCards {
   options(n: Notification, goalVersion: number, now: number): Suggestion[] {
     if (!n.initiative || !n.decisionBinding || !this.enabled(n)) return []
     return initiativeOptions(this.rows(n)).map((option) => ({
-      ...initiativeChoiceCopy(this.locale(), option.choice),
+      ...initiativeChoiceCopy(
+        this.locale(),
+        option.choice,
+        this.store.opportunities.get(option.opportunityId)?.detector,
+      ),
       id: SuggestionIdSchema.parse(productionIdGen.next('suggestion')),
       notificationId: n.id,
       initiative: option,
@@ -343,23 +399,33 @@ export class InitiativeCards {
         { goalId: goal.id, paused: true },
         managementConsent(new AbortController().signal),
       )
-    if (choice === 'split-note' || choice === 'idle-pause' || choice === 'idle-keep') {
+    if (selected.detector === 'radarConflict' && (choice === 'pause' || choice === 'idle-keep'))
+      this.radar!.settle(goal.id, selected.evidence[0]!.hash!, choice === 'pause' ? 'pause' : 'continue', now)
+    if (
+      choice === 'split-note' ||
+      choice === 'idle-pause' ||
+      (choice === 'idle-keep' && selected.detector !== 'radarConflict')
+    ) {
       const zh = this.locale() === 'zh-CN'
       const tomorrow = new Date(now)
       tomorrow.setDate(tomorrow.getDate() + 1)
       const date = tomorrow.toLocaleDateString(zh ? 'zh-CN' : 'en', { dateStyle: 'medium' })
       const note =
-        choice === 'split-note'
+        selected.detector === 'radarDependency'
           ? zh
-            ? '复查时把当前任务拆成更小的步骤。'
-            : 'Split the current task into smaller steps at the next review.'
-          : choice === 'idle-pause'
+            ? '复查项目雷达记录的依赖升级影响。'
+            : 'Review the dependency upgrade flagged by Project Radar.'
+          : choice === 'split-note'
             ? zh
-              ? `计划在 ${date} 复查是否恢复。`
-              : `Review whether to resume on ${date}.`
-            : zh
-              ? '复查闲置建议后，暂时保持现状。'
-              : 'Keep the current state after reviewing the idle goal.'
+              ? '复查时把当前任务拆成更小的步骤。'
+              : 'Split the current task into smaller steps at the next review.'
+            : choice === 'idle-pause'
+              ? zh
+                ? `计划在 ${date} 复查是否恢复。`
+                : `Review whether to resume on ${date}.`
+              : zh
+                ? '复查闲置建议后，暂时保持现状。'
+                : 'Keep the current state after reviewing the idle goal.'
       this.store.userNotes.insert({
         id: productionIdGen.next('user-note'),
         goalId: goal.id,
@@ -373,7 +439,7 @@ export class InitiativeCards {
         ? {
             id: `initiative:${selected.id}`,
             projectRoot: goal.projectRoot,
-            content: draftFor(choice, this.locale()),
+            content: draftFor(choice, this.locale(), selected.detector),
           }
         : undefined
     if (draft) result.draftId = draft.id
@@ -422,9 +488,8 @@ export class InitiativeCards {
     const settings = this.settings()
     for (const n of this.store.notifications.list()) if (n.initiative) this.refresh(n, now)
     const rows = this.store.opportunities.list()
-    if (!settings.enabled) return
-    this.track(rows, now, settings.companion.journal)
-    for (const detector of DETECTORS) {
+    if (settings.enabled) this.track(rows, now, settings.companion.journal)
+    for (const detector of settings.enabled ? DETECTORS : []) {
       const feedback = this.feedback(detector)
       if (feedback.adjustment && now - feedback.adjustment.at < 30 * INITIATIVE_DAY) continue
       const adjustment = learnInitiative(
@@ -471,16 +536,21 @@ export class InitiativeCards {
         (row) =>
           row.status === 'open' &&
           !row.notificationId &&
-          !this.muted(goalId, row.detector) &&
-          !initiativeInCooldown(row, rows, now, settings.limits.cooldownDays),
+          this.findingLive(row) &&
+          (row.detector === 'radarConflict' ||
+            (!this.muted(goalId, row.detector) &&
+              !initiativeInCooldown(row, rows, now, settings.limits.cooldownDays))),
       )
       .map((row) => ({ ...row, level: this.level(row, settings) }))
-    const batch = initiativeBatch(
-      pending,
-      now,
-      staged ? Infinity : lastCard,
-      settings.limits.cardIntervalHours,
-    ).slice(0, INITIATIVE_CARD_CAPACITY)
+    const conflict = pending.find((row) => row.detector === 'radarConflict')
+    const batch = conflict
+      ? [conflict]
+      : initiativeBatch(
+          pending.filter((row) => row.detector !== 'radarConflict'),
+          now,
+          staged ? Infinity : lastCard,
+          settings.limits.cardIntervalHours,
+        ).slice(0, INITIATIVE_CARD_CAPACITY)
     if (!batch.length) return
     const level = batch.some((row) => row.level === 'L3') ? 'L3' : 'L2'
     const id = NotificationIdSchema.parse(productionIdGen.next('notification'))

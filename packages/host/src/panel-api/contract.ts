@@ -31,6 +31,9 @@ import {
   InitiativeLimitsSchema,
   InitiativeMetricsSchema,
   InitiativeAdjustmentSchema,
+  RadarObservationSchema,
+  RadarSettingsSchema,
+  RadarSubscriptionSchema,
 } from '@whalemaid/core'
 
 export const LanguageSchema = z.enum(['auto', 'zh-CN', 'en'])
@@ -53,6 +56,33 @@ export const InitiativePanelSchema = z.strictObject({
     }),
   ),
   muted: z.array(z.strictObject({ goalId: GoalIdSchema, detector: DetectorSchema, title: z.string() })),
+  radar: z
+    .strictObject({
+      checks: z.int(),
+      passed: z.int(),
+      requests: z.int(),
+      settings: RadarSettingsSchema,
+    })
+    .optional(),
+})
+export const RadarDetailSchema = z.strictObject({
+  settings: RadarSettingsSchema,
+  subscribed: z.boolean(),
+  eligible: z.boolean(),
+  subscription: RadarSubscriptionSchema.optional(),
+  hold: RadarSubscriptionSchema.shape.hold,
+  observations: z.array(RadarObservationSchema),
+  credentialConfigured: z.boolean(),
+  conflict: z.strictObject({ suggestions: z.array(SuggestionSchema) }).optional(),
+})
+export const RadarCredentialRequest = z.strictObject({
+  token: z
+    .string()
+    .trim()
+    .min(1)
+    .max(512)
+    .regex(/^[\w.-]+$/)
+    .nullable(),
 })
 export const InitiativeSettingsPatchSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('enabled'), value: z.boolean() }),
@@ -176,6 +206,13 @@ export const PANEL_METHODS = [
   'initiative-evidence',
   'initiative-delete',
   'initiative-restore',
+  'radar-detail',
+  'radar-preview',
+  'radar-subscribe',
+  'radar-check',
+  'radar-settings',
+  'radar-credential',
+  'radar-excerpt',
   'companion-archives',
   'companion-restore',
   'companion-archive-settings',

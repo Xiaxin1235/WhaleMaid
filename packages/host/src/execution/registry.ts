@@ -1,10 +1,11 @@
 import type { Run, RunId, Task, TaskState } from '@whalemaid/core'
-import { companionSessionIds } from '@whalemaid/core'
+import { companionSessionIds, isWithinScopePath, normalizeScopePath } from '@whalemaid/core'
 import type { WhaleStore } from '../store/index.js'
 /** Durable before-send registration and a retained session ownership index, including ended runs. */
 export class RunRegistry {
   private readonly closed = new Set<(sessionId: string) => void>()
   private readonly sessions = new Map<string, { id: RunId; closed: boolean }>()
+  private readonly writes = new Map<RunId, Set<string> | 'command'>()
   constructor(readonly store: WhaleStore) {
     for (const run of store.status().state === 'error' ? [] : store.runs.all())
       this.sessions.set(run.sessionId, { id: run.run_id, closed: run.status !== 'running' || !!run.reason })
@@ -19,6 +20,31 @@ export class RunRegistry {
     const entry = this.sessions.get(sessionId)
     if (entry) entry.closed = true
     for (const listener of this.closed) listener(sessionId)
+  }
+
+  /** Record admitted write surfaces only, without storing tool arguments or reading session bodies. */
+  markWrite(run: Run, path?: string): void {
+    const previous = this.writes.get(run.run_id)
+    if (previous === 'command') return
+    const normalized = path && normalizeScopePath(path)
+    if (!normalized || (previous?.size ?? 0) >= 256) {
+      this.writes.set(run.run_id, 'command')
+      return
+    }
+    const paths = previous ?? new Set<string>()
+    paths.add(normalized)
+    this.writes.set(run.run_id, paths)
+  }
+
+  couldHaveWritten(run: Run, path: string): boolean {
+    const previous = this.writes.get(run.run_id)
+    if (previous === 'command') return true
+    const normalized = normalizeScopePath(path)
+    return !normalized || (!!previous && [...previous].some((root) => isWithinScopePath(normalized, root)))
+  }
+
+  forgetWrites(runId: RunId): void {
+    this.writes.delete(runId)
   }
   /** Closing the gate is immediate, including unload before cancellation has settled. */
   isOpen(sessionId: string): boolean {

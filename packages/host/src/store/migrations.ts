@@ -172,4 +172,16 @@ export const MIGRATIONS: readonly Migration[] = [
       `)
     },
   },
+  {
+    version: 12,
+    up(db) {
+      db.exec(`
+        CREATE TABLE radar_subscriptions (id TEXT PRIMARY KEY REFERENCES goals(id), data TEXT NOT NULL);
+        CREATE TABLE radar_observations (
+          id TEXT PRIMARY KEY, goal_id TEXT NOT NULL REFERENCES radar_subscriptions(id), data TEXT NOT NULL
+        );
+        CREATE INDEX radar_observation_goal ON radar_observations(goal_id);
+      `)
+    },
+  },
 ]

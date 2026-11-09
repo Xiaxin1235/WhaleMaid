@@ -16,6 +16,9 @@ import {
   resolveLevel,
   stallWarning,
   briefTitle,
+  DETECTORS,
+  RADAR_DETECTORS,
+  radarDetectors,
 } from '@whalemaid/core'
 import type {
   AuthorizationScope,
@@ -32,6 +35,7 @@ import { localDay } from '../autopilot/day.js'
 import type { ScopeService } from '../scope-service.js'
 import { sha256, type WhaleStore } from '../store/index.js'
 import type { InitiativeCards } from './cards.js'
+import type { RadarService } from '../radar/service.js'
 
 const DEBOUNCE_MS = 30000
 const SCAN_TIMEOUT_MS = 2000
@@ -47,7 +51,7 @@ const detectors = {
 const timed = new Set<DetectorId>(['idleGoal', 'pendingBacklog'])
 const dateOrder = (a: Opportunity, b: Opportunity) => b.createdAt - a.createdAt || a.id.localeCompare(b.id)
 const scoreOrder = (a: Opportunity, b: Opportunity) => b.score - a.score || dateOrder(a, b)
-type ScanKind = 'all' | 'timed'
+type ScanKind = 'all' | 'timed' | 'facts'
 
 export class InitiativeService {
   private readonly pending = new Map<GoalId, ScanKind>()
@@ -72,6 +76,7 @@ export class InitiativeService {
       now?(): number
     },
     private readonly cards?: InitiativeCards,
+    private readonly radar?: RadarService,
   ) {}
 
   private now() {
@@ -96,6 +101,13 @@ export class InitiativeService {
 
   refresh(): void {
     this.full = true
+    clearTimeout(this.timer)
+    this.timer = undefined
+    this.schedule(0)
+  }
+
+  refreshFacts(id: GoalId) {
+    if (!this.pending.has(id)) this.pending.set(id, 'facts')
     clearTimeout(this.timer)
     this.timer = undefined
     this.schedule(0)
@@ -144,7 +156,7 @@ export class InitiativeService {
       this.recoveredCards = true
     }
     const now = this.now()
-    if (!this.settings().enabled) {
+    if (!this.settings().enabled && !this.radar) {
       this.pending.clear()
       this.tasks.clear()
       this.full = false
@@ -189,15 +201,16 @@ export class InitiativeService {
 
   private detectGoal(id: GoalId, kind: ScanKind, now: number, day: string, deadline: number): void {
     const settings = this.deps.settings()
-    if (!settings.enabled) return
     const goal = this.store.goals.get(id)
     if (!goal) return
+    if (kind !== 'facts') this.radar?.observe(id)
+    if (!settings.enabled && !this.radar?.hold(id)) return
     const scope = this.scopes.activeScopeFor(id)
     const paused = this.store.paused()
     // Keep the observed idle interval accurate even when no findings are being produced.
     const previousIdle = this.store.initiativeIdle(id)
     const idle = this.idleObservation(goal, scope, paused, now, previousIdle)
-    const selected = (Object.keys(detectors) as DetectorId[]).filter(
+    const selected = (Object.keys(detectors) as (keyof typeof detectors)[]).filter(
       (id) => settings.enabled && settings.detectors[id].enabled && (kind === 'all' || timed.has(id)),
     )
     const tasks = selected.some((id) => id !== 'idleGoal' && id !== 'stallWarning')
@@ -228,6 +241,16 @@ export class InitiativeService {
       if (performance.now() >= deadline) throw Error('initiative-scan-timeout')
       return detectors[id](facts, now)
     })
+    if (this.radar) {
+      const radar = this.radar.facts(goal)
+      for (const id of RADAR_DETECTORS) {
+        if (
+          (settings.enabled && settings.detectors[id].enabled) ||
+          (id === 'radarConflict' && this.radar.hold(goal.id))
+        )
+          candidates.push(...radarDetectors[id](radar))
+      }
+    }
     if (performance.now() >= deadline) throw Error('initiative-scan-timeout')
     if (!candidates.length && previousIdle?.key === idle?.key && previousIdle?.since === idle?.since) return
     this.store.transaction(() => {
@@ -239,8 +262,11 @@ export class InitiativeService {
           previous.some(
             (row) =>
               row.dedupeKey === candidate.dedupeKey &&
-              row.deliveredAt !== undefined &&
-              row.deliveredAt + settings.limits.cooldownDays * INITIATIVE_DAY > now,
+              (candidate.detector === 'radarConflict'
+                ? !!row.notificationId &&
+                  this.store.notifications.get(row.notificationId)?.resolvedAt === undefined
+                : row.deliveredAt !== undefined &&
+                  row.deliveredAt + settings.limits.cooldownDays * INITIATIVE_DAY > now),
           )
         )
           continue
@@ -316,13 +342,16 @@ export class InitiativeService {
         goalTitle: row.subject.goalId ? (this.store.goals.get(row.subject.goalId)?.title ?? '') : '',
       })),
       counts: Object.fromEntries(
-        Object.keys(detectors).map((id) => [
+        DETECTORS.map((id) => [
           id,
           rows.filter(
             (row) => row.detector === id && row.createdAt > now - INITIATIVE_TTL && row.createdAt <= now,
           ).length,
         ]),
       ),
+      ...(this.radar && this.store.status().state === 'ok'
+        ? { radar: { ...this.radar.metrics(), settings: this.radar.settings() } }
+        : {}),
     }
   }
 
@@ -333,7 +362,10 @@ export class InitiativeService {
       return this.recent(now)
         .filter(
           (row) =>
-            row.level !== 'L0' && (this.cards?.level(row, settings) ?? resolveLevel(row, settings)) === 'L1',
+            row.detector !== 'radarConflict' &&
+            (this.cards?.findingLive(row) ?? true) &&
+            row.level !== 'L0' &&
+            (this.cards?.level(row, settings) ?? resolveLevel(row, settings)) === 'L1',
         )
         .sort(scoreOrder)
         .slice(0, 3)
@@ -363,6 +395,30 @@ export class InitiativeService {
     return row.evidence.map((ref) => {
       const missing = { ...ref, missing: true }
       if (!goalId) return missing
+      if (ref.kind === 'radar') {
+        const snapshot = this.store.radar.observation(ref.id)
+        if (!snapshot || snapshot.goalId !== goalId) return missing
+        const version = snapshot.versions?.find((entry) => entry.hash === ref.hash)
+        const item = snapshot.github?.related.find((entry) => entry.hash === ref.hash)
+        const conflict = snapshot.git?.conflict
+        const excerpt = version
+          ? `${version.name}  ${version.current ?? '?'} → ${version.latest}`
+          : conflict
+            ? [`${conflict.previous} → ${conflict.head}`, ...conflict.paths].join('\n')
+            : item
+              ? `${item.kind} #${item.number}`
+              : snapshot.github?.runs
+                  .slice(0, 2)
+                  .map((run) => String(run.id))
+                  .join(', ')
+        return {
+          ...ref,
+          missing: false,
+          at: snapshot.at,
+          status: snapshot.source,
+          ...(panel && excerpt ? { excerpt } : {}),
+        }
+      }
       if (ref.kind === 'verification') {
         const record = this.store.verifications.get(ref.id)
         const command = ref.commandIndex === undefined ? undefined : record?.current[ref.commandIndex]
@@ -417,6 +473,7 @@ export class InitiativeService {
   query() {
     const locale = this.deps.locale()
     return this.recent(this.now())
+      .filter((row) => this.cards?.findingLive(row) ?? true)
       .sort(dateOrder)
       .slice(0, 5)
       .map((row) => ({

@@ -1,4 +1,5 @@
 import { AutopilotView } from './autopilot.js'
+import { GoalRadarView } from './radar.js'
 import { VerificationView } from './verification.js'
 import { createElement as h, useEffect, useRef, useState } from 'react'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
@@ -878,6 +879,7 @@ export function GoalDetailView({
           h('p', null, detail.goal.expectedOutcome),
           h('p', null, text('projectRoot'), ': ', detail.goal.projectRoot),
           h('p', null, text('goalState'), ': ', detail.goal.status),
+          h(GoalRadarView, { key: goalId, connection, locale, goalId }),
           h('h3', null, text('acceptance')),
           h('ul', null, ...detail.goal.acceptance.map((value, i) => h('li', { key: i }, value))),
           h('h3', null, text('stopConditions')),

@@ -7,6 +7,9 @@ import type { CompanionRecall } from '../companion/recall.js'
 import type { CompanionDailyBrief } from '../companion/daily-brief.js'
 import type { CompanionArchives } from '../companion/archive.js'
 import type { InitiativeService } from '../initiative/service.js'
+import type { RadarService } from '../radar/service.js'
+import { RadarPreviewSchema, RadarSettingsSchema, RadarSubscribeSchema, GoalIdSchema } from '@whalemaid/core'
+import type { RadarSettings } from '@whalemaid/core'
 import { defaultInitiativeSettings, InitiativeSettingsSchema, WELCOME_RELEASE } from '@whalemaid/core'
 import { MemoryTextSchema, MemoryScopeSchema } from '@whalemaid/core'
 import type { NotificationRouter } from '../notify/router.js'
@@ -60,6 +63,8 @@ import {
   InitiativeFindingRequestSchema,
   InitiativeEvidenceResponseSchema,
   InitiativeDeleteSchema,
+  RadarCredentialRequest,
+  RadarDetailSchema,
 } from './contract.js'
 import type { InitiativeSettingsPatch, PanelMethod } from './contract.js'
 import type { PanelStatus } from './contract.js'
@@ -75,6 +80,8 @@ export interface PanelRuntime {
   everydayApprovals?: EverydayApprovals
   brief?: CompanionDailyBrief
   initiative?: InitiativeService
+  radar?: RadarService
+  setRadar?: (settings: RadarSettings) => Promise<RadarSettings>
   setInitiative?: (patch: InitiativeSettingsPatch) => Promise<ReturnType<InitiativeService['settings']>>
   setDailyBrief?: (enabled: boolean) => Promise<void>
   archives?: CompanionArchives
@@ -181,6 +188,36 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
         case 'initiative-restore':
           runtime.initiative!.restore(InitiativeRestoreSchema.parse(input))
           result = { restored: true }
+          break
+        case 'radar-detail':
+        case 'radar-check': {
+          const { goalId } = z.strictObject({ goalId: GoalIdSchema }).parse(input)
+          if (method === 'radar-check') await runtime.radar!.check(goalId, true)
+          const detail = await runtime.radar!.detail(goalId)
+          const router = runtime.notificationRouter
+          const notice = detail.hold && router?.initiative?.conflictNotice(goalId)
+          result = RadarDetailSchema.parse({
+            ...detail,
+            ...(notice && router ? { conflict: { suggestions: router.options(notice) } } : {}),
+          })
+          break
+        }
+        case 'radar-preview':
+          result = RadarPreviewSchema.parse(
+            await runtime.radar!.preview(ExecuteNextSchema.parse(input).goalId),
+          )
+          break
+        case 'radar-subscribe':
+          result = RadarDetailSchema.parse(await runtime.radar!.subscribe(RadarSubscribeSchema.parse(input)))
+          break
+        case 'radar-settings':
+          result = RadarSettingsSchema.parse(await runtime.setRadar!(RadarSettingsSchema.parse(input)))
+          break
+        case 'radar-credential':
+          result = await runtime.radar!.setCredential(RadarCredentialRequest.parse(input).token)
+          break
+        case 'radar-excerpt':
+          result = await runtime.radar!.excerpt(InitiativeFindingRequestSchema.parse(input).id, signal)
           break
         case 'companion-archives':
           z.strictObject({}).parse(input)
@@ -474,6 +511,7 @@ export function installPanelApi(
     | 'archives'
     | 'brief'
     | 'initiative'
+    | 'radar'
     | 'everydayApprovals'
     | 'codex'
   >,
@@ -483,6 +521,15 @@ export function installPanelApi(
     const runtime: PanelRuntime = {
       snapshot,
       ...storage,
+      async setRadar(next) {
+        const settings = child.get('settings') as Context['settings'] | undefined
+        const form = settings?.describe().find((form) => form.ns === settingsEntryId)
+        if (!form || !settings) throw Error('settings-unavailable')
+        await settings.update(form.ns, { radar: next }, form.revision)
+        storage.radar?.controlsChanged()
+        storage.initiative?.refresh()
+        return next
+      },
       async setInitiative(patch) {
         const initiative = storage.initiative!
         const settings = child.get('settings') as Context['settings'] | undefined

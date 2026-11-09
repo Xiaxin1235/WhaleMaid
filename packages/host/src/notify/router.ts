@@ -131,8 +131,14 @@ export class NotificationRouter {
       const goal = this.store.goals.get(n.goalId)
       if (!goal || !s.initiative || !this.initiative?.allows(n, s, goal.version))
         throw Error('option-not-offered')
-      if (s.initiative.choice !== 'pause' && s.initiative.choice !== 'idle-pause') return n
-      action = { type: 'pause-goal', goalId: n.goalId }
+      if (s.initiative.choice === 'pause' || s.initiative.choice === 'idle-pause')
+        action = { type: 'pause-goal', goalId: n.goalId }
+      else if (
+        s.initiative.choice === 'idle-keep' &&
+        this.store.opportunities.get(s.initiative.opportunityId)?.detector === 'radarConflict'
+      )
+        action = { type: 'continue-goal', goalId: n.goalId }
+      else return n
     } else if (s.initiative) throw Error('option-not-offered')
     else if (s.intent.type === 'panel-decision') {
       if (!n.choices?.includes(s.intent.choice)) throw Error('option-not-offered')

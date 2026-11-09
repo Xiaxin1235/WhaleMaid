@@ -1,3 +1,4 @@
+import { RadarSettingsView } from './radar.js'
 import { createElement as h, useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import type { ConnectionHandle } from '@deepseek-ai/dsh-client-connection/client'
@@ -54,7 +55,14 @@ const labels = {
     score: '得分',
     loading: '加载中',
     deleteError: '无法删除这条记录',
-    kinds: { goal: '目标', task: '任务', verification: '验收', run: '运行', notification: '决定' },
+    kinds: {
+      goal: '目标',
+      task: '任务',
+      verification: '验收',
+      run: '运行',
+      notification: '决定',
+      radar: '项目雷达',
+    },
   },
   en: {
     title: 'Initiative',
@@ -101,7 +109,14 @@ const labels = {
     score: 'Score',
     loading: 'Loading',
     deleteError: 'Could not delete this finding',
-    kinds: { goal: 'Goal', task: 'Task', verification: 'Verification', run: 'Run', notification: 'Decision' },
+    kinds: {
+      goal: 'Goal',
+      task: 'Task',
+      verification: 'Verification',
+      run: 'Run',
+      notification: 'Decision',
+      radar: 'Project Radar',
+    },
   },
 }
 type Data = ReturnType<typeof InitiativePanelSchema.parse>
@@ -139,6 +154,7 @@ function FindingRow({
   const [evidence, setEvidence] = useState<Evidence>()
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [remote, setRemote] = useState<string>()
   const [error, setError] = useState('')
   const refs = JSON.stringify(finding.evidence)
   const details = useRef<HTMLDetailsElement>(null)
@@ -165,6 +181,20 @@ function FindingRow({
     return () => abort.abort()
   }, [connection, finding.id, refs, open, c.error])
   const goalId = finding.subject.goalId
+  const readRemote = async () => {
+    setBusy(true)
+    try {
+      const { excerpt } = (await rpc(connection, 'radar-excerpt', { id: finding.id })) as { excerpt: string }
+      setRemote(
+        excerpt || (locale === 'zh-CN' ? '来源没有可显示的摘要。' : 'No excerpt available from this source.'),
+      )
+      setError('')
+    } catch {
+      setError(locale === 'zh-CN' ? '暂时无法读取来源。' : 'Could not read the source.')
+    } finally {
+      setBusy(false)
+    }
+  }
   return h(
     'li',
     { 'data-initiative-detector': finding.detector },
@@ -205,6 +235,14 @@ function FindingRow({
           ),
         ),
       ),
+      evidence?.some((row) => !row.missing) &&
+        (finding.detector === 'radarDependency' || finding.detector === 'radarRelated') &&
+        h(
+          'button',
+          { type: 'button', disabled: busy, onClick: () => void readRemote() },
+          locale === 'zh-CN' ? '联网读取来源摘要' : 'Read a source excerpt online',
+        ),
+      remote && h('pre', { style: { whiteSpace: 'pre-wrap' } }, remote),
     ),
     finding.notificationId && h('button', { onClick: () => onCard(finding.notificationId!) }, c.card),
     finding.draft && h('button', { onClick: () => onDraft(finding.draft!.id) }, c.review),
@@ -331,6 +369,17 @@ export function InitiativeView({
     h('h2', null, c.title),
     h('p', null, c.explanation),
     data && check(c.cards, data.settings.channels.cards, (value) => patch({ kind: 'cards', value })),
+    data?.radar && h(RadarSettingsView, { connection, locale, settings: data.radar.settings }),
+    data?.radar &&
+      h(
+        'p',
+        { 'data-radar-metrics': '' },
+        locale === 'zh-CN' ? '近 7 天检查成功率 ' : '7-day check success ',
+        rate(data.radar.passed, data.radar.checks),
+        ' · ',
+        locale === 'zh-CN' ? '近 7 天请求数 ' : '7-day requests ',
+        data.radar.requests,
+      ),
     h('h3', null, c.findings),
     groups.size === 0 && h('p', null, data ? c.empty : c.loading),
     ...[...groups].map(([id, rows]) =>

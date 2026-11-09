@@ -103,7 +103,7 @@ export class NotificationDeliverer {
       !n.routingSuggestionId &&
       (n.expiresAt ?? Infinity) > Date.now() &&
       !!this.scopes.activeScopeFor(n.goalId) &&
-      (n.kind !== 'initiative' || this.router.initiative?.enabled(n) === true) &&
+      (n.kind !== 'initiative' || this.router.initiative?.canDeliver(n) === true) &&
       (!n.taskId || this.store.tasks.get(n.taskId)?.version === n.taskVersion)
     )
   }

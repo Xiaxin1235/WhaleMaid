@@ -674,6 +674,8 @@ export function t(locale: Locale, key: MessageKey, params: Record<string, string
 
 /** Localize known execution rule codes while preserving unknown diagnostics for inspection. */
 export function executionReason(locale: Locale, reason: string): string {
+  if (reason === 'radar-conflict-held')
+    return locale === 'zh-CN' ? '等待你确认外部改动' : 'Review external changes to continue'
   const keys: Record<string, MessageKey> = {
     abandon: 'decisionAbandon',
     'change-direction': 'decisionChangeDirection',

@@ -27,6 +27,10 @@ export function exportTrace(store: WhaleStore, goalId: GoalId): { markdown: stri
     }),
     section('Checkpoints', store.checkpoints.list(goalId)),
     section('Initiative findings', store.opportunities.list(goalId)),
+    section('Project radar', {
+      subscription: store.radar.get(goalId),
+      observations: store.radar.observations(goalId),
+    }),
     section(
       'Dangerous command approvals (one-shot)',
       runs.flatMap((run) =>

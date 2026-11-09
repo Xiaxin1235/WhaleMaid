@@ -9,11 +9,11 @@ import {
 } from '@whalemaid/core'
 import type { DetectorId, InitiativeLevel } from '@whalemaid/core'
 import { z } from 'zod'
-import { DetectorSchema, DetectorSettingsSchema } from '@whalemaid/core'
+import { I1_DETECTORS, DetectorSettingsSchema } from '@whalemaid/core'
 
 const I1PanelSnapshot = z.strictObject({
   enabled: z.boolean(),
-  detectors: z.record(DetectorSchema, DetectorSettingsSchema),
+  detectors: z.record(z.enum(I1_DETECTORS), DetectorSettingsSchema),
   channels: z.strictObject({ brief: z.boolean(), cards: z.literal(false), asks: z.literal(false) }),
 })
 

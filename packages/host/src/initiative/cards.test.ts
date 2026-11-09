@@ -7,6 +7,7 @@ import {
   DEFAULT_LIMITS,
   DEFAULT_PROTECTED_NAMES,
   INITIATIVE_ADOPTIONS,
+  I1_DETECTORS,
   INITIATIVE_DAY,
   INITIATIVE_HOUR,
   GoalIdSchema,
@@ -35,9 +36,8 @@ const now = new Date(2026, 10, 8, 12).getTime()
 test('recognizes I1 saved placeholders without interpreting explicit 1.4 or partial opt-outs as defaults', () => {
   const settings = defaultInitiativeSettings()
   const channels = { ...settings.channels, cards: false }
-  expect(isLegacyInitiativePanelSnapshot({ enabled: true, detectors: settings.detectors, channels })).toBe(
-    true,
-  )
+  const detectors = Object.fromEntries(I1_DETECTORS.map((id) => [id, settings.detectors[id]]))
+  expect(isLegacyInitiativePanelSnapshot({ enabled: true, detectors, channels })).toBe(true)
   expect(isLegacyInitiativePanelSnapshot({ channels: { cards: false } })).toBe(false)
   expect(isLegacyInitiativePanelSnapshot({ ...settings, channels })).toBe(false)
 })
@@ -173,24 +173,26 @@ test('merges same-goal findings in score order and keeps subsequent findings for
   expect(f.store.notifications.list()).toHaveLength(2)
 })
 
-test.each(Object.entries(INITIATIVE_ADOPTIONS) as [DetectorId, readonly InitiativeChoice[]][])(
-  '%s exposes only its mapped adoptions plus fixed feedback',
-  (detector, adoptions) => {
-    const f = setup()
-    f.settings.detectors[detector].maxLevel = detector === 'budgetBurn' ? 'L3' : 'L2'
-    f.settings.channels.asks = true
-    f.record(detector)
-    f.cards.tick(now)
-    expect(f.router.options(f.notice()).map((s) => s.initiative?.choice)).toEqual([
-      ...adoptions,
-      'snooze',
-      'dismiss',
-      'mute',
-      'inaccurate',
-      'evidence',
-    ])
-  },
-)
+test.each(
+  I1_DETECTORS.map((detector): [DetectorId, readonly InitiativeChoice[]] => [
+    detector,
+    INITIATIVE_ADOPTIONS[detector],
+  ]),
+)('%s exposes only its mapped adoptions plus fixed feedback', (detector, adoptions) => {
+  const f = setup()
+  f.settings.detectors[detector].maxLevel = detector === 'budgetBurn' ? 'L3' : 'L2'
+  f.settings.channels.asks = true
+  f.record(detector)
+  f.cards.tick(now)
+  expect(f.router.options(f.notice()).map((s) => s.initiative?.choice)).toEqual([
+    ...adoptions,
+    'snooze',
+    'dismiss',
+    'mute',
+    'inaccurate',
+    'evidence',
+  ])
+})
 
 test.each([
   ['repeatedFailure', 'pause', 'paused', 0],

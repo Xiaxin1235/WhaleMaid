@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, expect, test, vi } from 'vitest'
 import type { PeerScope } from '@deepseek-ai/dsh-client-connection'
-import { RunSchema, TaskIdSchema, decideNext, DEFAULT_LIMITS } from '@whalemaid/core'
+import { RunSchema, GoalIdSchema, TaskIdSchema, decideNext, DEFAULT_LIMITS } from '@whalemaid/core'
 import type { Limits, Task, Judgment } from '@whalemaid/core'
 import { makeGoal, makeTask } from '../../../core/tests/fixtures.js'
 import { WhaleStore, productionClock, productionIdGen, sha256 } from '../store/index.js'
@@ -241,6 +241,69 @@ test('global pause stops new work while an admitted run may end; unpause resumes
   f.store.setPaused(false)
   await vi.advanceTimersByTimeAsync(15000)
   expect(f.sent).toHaveBeenCalledTimes(3)
+})
+test('a durable radar hold allows the running task to finish, skips only that goal and wakes on continue', async () => {
+  const f = await fixture({ chain: true })
+  await vi.advanceTimersByTimeAsync(1001)
+  const first = f.store.runs.forGoal(f.goal.id)[0]!
+  const subscription = {
+    id: f.goal.id,
+    scopeId: f.scope.id,
+    scopeHash: f.scope.hash,
+    enabled: true,
+    revision: 'fixture',
+    confirmedAt: Date.now(),
+    sources: { localGit: true, github: false, dependencies: false },
+    dependencies: [],
+  }
+  f.store.radar.update({
+    ...subscription,
+    hold: {
+      hash: 'a'.repeat(64),
+      previous: 'a'.repeat(40),
+      head: 'b'.repeat(40),
+      paths: ['src/external.ts'],
+      at: Date.now(),
+    },
+  })
+  expect(f.scheduler.canExecute(f.goal.id, first.run_id)).toBe(false)
+  const other = makeGoal({
+    id: GoalIdSchema.parse('goal_other'),
+    projectRoot: f.dir,
+    mode: 'autonomous',
+    autopilot: { enabled: true },
+  })
+  f.store.goals.insert(other)
+  f.scopes.grant(
+    {
+      goalId: other.id,
+      allowedPaths: [f.dir],
+      protectedPaths: [],
+      allowedActions: ['read-file'],
+      forbiddenActions: [],
+      verifyCommands: [],
+      permissionPreset: 'read-only',
+      limits: DEFAULT_LIMITS,
+    },
+    owner,
+  )
+  f.store.tasks.insert(makeTask('task_other', { goalId: other.id, kind: 'analyze' }))
+  const original = f.ports.execute
+  const otherAdmitted = vi.fn()
+  f.ports.execute = async (id, admit) => {
+    if (id !== other.id) return original(id, admit)
+    otherAdmitted(admit())
+    return { started: false, reason: 'fixture-admitted' }
+  }
+  await vi.advanceTimersByTimeAsync(9000)
+  expect(f.store.runs.get(first.run_id)?.status).toBe('ended')
+  expect(f.store.tasks.list(f.goal.id)[0]?.state).toBe('SUCCEEDED')
+  expect(f.sent).toHaveBeenCalledTimes(1)
+  expect(otherAdmitted).toHaveBeenCalledWith(true)
+  f.store.radar.update(subscription)
+  f.scheduler.mark(f.goal.id)
+  await vi.advanceTimersByTimeAsync(2500)
+  expect(f.sent.mock.calls.map(([id]) => id)).toContain('task_b')
 })
 test('pending decisions block advancement and a resolved decision wakes the goal', async () => {
   const f = await fixture()

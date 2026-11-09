@@ -8,7 +8,8 @@ import type { Notification } from '../model/notification.js'
 import { redactSecrets } from '../companion/redact.js'
 import { initiativeFindingCopy } from './copy.js'
 import { INITIATIVE_DAY } from './model.js'
-import type { DetectorId, OpportunityCandidate, OpportunityEvidence } from './model.js'
+import type { I1_DETECTORS, OpportunityCandidate, OpportunityEvidence } from './model.js'
+type DetectorId = (typeof I1_DETECTORS)[number]
 
 export interface InitiativeFacts {
   goal: ProjectGoal

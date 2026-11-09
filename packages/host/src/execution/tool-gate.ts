@@ -63,6 +63,7 @@ export class ToolGate {
   private readonly approvals = new Map<string, PendingApproval>()
   private readonly pendingExecutions = new WeakMap<GateExecution, PendingApproval>()
   private readonly admitted = new WeakMap<GateExecution, Run>()
+  private readonly writeSurfaces = new WeakMap<GateExecution, (string | undefined)[]>()
   constructor(
     private readonly registry: RunRegistry,
     private readonly locale: () => Locale,
@@ -137,6 +138,7 @@ export class ToolGate {
       })
       if ('unknown' in mapped) return this.deny(run, exec.name, 'unknown', 'unknown-tool-or-arguments')
       let ask: { intent: Extract<ActionIntent, { type: 'run-command' }>; category: string } | undefined
+      const writes: (string | undefined)[] = []
       for (const intent of mapped.intents) {
         let resolved: ActionIntent = intent
         if ('path' in intent) {
@@ -149,6 +151,9 @@ export class ToolGate {
         if (decision.decision === 'ask' && scope.commandMode === 'trusted' && resolved.type === 'run-command')
           ask = { intent: resolved, category: decision.reason }
         else if (decision.decision !== 'allow') return this.deny(run, exec.name, intent.type, decision.ruleId)
+        if (resolved.type === 'write-file') writes.push(resolved.path)
+        if (resolved.type === 'run-command' && decision.ruleId !== 'read-command-allowed')
+          writes.push(undefined)
         // Search tools enumerate directories recursively. Checking only their root could disclose protected descendants.
         if (
           'path' in resolved &&
@@ -158,6 +163,7 @@ export class ToolGate {
           return this.deny(run, exec.name, intent.type, 'protected-search-descendant')
       }
       if (!this.live(run)) return this.deny(run, exec.name, 'none', 'run-inactive')
+      if (writes.length) this.writeSurfaces.set(exec, writes)
       if (ask) {
         const goal = this.registry.store.goals.get(scope.goalId)
         const locale = this.locale()
@@ -244,6 +250,7 @@ export class ToolGate {
   /** A missing approval service or unobservable audit must remain fail-closed. */
   result(exec: GateExecution): void {
     this.admitted.delete(exec)
+    this.writeSurfaces.delete(exec)
     this.pendingExecutions.delete(exec)
     for (const pending of this.approvals.values()) {
       if (pending.exec.token !== undefined ? pending.exec.token !== exec.token : pending.exec !== exec)
@@ -275,6 +282,7 @@ export class ToolGate {
         continue
       if (pending.outcome !== 'allowed-once') return 'whaledot-approval-not-granted-or-audited'
     }
+    if (run) for (const path of this.writeSurfaces.get(exec) ?? []) this.registry.markWrite(run, path)
     return undefined
   }
   private recordApproval(pending: PendingApproval, outcome: ApprovalOutcome | 'timeout') {

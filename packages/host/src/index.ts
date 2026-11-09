@@ -50,6 +50,11 @@ import {
 import type { InitiativeConfig, InitiativeConfigInput } from './initiative/config.js'
 import { InitiativeService } from './initiative/service.js'
 import { InitiativeCards } from './initiative/cards.js'
+import { RadarConfigSchema, readRadarConfig } from './radar/config.js'
+import type { RadarConfig } from './radar/config.js'
+import { RadarService } from './radar/service.js'
+import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
+import type { RadarSettings } from '@whalemaid/core'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -74,14 +79,16 @@ export interface CompanionConfig {
 }
 export interface Config {
   initiative?: InitiativeConfig
+  radar?: RadarConfig
   maxConcurrentRuns?: number
   dataDir?: string
   debugLogSignals?: boolean
   language?: Volatile<LanguageSetting>
   companion?: CompanionConfig
 }
-type ConfigInput = Omit<Config, 'language' | 'companion' | 'initiative'> & {
+type ConfigInput = Omit<Config, 'language' | 'companion' | 'initiative' | 'radar'> & {
   initiative?: InitiativeConfigInput
+  radar?: Partial<Omit<RadarSettings, 'sources'>> & { sources?: Partial<RadarSettings['sources']> }
   language?: LanguageSetting
   companion?: Omit<CompanionConfig, 'memory' | 'recall' | 'archiveEarlier' | 'dailyBrief'> & {
     dailyBrief?: { enabled?: boolean }
@@ -92,6 +99,7 @@ type ConfigInput = Omit<Config, 'language' | 'companion' | 'initiative'> & {
 }
 export const Config: Schema<ConfigInput, Config> = Schema.object({
   initiative: InitiativeConfigSchema,
+  radar: RadarConfigSchema,
   maxConcurrentRuns: Schema.number().min(1).step(1).default(1),
   dataDir: Schema.string().description('Data directory; defaults to <DSH_HOME>/whaledot'),
   debugLogSignals: Schema.boolean().default(false),
@@ -226,7 +234,44 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       const raw = profileEntry?.options.config as { initiative?: unknown } | undefined
       return readInitiativeConfig(config.initiative, isLegacyInitiativePanelSnapshot(raw?.initiative))
     }
-    const initiativeCards = new InitiativeCards(store, scopes, intake, initiativeSettings, notificationLocale)
+    const credentialRef = 'WHALEMAID_GITHUB_TOKEN' as CredentialRef
+    const credentials = () => ctx.get('credentials') as Context['credentials'] | undefined
+    const radar = new RadarService(store, scopes, {
+      settings: () => readRadarConfig(config.radar),
+      conflictEnabled: () => {
+        const settings = initiativeSettings()
+        return settings.enabled && settings.detectors.radarConflict.enabled
+      },
+      credentials: {
+        async status() {
+          const provider = credentials()
+          return provider ? (await provider.describe(credentialRef)).configured : !!process.env[credentialRef]
+        },
+        async token() {
+          const provider = credentials()
+          return provider ? (await provider.resolve(credentialRef))?.value : process.env[credentialRef]
+        },
+        async set(value) {
+          const provider = credentials()
+          if (!provider) throw Error('credentials-unavailable')
+          if (value === null) await provider.unset(credentialRef)
+          else await provider.set(credentialRef, value)
+        },
+      },
+      worktreeRoot: join(dataDir, 'worktrees'),
+      couldHaveWritten: (run, path) => execution.registry.couldHaveWritten(run, path),
+      runStillLive: (run) => execution.registry.isOpen(run.sessionId),
+      onFacts: (id) => initiative.refreshFacts(id),
+      log: () => debug.host('radar check failed'),
+    })
+    const initiativeCards = new InitiativeCards(
+      store,
+      scopes,
+      intake,
+      initiativeSettings,
+      notificationLocale,
+      radar,
+    )
     const notificationRouter = new NotificationRouter(
       store,
       scopes,
@@ -309,12 +354,14 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         log: (message, error) => debug.host(message, error),
       },
       initiativeCards,
+      radar,
     )
     companion.findings = (sessionId) => {
       if (!sessionId || !companionSessions.allSessionIds().includes(sessionId)) throw Error('companion-only')
       return initiative.query()
     }
     ctx.on('settings/document-updated', () => {
+      radar.controlsChanged()
       initiative.refresh()
     })
     const brief = new CompanionDailyBrief(store, scopes, {
@@ -376,6 +423,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       intake.dispose()
       await Promise.all([
         initiative.dispose(),
+        radar.dispose(),
         execution.dispose(),
         autopilot.dispose(),
         notifier.dispose(),
@@ -439,6 +487,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         archives,
         brief,
         initiative,
+        radar,
         everydayApprovals,
         codex,
       },

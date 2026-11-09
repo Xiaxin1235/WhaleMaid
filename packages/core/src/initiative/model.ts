@@ -2,8 +2,9 @@ import { z } from 'zod'
 import { CompanionActionSchema } from '../companion/actions.js'
 import { GoalDraftSchema } from '../goal-draft.js'
 import { GoalIdSchema, TaskIdSchema } from '../model/ids.js'
+import { RADAR_DETECTORS } from '../radar.js'
 
-export const DETECTORS = [
+export const I1_DETECTORS = [
   'repeatedFailure',
   'stallWarning',
   'noAcceptance',
@@ -12,6 +13,7 @@ export const DETECTORS = [
   'idleGoal',
   'leftovers',
 ] as const
+export const DETECTORS = [...I1_DETECTORS, ...RADAR_DETECTORS] as const
 export const DetectorSchema = z.enum(DETECTORS)
 export type DetectorId = z.infer<typeof DetectorSchema>
 export const LEVELS = ['L0', 'L1', 'L2', 'L3'] as const
@@ -25,6 +27,10 @@ export const DETECTOR_LEVELS = {
   pendingBacklog: 'L2',
   idleGoal: 'L1',
   leftovers: 'L1',
+  radarDependency: 'L2',
+  radarCI: 'L2',
+  radarConflict: 'L3',
+  radarRelated: 'L1',
 } satisfies Record<DetectorId, InitiativeLevel>
 export const INITIATIVE_DAY = 86400000
 export const INITIATIVE_TTL = 7 * INITIATIVE_DAY
@@ -61,7 +67,7 @@ export function defaultInitiativeSettings(): InitiativeSettings {
 }
 
 export const OpportunityEvidenceSchema = z.strictObject({
-  kind: z.enum(['goal', 'task', 'verification', 'run', 'notification']),
+  kind: z.enum(['goal', 'task', 'verification', 'run', 'notification', 'radar']),
   id: z.string().min(1),
   commandIndex: z.int().nonnegative().optional(),
   hash: z.string().optional(),
@@ -104,7 +110,13 @@ export function resolveLevel(
 ): InitiativeLevel {
   const detector = settings.detectors[candidate.detector]
   if (!settings.enabled || !detector.enabled || candidate.score < 0.3) return 'L0'
-  const ceiling = Math.min(candidate.detector === 'budgetBurn' ? 3 : 2, LEVELS.indexOf(detector.maxLevel))
+  const max =
+    candidate.detector === 'budgetBurn' || candidate.detector === 'radarConflict'
+      ? 3
+      : candidate.detector === 'radarRelated'
+        ? 1
+        : 2
+  const ceiling = Math.min(max, LEVELS.indexOf(detector.maxLevel))
   let level = LEVELS[ceiling]!
   if (level === 'L3' && !settings.channels.asks) level = 'L2'
   if (level === 'L2' && !settings.channels.cards) level = 'L1'
@@ -136,6 +148,10 @@ export const INITIATIVE_ADOPTIONS = {
   pendingBacklog: ['open-decision'],
   idleGoal: ['idle-pause', 'idle-keep'],
   leftovers: ['draft-followup'],
+  radarDependency: ['draft-diagnosis', 'split-note'],
+  radarCI: ['pause', 'draft-diagnosis'],
+  radarConflict: ['idle-keep', 'pause', 'evidence'],
+  radarRelated: [],
 } as const satisfies Record<DetectorId, readonly InitiativeChoice[]>
 
 export const INITIATIVE_FEEDBACK = ['snooze', 'dismiss', 'mute', 'inaccurate', 'evidence'] as const
@@ -143,6 +159,9 @@ export const INITIATIVE_FEEDBACK = ['snooze', 'dismiss', 'mute', 'inaccurate', '
 export function initiativeOptions(rows: readonly Opportunity[]) {
   const lead = rows[0]
   if (!lead) return []
+  const conflict = rows.find((row) => row.detector === 'radarConflict')
+  if (conflict)
+    return INITIATIVE_ADOPTIONS.radarConflict.map((choice) => ({ choice, opportunityId: conflict.id }))
   const offered = new Map<InitiativeChoice, string>()
   for (const row of rows) {
     for (const choice of INITIATIVE_ADOPTIONS[row.detector]) {

@@ -111,13 +111,15 @@ export class AutopilotScheduler {
   /** Recheck controls at the final execution boundary, even after asynchronous worktree preparation. */
   canExecute(goalId: GoalId, ownRun?: RunId): boolean {
     const goal = this.store.goals.get(goalId)
+    const scope = this.scopes.activeScopeFor(goalId)
     return (
       !this.stopped &&
       !this.store.paused() &&
       goal?.status === 'active' &&
       goal.autopilot.enabled &&
       goal.mode !== 'suggest' &&
-      !!this.scopes.activeScopeFor(goalId) &&
+      !!scope &&
+      !this.store.radar.blocks(goalId, scope) &&
       !this.store.notifications
         .list()
         .some(
@@ -253,6 +255,11 @@ export class AutopilotScheduler {
       refreshDecision(this.store, this.scopes, n, this.clock.now())
     const snapshot = this.snapshot(id),
       action = planTick(snapshot)
+    if (
+      ['execute', 'plan'].includes(action.type) &&
+      this.store.radar.blocks(id, this.scopes.activeScopeFor(id))
+    )
+      return
     if (action.type === 'idle') {
       const last = this.store.autopilotEvents.list(id).at(-1)
       if (last?.action !== 'idle' || last.reason !== action.reason) this.event(id, 'idle', action.reason)

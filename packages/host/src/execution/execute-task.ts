@@ -84,6 +84,7 @@ export class TaskExecutor {
       if (!goal || goal.status !== 'active') return { started: false, reason: 'goal-not-active' }
       const scope = this.scopes.activeScopeFor(goalId)
       if (!scope) return { started: false, reason: 'no-active-scope' }
+      if (this.store.radar.blocks(goalId, scope)) return { started: false, reason: 'radar-conflict-held' }
       if (
         this.store.runs
           .all()
@@ -164,6 +165,7 @@ export class TaskExecutor {
             !admit(registered?.run_id) ||
             this.disposed ||
             this.store.paused() ||
+            this.store.radar.blocks(goalId, scope) ||
             this.store.goals.get(goalId)?.status !== 'active' ||
             this.scopes.activeScopeFor(goalId)?.hash !== scope.hash
           )
@@ -349,6 +351,7 @@ export class TaskExecutor {
       this.tracker.unwatch(state.sessionId)
     } finally {
       this.finishing.delete(id)
+      this.registry.forgetWrites(id)
     }
   }
   /** Unload stops local scheduling and requests cancellation. Durable running rows remain for restart reconciliation. */

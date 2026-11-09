@@ -2,7 +2,7 @@
 
 [中文](usage.md) | English
 
-For WhaleMaid 1.4.0 and DSH Desktop 0.2.x from 0.2.1-rc.2. See [installation](install.en.md) for setup, fixed-copy updates and removal, and the [documentation index, in Chinese](README.md) for implementation evidence. This guide distinguishes WhaleMaid features from those of the independent whale desktop pet.
+For WhaleMaid 1.5.0 and DSH Desktop 0.2.x from 0.2.1-rc.2. See [installation](install.en.md) for setup, fixed-copy updates and removal, and the [documentation index, in Chinese](README.md) for implementation evidence. This guide distinguishes WhaleMaid features from those of the independent whale desktop pet.
 
 ## First launch
 
@@ -136,6 +136,22 @@ Open WhaleMaid → Initiative to see rule-based findings and their evidence. Sug
 Cards appear in the notification center and pet envelope, respecting quiet hours, mute, and the shared hourly limit. By default, cards for the same goal are spaced at least four hours apart and repeated findings have a seven-day cooldown. Both are configurable. Choose Later to be reminded in one hour, dismiss the card, mark it inaccurate, or mute that type of finding for the current goal. You can undo muting and automatic adjustments in the panel.
 
 Adopting an investigation or follow-up suggestion creates a draft. Use **Review goal draft** to authorize and create the goal. Pause, notes, and navigation use existing flows. The panel shows delivery, acceptance, unhelpful interruptions, progress, and inaccurate feedback over 7 and 30 days. Verified progress within 48 hours of adoption can be recorded in Da Fei Yu’s journal. Initiative uses no model calls.
+
+## Project Radar
+
+Turn on **Project Radar** under **WhaleMaid → Initiative**, then open an authorized goal and select **Preview observations**. The preview shows the GitHub `origin`, the direct dependency count and the local Git checks. You can enter a GitHub repository manually and confirm only the sources you want.
+
+| Source     | What Radar checks                                                                                                         |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------- |
+| npm / PyPI | Direct dependency major releases, 0.x minor releases, breaking changes noted in registry metadata and deprecated versions |
+| Local Git  | HEAD, branch, uncommitted changes and proven external conflicts                                                           |
+| GitHub     | Default-branch CI and relevant new issues and PRs. Related issues and PRs go into the brief                               |
+
+Local Git checks follow goal scans. Online checks default to at least 24 hours apart and run automatically at most once per local day, with a startup check when overdue. Change the interval or select **Check now**. GitHub is anonymous by default and waits when its quota runs low. Store or remove a read-only GitHub token in goal details through the Harness credential provider. The panel shows its status only. On supported Node versions, set `NODE_USE_ENV_PROXY=1` and `HTTPS_PROXY` for a host that needs a proxy.
+
+The global switch defaults to off. You can turn off individual sources or a goal subscription. Goal completion or revocation stops future checks, while the trace keeps the existing observations.
+
+A proven external conflict holds new runs for the affected goal. Runs already underway finish normally. Use **View changes** to review commit and path evidence, then choose **Continue** or **Pause goal**. If both suggestion channels are off, resolve the hold in the goal details.
 
 ## Everyday auto-approval
 

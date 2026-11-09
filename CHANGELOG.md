@@ -1,12 +1,22 @@
 # Changelog
 
-## 1.4.0
+## 1.5.0
+
+Includes the previously unreleased 1.4.0 initiative updates. There was no standalone 1.4.0 release.
+
+- Project Radar is off by default. Each authorized goal can opt into observing direct npm/PyPI dependencies, local Git changes and its GitHub repository. The panel shows check history, request counts and errors.
+- Proven external conflicts hold new runs for the affected goal. Continue, pause or review the changes from the notification or goal details. Related GitHub issues and PRs appear in the daily brief.
 
 - Initiative suggestion cards and optional questions share the notification center and pet envelope. Cards are enabled by default and respect quiet hours, muting and delivery limits.
 - Suggestions link to evidence and offer existing management actions, snoozing and feedback. Read-only investigation drafts use the existing authorization editor.
 - The Initiative panel tracks effectiveness, explains reversible adjustments and can record suggestions that led to verified progress in Da Fei Yu’s journal.
 
 ### 中文
+
+本版合入原定 1.4.0 的主动性闭环。1.4.0 未单独发布。
+
+- 项目雷达默认关闭。可按已授权的目标订阅 npm/PyPI 直接依赖、本地 Git 改动和项目的 GitHub 仓库。面板显示检查记录、请求次数和失败原因。
+- 确认存在外部冲突时，相关目标暂停启动新执行，可从通知或目标详情继续、暂停或查看改动。相关 issue 和 PR 进入每日简报。
 
 - 主动建议卡默认开启，可选的主动询问默认关闭。通知中心和桌宠信封共用建议卡，遵守勿扰、静音和投递上限。
 - 建议附带证据、已有管理动作、稍后提醒与反馈。只读排查草案仍需通过面板审核授权。

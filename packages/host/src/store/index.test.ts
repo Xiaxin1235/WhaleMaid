@@ -87,6 +87,8 @@ test('migrations are ordered/idempotent; PRAGMAs and all required tables exist',
         'companion_journal',
         'companion_recall_state',
         'opportunities',
+        'radar_subscriptions',
+        'radar_observations',
       ].sort(),
     )
     expect(db.prepare('SELECT version FROM schema_migrations').all()).toEqual(
