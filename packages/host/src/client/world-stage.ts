@@ -198,7 +198,7 @@ export function WorldStage({
     if (actor.motion === 'walk' && position.x !== previous.current)
       facing.current = position.x < previous.current ? 'left' : 'right'
     previous.current = position.x
-    const scale = Math.max(0.1, Math.min(1.18, position.scale * 0.61))
+    const scale = position.scale * 0.29
     if (iframe.current)
       iframe.current.style.clipPath = `inset(${Math.max(3, height - 12 - 222 * scale)}px ${Math.max(5, width / 2 - 106 * scale)}px 7px)`
     send({
@@ -231,7 +231,7 @@ export function WorldStage({
         h('img', {
           src: image,
           alt: label,
-          style: { height: Math.min(185, Math.max(42, position.scale * 132)) },
+          style: { height: position.scale * 62 },
         }),
     ),
     state === 'fallback' && h('p', { className: 'whalemaid-world-stage-message', role: 'status' }, fallback),

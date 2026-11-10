@@ -237,6 +237,32 @@ const propPlaces: Point[] = [
   [0.51, 0.84],
   [0.84, 0.51],
 ]
+const deskPlace: Point = [0.65, 0.41]
+
+function desk(g: Brush, u: number, v: number) {
+  const corner = (du: number, dv: number, z = 0) => iso(u + du, v + dv, z)
+  const [x, y] = iso(u, v)
+  dot(g, x, y + 5, 34, 11, '#72527240')
+  const corners: Point[] = [
+    [-0.78, -0.5],
+    [0.78, -0.5],
+    [0.78, 0.5],
+    [-0.78, 0.5],
+  ]
+  for (const [du, dv] of corners) line(g, corner(du, dv), corner(du, dv, 33), '#946675', 4)
+  const top = corners.map(([du, dv]) => corner(du, dv, 37))
+  const rim = corners.map(([du, dv]) => corner(du, dv, 32))
+  poly(g, [top[1]!, top[2]!, rim[2]!, rim[1]!], '#a27179')
+  poly(g, [top[2]!, top[3]!, rim[3]!, rim[2]!], '#92616e')
+  poly(g, top, '#ddb195', '#ac7c7f')
+  poly(
+    g,
+    [corner(-0.25, -0.26, 38), corner(0.38, -0.26, 38), corner(0.38, 0.17, 38), corner(-0.25, 0.17, 38)],
+    '#fff3df',
+  )
+  line(g, corner(-0.09, -0.14, 38), corner(0.23, -0.14, 38), '#b58b7c')
+}
+
 const shadeFor = { dawn: 0.24, day: 0, evening: 0.39, night: 0.77 }
 export const worldShade = (world: WorldSnapshot) =>
   world.quiet ? Math.max(0.6, shadeFor[world.time]) : shadeFor[world.time]
@@ -248,7 +274,9 @@ export function actorPoint(
 ) {
   const room = layout.find((r) => r.id === actor.room) ?? layout[0]!
   return {
-    x: (room.x + (actor.door ? 263 : 178) - camera.x) * camera.zoom + offset.x,
+    x:
+      (room.x + (actor.door ? 263 : actor.motion === 'sit-work' ? 153 : 178) - camera.x) * camera.zoom +
+      offset.x,
     y: (room.y + (actor.door ? 256 : 221) - camera.y) * camera.zoom + offset.y,
     scale: camera.zoom,
   }
@@ -318,11 +346,16 @@ export function drawWorld(
       poly(g, door, '#a97782', '#f3d8dc')
       const [knobX, knobY] = iso(0, depth * 0.55, 31)
       dot(g, knobX, knobY, 3, 3, '#f3cb83')
-      room.items
+      const props: { item?: WorldProp; at: Point }[] = room.items
         .slice(0, room.slots)
         .map((item, index) => ({ item, at: propPlaces[index]! }))
+      props.push({ at: deskPlace })
+      props
         .sort((a, b) => a.at[0] + a.at[1] - b.at[0] - b.at[1])
-        .forEach(({ item, at }) => furniture(g, item, ...iso(at[0] * depth, at[1] * depth), elapsed))
+        .forEach(({ item, at: [u, v] }) => {
+          if (item) furniture(g, item, ...iso(u * depth, v * depth), elapsed)
+          else desk(g, u * depth, v * depth)
+        })
       for (let i = 0; i < room.mess * 2; i++) {
         const [dx, dy] = iso(depth * (0.37 + i * 0.072), depth * (0.75 - (i % 3) * 0.12))
         poly(
@@ -344,13 +377,7 @@ export function drawWorld(
         rect(g, fx - 28, fy - 21, 58, 23, '#dbc1de', 8)
         rect(g, fx + 8, fy - 19, 19, 16, '#f8e1e9', 6)
       }
-      if (id === 'hall' || id === 'kitchen') {
-        dot(g, fx, fy + 10, 32, 11, '#72527240')
-        rect(g, fx - 23, fy - 18, 46, 22, '#926972', 8)
-        dot(g, fx, fy - 17, 25, 10, '#d7a58f')
-        dot(g, fx - 7, fy - 19, 6, 4, '#f2ded3')
-        dot(g, fx + 9, fy - 14, 7, 4, '#f7e4e0')
-      }
+      if (id === 'hall' || id === 'kitchen') desk(g, deskPlace[0] * depth, deskPlace[1] * depth)
       if (id === 'gallery') {
         rect(g, 100, 157, 153, 58, '#936b7c', 9)
         rect(g, 107, 163, 139, 45, '#dfbca9', 6)
