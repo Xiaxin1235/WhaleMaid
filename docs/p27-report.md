@@ -38,7 +38,13 @@ Windows 上用 DSH 0.2.2-rc.1 的隔离配置 `whaledot-p02` 安装本地完整�
 
 场景截图和结果在 `.dsh-dev/p27-home-he9WXh/evidence-1794321146020/`，包括 `mansion-day.png`、`mansion-night.png`、`mansion-overview.png`、`mansion-second-browser.png`、`mansion-static.png`、`result.json` 和 `performance.json`。设置页截图 `mansion-settings.png` 和 `settings-result.json` 在同一隔离目录下的 `evidence-1794321279487/`。测试后已关闭隔离宿主。
 
-本地完整包为 `.dsh-dev/local-release/dsh-whalemaid-full.tgz`，对应源码提交 `fc0c36c7cb17c3818909d413e686b1703d3f2661`。SHA-256 为 `ca9909f7824de2d25151c6b36d729c1f0c554023e774509d2b17dd7d740a7e36`。
+上述实测对应源码提交 `fc0c36c7cb17c3818909d413e686b1703d3f2661`，当时完整包的 SHA-256 为 `ca9909f7824de2d25151c6b36d729c1f0c554023e774509d2b17dd7d740a7e36`。
+
+## 桌宠与工作桌的比例
+
+按作者反馈，在项目房间加上工作桌，缩小舞台角色和静止立绘。新版单间画面中，大肥鱼的坐姿高度与工作桌接近。用同样的 Windows 隔离夹具重装完整包，确认白天、夜晚、静止回退、点击表情、桌宠暂离和返回、房间切换以及楼层总览通过。截图对比与复测结果在 `.dsh-dev/p27-home-eUtCkS/evidence-1794321671952/` 的 `room-scale-comparison.jpg`、`mansion-night.png`、`mansion-static.png` 和 `result.json`。
+
+更新后的本地完整包在 `.dsh-dev/local-release/dsh-whalemaid-full.tgz`，对应源码提交 `4376e4d952f59cda3aec4c29e85fc88522802831`，SHA-256 为 `f6d865c936b3efafe5c9167641f4da23d9d047670f9ea04f286eb519de710ad6`。
 
 ## 已知限制
 
