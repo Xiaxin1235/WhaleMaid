@@ -193,68 +193,100 @@ function drawDoor(g: Brush, depth: number) {
   dot(g, x + 0.55, y - 0.4, 1.8, 1.8, '#e3bc7e')
 }
 
-function furniture(g: Brush, item: WorldProp, x: number, y: number, elapsed: number) {
+type Wall = 'left' | 'right'
+const wallView =
+  ([u, v]: Point, wall: Wall) =>
+  (along: number, outward: number, z = 0) =>
+    wall === 'left' ? iso(u + outward, v + along, z) : iso(u + along, v + outward, z)
+
+function drawCabinet(g: Brush, at: Point, wall: Wall, books?: WorldProp) {
+  const view = wallView(at, wall)
+  const half = books ? 0.7 : 0.64
+  const height = books ? 45 : 15
+  const front = (a: number, b: number, low: number, high: number, fill: string, edge?: string) =>
+    poly(g, [view(a, 0.32, low), view(b, 0.32, low), view(b, 0.32, high), view(a, 0.32, high)], fill, edge)
+  poly(
+    g,
+    [view(half, -0.32), view(half, 0.32), view(half, 0.32, height), view(half, -0.32, height)],
+    '#674f61',
+    '#584657',
+  )
+  front(-half, half, 0, height, '#8c6671', '#6d5262')
+  poly(
+    g,
+    [
+      view(-half, -0.32, height),
+      view(half, -0.32, height),
+      view(half, 0.32, height),
+      view(-half, 0.32, height),
+    ],
+    '#ba9180',
+    '#896674',
+  )
+  if (!books) {
+    front(-0.44, 0.44, 3, 12, '#a57b77', '#755763')
+    line(g, view(-0.13, 0.32, 7.5), view(0.13, 0.32, 7.5), '#e4bf85', 1.6)
+    return
+  }
+  for (let row = 0; row < 2; row++) {
+    const base = 4 + row * 20
+    front(-0.59, 0.59, base, base + 16, '#ab8174', '#694f5e')
+    line(g, view(-0.61, 0.32, base), view(0.61, 0.32, base), '#d8ad91', 1.7)
+    if (books.ratio !== undefined)
+      for (let n = 0; n < 5 && n + row * 5 < Math.ceil(books.ratio * 10); n++) {
+        const spine = -0.52 + n * 0.21
+        front(spine, spine + 0.17, base + 1, base + 13, ['#567987', '#e0b585', '#a5758f'][n % 3]!)
+        line(g, view(spine + 0.03, 0.32, base + 10), view(spine + 0.14, 0.32, base + 10), '#f6ddad')
+      }
+  }
+}
+
+function drawTank(g: Brush, item: WorldProp, at: Point, wall: Wall, elapsed: number) {
+  const view = wallView(at, wall)
+  const face = (low: number, high: number, glass: string, side: string, edge?: string) => {
+    poly(
+      g,
+      [view(0.59, -0.27, low), view(0.59, 0.27, low), view(0.59, 0.27, high), view(0.59, -0.27, high)],
+      side,
+      edge,
+    )
+    poly(
+      g,
+      [view(-0.59, 0.27, low), view(0.59, 0.27, low), view(0.59, 0.27, high), view(-0.59, 0.27, high)],
+      glass,
+      edge,
+    )
+  }
+  face(15, 44, '#d8e6e8', '#aac2ca', '#77959f')
+  if (item.ratio !== undefined && item.ratio > 0) {
+    const water = 16 + item.ratio * 25
+    face(16, water, item.failed ? '#958b7b' : '#619ca7', item.failed ? '#7d756d' : '#50828e')
+    line(g, view(-0.59, 0.27, water), view(0.59, 0.27, water), item.failed ? '#c9b6a1' : '#bee0e0')
+  }
+  poly(
+    g,
+    [view(-0.59, -0.27, 44), view(0.59, -0.27, 44), view(0.59, 0.27, 44), view(-0.59, 0.27, 44)],
+    '#c9e2e6',
+    '#77959f',
+  )
+  line(g, view(-0.47, 0.27, 40), view(-0.47, 0.27, 29), '#f3fcfa', 1.5)
+  if (item.running)
+    for (let i = 0; i < 3; i++)
+      dot(g, ...view(-0.28 + i * 0.23, 0.27, 17 + ((elapsed / 75 + i * 8) % 22)), 1.5, 1.5, '#fffefabf')
+}
+
+function propMeter(g: Brush, item: WorldProp, x: number, y: number) {
+  if (item.failed || item.wilted) dot(g, x + 17, y + 2, 3.2, 3.2, item.failed ? '#ae515e' : '#bc884d')
+  if (item.ratio !== undefined) {
+    rect(g, x - 15, y + 6, 30, 3, '#f4ded8', 1)
+    if (item.ratio > 0) rect(g, x - 15, y + 6, 30 * item.ratio, 3, '#497e82', 1)
+  }
+}
+
+function furniture(g: Brush, item: WorldProp, x: number, y: number) {
   dot(g, x, y + 4, 20, 7, '#473e5736')
   const ratio = item.ratio
-  if (item.kind === 'tank') {
-    rect(g, x - 20, y - 36, 40, 34, '#77959f', 4)
-    rect(g, x - 18, y - 34, 36, 30, '#d8e6e8', 2)
-    if (ratio !== undefined) {
-      const surface = y - 5 - ratio * 27
-      rect(g, x - 17, surface, 34, Math.max(2, ratio * 27), item.failed ? '#958b7b' : '#619ca7', 2)
-      line(g, [x - 15, surface + 1], [x + 15, surface + 1], item.failed ? '#c9b6a1' : '#bee0e0')
-    }
-    poly(
-      g,
-      [
-        [x + 10, y - 33],
-        [x + 16, y - 33],
-        [x + 4, y - 7],
-        [x, y - 7],
-      ],
-      '#f2ffff52',
-    )
-    line(g, [x - 15, y - 30], [x - 15, y - 19], '#f3fcfa', 1.5)
-    if (item.running)
-      for (let i = 0; i < 3; i++)
-        dot(g, x - 9 + i * 7, y - 5 - ((elapsed / 75 + i * 8) % 24), 1.6, 1.6, '#fffefabf')
-    rect(g, x - 21, y - 5, 42, 7, '#755461')
-    line(g, [x - 19, y - 3], [x + 19, y - 3], '#c79a74')
-  } else if (item.kind === 'books') {
-    rect(g, x - 19, y - 43, 38, 43, '#7d5965')
-    poly(
-      g,
-      [
-        [x + 19, y - 43],
-        [x + 24, y - 47],
-        [x + 24, y - 5],
-        [x + 19, y],
-      ],
-      '#5c485b',
-    )
-    poly(
-      g,
-      [
-        [x - 19, y - 43],
-        [x - 14, y - 47],
-        [x + 24, y - 47],
-        [x + 19, y - 43],
-      ],
-      '#aa827b',
-    )
-    for (let row = 0; row < 2; row++) {
-      const shelf = y - 40 + row * 19
-      rect(g, x - 16, shelf, 32, 16, '#b98c7b', 1)
-      line(g, [x - 16, shelf + 16], [x + 16, shelf + 16], '#deb899', 1.5)
-      if (ratio !== undefined)
-        for (let n = 0; n < 5; n++) {
-          if (n + row * 5 >= Math.ceil(ratio * 10)) break
-          const spine = x - 14 + n * 6
-          rect(g, spine, shelf + 3, 5, 13, ['#567987', '#e0b585', '#a5758f'][n % 3]!, 1)
-          line(g, [spine + 1, shelf + 6], [spine + 4, shelf + 6], '#f6ddad')
-        }
-    }
-  } else if (item.kind === 'plant') {
+  if (item.kind === 'plant') {
     const height = 6 + 31 * (ratio ?? 0)
     const tip = y - 8 - height
     const lean = item.wilted ? 8 : 0
@@ -350,7 +382,7 @@ function furniture(g: Brush, item: WorldProp, x: number, y: number, elapsed: num
     rect(g, x - 12, y - 17, 17, 7, '#dbd7d4', 2)
     line(g, [x - 7, y - 17], [x - 7, y - 11], '#8192a9', 2)
     for (const row of [-10, -6, -2]) line(g, [x - 13, y + row], [x + 13, y + row], '#e4c396')
-  } else {
+  } else if (item.kind === 'keepsake') {
     rect(g, x - 14, y - 5, 28, 7, '#725761')
     line(g, [x - 11, y - 3], [x + 11, y - 3], '#bd906d')
     poly(
@@ -368,11 +400,7 @@ function furniture(g: Brush, item: WorldProp, x: number, y: number, elapsed: num
     line(g, [x + 1, y - 20], [x + 1, y - 24], '#bacdd0')
     dot(g, x + 4, y - 24, 1.4, 1.1, '#e0ece8')
   }
-  if (item.failed || item.wilted) dot(g, x + 17, y + 2, 3.2, 3.2, item.failed ? '#ae515e' : '#bc884d')
-  if (ratio !== undefined) {
-    rect(g, x - 15, y + 6, 30, 3, '#f4ded8', 1)
-    if (ratio > 0) rect(g, x - 15, y + 6, 30 * ratio, 3, '#497e82', 1)
-  }
+  propMeter(g, item, x, y)
 }
 
 const deskPlace: Point = [3.65, 1.42]
@@ -386,37 +414,48 @@ function drawRoomFurniture(g: Brush, room: WorldRoom, depth: number, elapsed: nu
   }
   const lamp = take(['lamp'])
   const papers = take(['tray']) ?? take(['files'])
-  const sites: { at: Point; kinds: readonly WorldProp['kind'][] }[] = [
-    { at: [0.55, depth * 0.29], kinds: ['books'] },
-    { at: [2.11, 0.55], kinds: ['tank'] },
-    { at: [0.58, depth - 0.53], kinds: ['toolbox', 'basket'] },
+  const sites: { at: Point; wall?: Wall; kinds: readonly WorldProp['kind'][] }[] = [
+    { at: [0.55, depth * 0.29], wall: 'left', kinds: ['books'] },
+    { at: [2.11, 0.55], wall: 'right', kinds: ['tank'] },
+    { at: [0.58, depth - 0.68], wall: 'left', kinds: ['toolbox', 'basket'] },
     { at: [depth - 0.48, 1.81], kinds: ['basket', 'toolbox'] },
-    { at: [0.53, 0.47], kinds: ['plant'] },
-    { at: [0.58, depth * 0.65 - 1.03], kinds: ['keepsake'] },
-    { at: [depth - 0.65, 0.54], kinds: ['files', 'tray'] },
-    { at: [3.42, 0.54], kinds: [] },
+    { at: [0.53, 0.47], wall: 'right', kinds: ['plant'] },
+    { at: [0.58, depth * 0.65 - 1.03], wall: 'left', kinds: ['keepsake'] },
+    { at: [depth - 0.72, 0.54], wall: 'right', kinds: ['files', 'tray'] },
+    { at: [3.42, 0.54], wall: 'right', kinds: [] },
   ]
   const preferred = sites.map(({ kinds }) => take(kinds))
-  const placements = sites.map(({ at }, i) => ({ at, piece: preferred[i] ?? pieces.shift() }))
-  placements.push({ at: deskPlace, piece: undefined })
+  const placements = sites.map(({ at, wall }, i) => ({ at, wall, piece: preferred[i] ?? pieces.shift() }))
+  placements.push({ at: deskPlace, wall: undefined, piece: undefined })
   placements.sort((a, b) => a.at[0] + a.at[1] - b.at[0] - b.at[1])
-  for (const { at, piece } of placements) {
+  for (const { at, wall, piece } of placements) {
     if (at === deskPlace) {
-      desk(g, ...at, elapsed, lamp, papers)
+      desk(g, ...at, lamp, papers)
       continue
     }
     if (!piece) continue
-    const [x, y] = iso(...at)
-    if (piece.kind === 'tank' || piece.kind === 'files' || piece.kind === 'keepsake') {
-      rect(g, x - 14, y - 12, 28, 13, '#795a67', 2)
-      rect(g, x - 17, y - 14, 34, 4, '#bd937e', 1)
-      line(g, [x - 4, y - 6], [x + 4, y - 6], '#d6ae78', 1.5)
-      furniture(g, piece, x, y - 13, elapsed)
-    } else furniture(g, piece, x, y, elapsed)
+    if (
+      piece.kind === 'books' ||
+      piece.kind === 'tank' ||
+      piece.kind === 'files' ||
+      piece.kind === 'keepsake'
+    ) {
+      const center: Point =
+        wall === 'left'
+          ? [0.35, Math.max(0.72, at[1])]
+          : wall === 'right'
+            ? [Math.max(0.72, at[0]), 0.35]
+            : at
+      const face = wall ?? 'right'
+      drawCabinet(g, center, face, piece.kind === 'books' ? piece : undefined)
+      if (piece.kind === 'tank') drawTank(g, piece, center, face, elapsed)
+      if (piece.kind === 'books' || piece.kind === 'tank') propMeter(g, piece, ...iso(...center))
+      else furniture(g, piece, ...iso(...center, 15))
+    } else furniture(g, piece, ...iso(...at))
   }
 }
 
-function desk(g: Brush, u: number, v: number, elapsed: number, lamp?: WorldProp, papers?: WorldProp) {
+function desk(g: Brush, u: number, v: number, lamp?: WorldProp, papers?: WorldProp) {
   const corner = (du: number, dv: number, z = 0) => iso(u + du, v + dv, z)
   const [x, y] = iso(u, v)
   dot(g, x, y + 5, 34, 11, '#72527240')
@@ -468,7 +507,7 @@ function desk(g: Brush, u: number, v: number, elapsed: number, lamp?: WorldProp,
     g.save()
     g.translate(...at)
     g.scale(0.62, 0.62)
-    furniture(g, piece, 0, 0, elapsed)
+    furniture(g, piece, 0, 0)
     g.restore()
   }
 }
@@ -581,7 +620,7 @@ export function drawWorld(
       }
     } else {
       if (id === 'bedroom') bed(g)
-      if (id === 'hall' || id === 'kitchen') desk(g, ...deskPlace, elapsed)
+      if (id === 'hall' || id === 'kitchen') desk(g, ...deskPlace)
       if (id === 'gallery') {
         rect(g, 106, 208, 7, 11, '#7b5565')
         rect(g, 240, 208, 7, 11, '#7b5565')
