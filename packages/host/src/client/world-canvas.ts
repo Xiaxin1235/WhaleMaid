@@ -179,17 +179,18 @@ function drawRug(g: Brush, depth: number) {
 }
 
 function drawDoor(g: Brush, depth: number) {
-  const left = depth * 0.47,
-    right = depth * 0.82
+  const center = depth * 0.65
+  const left = center - 0.55,
+    right = center + 0.55
   const panel = (a: number, b: number, bottom: number, top: number, fill: string, edge: string) =>
     poly(g, [iso(0, a, bottom), iso(0, b, bottom), iso(0, b, top), iso(0, a, top)], fill, edge)
-  panel(left - 0.12, right + 0.12, 0, 69, '#e3cab8', '#af8c93')
-  panel(left, right, 0, 66, '#926f7c', '#765965')
-  panel(left + 0.22, right - 0.22, 36, 61, '#a9818b', '#c29aa0')
-  panel(left + 0.22, right - 0.22, 7, 24, '#a6818b', '#c29aa0')
-  const [x, y] = iso(0, left + 0.37, 30)
-  dot(g, x, y, 2.7, 3.6, '#775965')
-  dot(g, x + 0.7, y - 0.4, 2.3, 2.3, '#e3bc7e')
+  panel(left - 0.08, right + 0.08, 0, 73, '#e3cab8', '#af8c93')
+  panel(left, right, 0, 70, '#926f7c', '#765965')
+  panel(left + 0.13, right - 0.13, 36, 64, '#a9818b', '#c29aa0')
+  panel(left + 0.13, right - 0.13, 7, 25, '#a6818b', '#c29aa0')
+  const [x, y] = iso(0, left + 0.18, 31)
+  dot(g, x, y, 2, 3.2, '#775965')
+  dot(g, x + 0.55, y - 0.4, 1.8, 1.8, '#e3bc7e')
 }
 
 function furniture(g: Brush, item: WorldProp, x: number, y: number, elapsed: number) {
@@ -301,6 +302,54 @@ function furniture(g: Brush, item: WorldProp, x: number, y: number, elapsed: num
     )
     for (const pleat of [-1, 0, 1]) line(g, [x + pleat * 4, y - 33], [x + pleat * 8, y - 19], '#f7e1bc')
     dot(g, x, y - 18, 13, 2, item.running ? '#fff3c3' : '#a7877b')
+  } else if (item.kind === 'files') {
+    rect(g, x - 15, y - 27, 30, 25, '#667d8b', 2)
+    rect(g, x - 11, y - 33, 19, 19, '#f1e1c7', 1)
+    rect(g, x - 9, y - 36, 17, 19, '#a8889a', 1)
+    rect(g, x - 5, y - 29, 16, 17, '#e5c49c', 1)
+    poly(
+      g,
+      [
+        [x - 15, y - 18],
+        [x + 15, y - 18],
+        [x + 13, y],
+        [x - 13, y],
+      ],
+      '#5d7789',
+      '#495e72',
+    )
+    rect(g, x - 6, y - 13, 12, 6, '#cfa87b', 1)
+    line(g, [x - 3, y - 10], [x + 3, y - 10], '#7b6267')
+  } else if (item.kind === 'toolbox') {
+    rect(g, x - 7, y - 27, 14, 8, '#7a5b5a', 3)
+    rect(g, x - 4, y - 25, 8, 4, '#c09a78', 1)
+    rect(g, x - 18, y - 21, 36, 21, '#a17369', 3)
+    rect(g, x - 18, y - 21, 36, 7, '#b88b78', 2)
+    line(g, [x - 17, y - 13], [x + 17, y - 13], '#795853')
+    for (const latch of [-10, 10]) rect(g, x + latch - 2, y - 16, 4, 6, '#e2b979', 1)
+  } else if (item.kind === 'tray') {
+    rect(g, x - 18, y - 14, 36, 15, '#825f69', 3)
+    rect(g, x - 15, y - 12, 30, 10, '#b28677', 2)
+    rect(g, x - 12, y - 16, 22, 11, '#d6b18c', 1)
+    rect(g, x - 10, y - 18, 20, 11, '#f0ddc1', 1)
+    for (const row of [-15, -12]) line(g, [x - 7, y + row], [x + 6, y + row], '#c09e87')
+    line(g, [x - 16, y - 3], [x + 16, y - 3], '#c99f84', 2)
+  } else if (item.kind === 'basket') {
+    poly(
+      g,
+      [
+        [x - 17, y - 14],
+        [x + 17, y - 14],
+        [x + 13, y],
+        [x - 13, y],
+      ],
+      '#b68b65',
+      '#927059',
+    )
+    dot(g, x, y - 14, 17, 5.5, '#805f55')
+    rect(g, x - 12, y - 17, 17, 7, '#dbd7d4', 2)
+    line(g, [x - 7, y - 17], [x - 7, y - 11], '#8192a9', 2)
+    for (const row of [-10, -6, -2]) line(g, [x - 13, y + row], [x + 13, y + row], '#e4c396')
   } else {
     rect(g, x - 14, y - 5, 28, 7, '#725761')
     line(g, [x - 11, y - 3], [x + 11, y - 3], '#bd906d')
@@ -319,7 +368,7 @@ function furniture(g: Brush, item: WorldProp, x: number, y: number, elapsed: num
     line(g, [x + 1, y - 20], [x + 1, y - 24], '#bacdd0')
     dot(g, x + 4, y - 24, 1.4, 1.1, '#e0ece8')
   }
-  if (item.failed) dot(g, x + 13, y - 29, 4, 4, '#ae515e')
+  if (item.failed || item.wilted) dot(g, x + 17, y + 2, 3.2, 3.2, item.failed ? '#ae515e' : '#bc884d')
   if (ratio !== undefined) {
     rect(g, x - 15, y + 6, 30, 3, '#f4ded8', 1)
     if (ratio > 0) rect(g, x - 15, y + 6, 30 * ratio, 3, '#497e82', 1)

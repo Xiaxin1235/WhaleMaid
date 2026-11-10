@@ -110,6 +110,16 @@ describe('project facts into the mansion', () => {
     ])
     expect(room.items[4]?.kind).toBe('keepsake')
   })
+
+  test('uses a single plant and distinct furnishings across the eight displayed slots', () => {
+    const tasks = Array.from({ length: 10 }, (_, i) => task(i))
+    tasks[1] = task(1, { state: 'VERIFYING', stalled: true })
+    const { items } = world([goal(1, { tasks })]).rooms[0]!
+    expect(new Set(items.slice(0, 8).map(({ kind }) => kind)).size).toBe(8)
+    expect(items.filter(({ kind }) => kind === 'plant')).toHaveLength(1)
+    expect(items[1]).toMatchObject({ kind: 'files', state: 'VERIFYING', ratio: 0.76, wilted: true })
+    expect(items.every(({ count }) => count === undefined)).toBe(true)
+  })
 })
 
 test.each([0, 1, 4, 5, 20, 40])('lays out %i goals without overlapping projected rooms', (count) => {

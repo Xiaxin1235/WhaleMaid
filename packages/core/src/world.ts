@@ -28,8 +28,10 @@ export type WorldPreferencePatch = z.infer<typeof WorldPreferencePatchSchema>
 
 const progress = z.strictObject({ done: z.int().nonnegative(), total: z.int().positive() })
 const task = z.strictObject({ id: TaskIdSchema, title: z.string(), state: TaskStateSchema })
+const stageFurniture = ['plant', 'files', 'toolbox', 'tray', 'basket'] as const
+const spareFurniture = ['plant', 'files', 'lamp', 'books', 'toolbox', 'tray', 'basket', 'tank'] as const
 const prop = task.extend({
-  kind: z.enum(['tank', 'books', 'plant', 'lamp', 'keepsake']),
+  kind: z.enum([...stageFurniture, 'tank', 'books', 'lamp', 'keepsake']),
   ratio: z.number().min(0).max(1).optional(),
   count: progress.optional(),
   running: z.boolean(),
@@ -151,10 +153,9 @@ function makeRoom(fact: WorldGoalFact): WorldRoom {
     }
   }
   const items = visible.map((t): WorldProp => {
-    const options = t.running
-      ? (['lamp', 'plant', 'books', 'tank'] as const)
-      : (['plant', 'books', 'lamp', 'tank'] as const)
-    const kind = kinds.get(t.id) ?? options.find((key) => !used.has(key)) ?? options[0]
+    const spare = spareFurniture.find((key) => !used.has(key))
+    const kind =
+      kinds.get(t.id) ?? (t.running && !used.has('lamp') ? 'lamp' : spare) ?? (t.running ? 'lamp' : 'files')
     used.add(kind)
     const total = t.tests ? t.tests.passed + t.tests.failed : 0
     const count =
@@ -168,7 +169,7 @@ function makeRoom(fact: WorldGoalFact): WorldRoom {
     >
     const ratio = count
       ? Math.min(1, count.done / count.total)
-      : kind === 'plant'
+      : stageFurniture.some((piece) => piece === kind)
         ? phase[t.state]
         : undefined
     return { ...pick(t), kind, ratio, count, running: t.running, failed: t.failed, wilted: t.stalled }
