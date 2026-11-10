@@ -50,7 +50,13 @@ Windows 上用 DSH 0.2.2-rc.1 的隔离配置 `whaledot-p02` 安装本地完整�
 
 保留单间尺寸与桌宠比例，采用暖木、蓝紫织物和旧铜的配色。工作桌有抽屉与茶杯，房间加了护墙板、束帘和织纹地毯，任务摆件保留原有进度与状态反馈。用 Windows 隔离夹具重装，查看了白天、夜晚、待决定房间、失败房间、卧室和陈列室，并复测舞台、信件、便签和陈列品的交互。截图对比 `mansion-furnishings-comparison.jpg` 和结果 `result.json` 在 `.dsh-dev/p27-home-9OOWRZ/evidence-1794322091741/`。单间采样 3.50 秒，约 22.0 帧/秒，主渲染线程任务时间约 16.2%。
 
-当前本地完整包在 `.dsh-dev/local-release/dsh-whalemaid-full.tgz`，对应源码提交 `81d1c181232834b4e093ad653fb9c2e1ba0e00cb`，SHA-256 为 `ce9c08f50a903c1588f9296d35be9a3c425f21415c4d0c0d0dc039ed0d687ed6`。
+该轮完整包对应源码提交 `81d1c181232834b4e093ad653fb9c2e1ba0e00cb`，SHA-256 为 `ce9c08f50a903c1588f9296d35be9a3c425f21415c4d0c0d0dc039ed0d687ed6`。
+
+## 门与家具的比例
+
+项目房间使用固定宽度的单扇门。大房门连门框约比前一版窄 45%，小房使用相同尺寸。每间最多一盆绿植，新增文件架、工具箱、文件托盘和编织收纳篮。已知验收计数与结构化步骤仍优先使用水缸和书架，通用家具下方的进度条反映任务阶段。隔离实测核对了四任务小房、八任务大房、列表里的家具名称及原有交互。截图对比 `mansion-door-furniture-comparison.jpg` 和结果 `result.json` 在 `.dsh-dev/p27-home-iC07wN/evidence-1794322747883/`。
+
+当前本地完整包在 `.dsh-dev/local-release/dsh-whalemaid-full.tgz`，对应源码提交 `a89286869a8e71a8318ddc619c418b4bfdb64b75`，SHA-256 为 `b373d30d3376a217f530f54ecf5fe166063cd1782610d29d0a323fa0e373b686`。
 
 ## 已知限制
 
