@@ -403,10 +403,12 @@ function furniture(g: Brush, item: WorldProp, x: number, y: number) {
   propMeter(g, item, x, y)
 }
 
-const deskPlace: Point = [3.65, 1.42]
-const workSeat = iso(deskPlace[0] - 0.65, deskPlace[1] + 1.25)
+const sharedDesk: Point = [3.65, 1.42]
+const roomDepth = (room?: WorldRoom) => (room?.slots === 4 ? 4.9 : room?.slots === 6 ? 5.35 : 5.85)
+const projectDesk = (depth: number): Point => [depth * 0.7, depth * 0.7]
 
 function drawRoomFurniture(g: Brush, room: WorldRoom, depth: number, elapsed: number) {
+  const deskPlace = projectDesk(depth)
   const pieces = room.items.slice(0, room.slots)
   const take = (kinds: readonly WorldProp['kind'][]) => {
     const index = pieces.findIndex(({ kind }) => kinds.includes(kind))
@@ -534,12 +536,15 @@ export const worldShade = (world: WorldSnapshot) =>
   world.quiet ? Math.max(0.6, shadeFor[world.time]) : shadeFor[world.time]
 export function actorPoint(
   layout: ReturnType<typeof worldLayout>,
-  actor: WorldSnapshot['actor'],
+  world: WorldSnapshot,
   camera: Camera,
   offset: { x: number; y: number },
 ) {
+  const { actor } = world
   const room = layout.find((r) => r.id === actor.room) ?? layout[0]!
-  const [x, y] = actor.door ? [263, 256] : actor.motion === 'sit-work' ? workSeat : [178, 221]
+  const project = world.rooms.find((r) => r.id === actor.room)
+  const [u, v] = project ? projectDesk(roomDepth(project)) : sharedDesk
+  const [x, y] = actor.door ? [263, 256] : actor.motion === 'sit-work' ? iso(u - 0.65, v + 1.25) : [178, 221]
   return {
     x: (room.x + x - camera.x) * camera.zoom + offset.x,
     y: (room.y + y - camera.y) * camera.zoom + offset.y,
@@ -583,7 +588,7 @@ export function drawWorld(
       py = (y - camera.y) * camera.zoom + offset.y
     if (px > width || px + 365 * camera.zoom < 0 || py > height || py + 310 * camera.zoom < 0) continue
     const room = byId.get(id)
-    const depth = room?.slots === 4 ? 4.9 : room?.slots === 6 ? 5.35 : 5.85
+    const depth = roomDepth(room)
     const tag = (localX: number, localY: number, w: number, h: number, kind: Hit['kind'], id: string) =>
       hits.push({
         x: px + localX * camera.zoom,
@@ -620,7 +625,7 @@ export function drawWorld(
       }
     } else {
       if (id === 'bedroom') bed(g)
-      if (id === 'hall' || id === 'kitchen') desk(g, ...deskPlace)
+      if (id === 'hall' || id === 'kitchen') desk(g, ...sharedDesk)
       if (id === 'gallery') {
         rect(g, 106, 208, 7, 11, '#7b5565')
         rect(g, 240, 208, 7, 11, '#7b5565')
@@ -657,7 +662,7 @@ export function drawWorld(
         `rgba(32,31,73,${glow})`,
       )
     if (room?.working) {
-      const [lightX, lightY] = iso(...deskPlace, 20)
+      const [lightX, lightY] = iso(...projectDesk(depth), 20)
       const light = g.createRadialGradient(lightX, lightY, 4, lightX, lightY, 72)
       light.addColorStop(0, '#ffd98448')
       light.addColorStop(1, '#ffd98400')

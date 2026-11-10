@@ -662,7 +662,7 @@ function WorldCanvas({
     )
   }
   const tooltip = snapshot.rooms.find((room) => room.id === hover && (!camera.room || camera.room === hover))
-  const actor = actorPoint(layout, snapshot.actor, camera, { x: size.width / 2, y: size.height / 2 })
+  const actor = actorPoint(layout, snapshot, camera, { x: size.width / 2, y: size.height / 2 })
   return h(
     'div',
     { className: 'whalemaid-world-scene', 'data-room': camera.room ?? '' },
