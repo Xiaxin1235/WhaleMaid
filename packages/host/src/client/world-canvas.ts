@@ -80,28 +80,41 @@ function shell(g: Brush, depth: number, closed: boolean, shade: number) {
     west = iso(0, depth)
   const down = ([x, y]: Point): Point => [x, y + 12]
   dot(g, 178, 240, 162, 52, '#26365616')
-  poly(g, [west, south, down(south), down(west)], '#776986')
-  poly(g, [south, east, down(east), down(south)], '#98829b')
-  poly(g, [corner, east, south, west], '#dbad8f', '#ae8089')
+  poly(g, [west, south, down(south), down(west)], '#72556a')
+  poly(g, [south, east, down(east), down(south)], '#8b6472')
+  poly(g, [corner, east, south, west], '#d8aa8b', '#a47772')
   for (let i = 1; i < depth * 3; i++) {
     const u = i / 3
-    if (u >= depth) break
-    line(g, iso(u, 0), iso(u, depth), i % 3 ? '#9165552c' : '#af7f70')
+    if (i % 3 === 1)
+      poly(g, [iso(u - 1 / 3, 0), iso(u, 0), iso(u, depth), iso(u - 1 / 3, depth)], '#fff2d633')
+    line(g, iso(u, 0), iso(u, depth), '#90665356')
     const v = (((i % 4) + 1) * depth) / 5
     line(g, iso(u - 1 / 3, v), iso(u, v), '#966f6b6b')
   }
-  poly(g, [corner, west, iso(0, depth, 106), iso(0, 0, 106)], '#b5a7d3', '#8e80ac')
-  poly(g, [corner, east, iso(depth, 0, 106), iso(0, 0, 106)], '#d9c7de', '#a894b3')
-  for (let i = 0.3; i < depth; i += 0.32) {
-    line(g, iso(i, 0, 10), iso(i, 0, 105), '#fff4f355', 2)
-    line(g, iso(0, i, 10), iso(0, i, 105), '#e0cceb55', 2)
+  poly(g, [corner, west, iso(0, depth, 106), iso(0, 0, 106)], '#aaa2c2', '#8a7f9e')
+  poly(g, [corner, east, iso(depth, 0, 106), iso(0, 0, 106)], '#d4c5d7', '#a995ad')
+  for (let i = 0.25; i < depth; i += 0.42) {
+    line(g, iso(i, 0, 28), iso(i, 0, 104), '#fff4f353', 1.5)
+    line(g, iso(0, i, 28), iso(0, i, 104), '#ede0f34b', 1.5)
   }
-  for (const z of [3, 8, 103]) {
-    line(g, iso(0, depth, z), iso(0, 0, z), '#f4dfed', 3)
-    line(g, iso(0, 0, z), iso(depth, 0, z), '#f4dfed', 3)
+  poly(g, [corner, west, iso(0, depth, 26), iso(0, 0, 26)], '#9186a6')
+  poly(g, [corner, east, iso(depth, 0, 26), iso(0, 0, 26)], '#afa0b7')
+  for (let i = 0.55; i < depth; i += 0.56) {
+    line(g, iso(i, 0, 5), iso(i, 0, 24), '#8a769b66')
+    line(g, iso(0, i, 5), iso(0, i, 24), '#6f638266')
   }
+  for (const z of [4, 26, 103]) {
+    line(g, iso(0, depth, z), iso(0, 0, z), '#e5d4de', 2)
+    line(g, iso(0, 0, z), iso(depth, 0, z), '#fae9e2', 2)
+  }
+  drawWindow(g, depth, closed, shade)
+  drawRug(g, depth)
+}
+
+function drawWindow(g: Brush, depth: number, closed: boolean, shade: number) {
   const a = depth * 0.27,
-    b = depth * 0.71
+    b = depth * 0.71,
+    mid = (a + b) / 2
   const pane = (left: number, right: number, bottom: number, top: number, fill: string) =>
     poly(
       g,
@@ -118,80 +131,152 @@ function shell(g: Brush, depth: number, closed: boolean, shade: number) {
     1,
     `rgb(${Math.round(255 - shade * 87)} ${Math.round(224 - shade * 101)} ${Math.round(214 - shade * 44)})`,
   )
-  poly(g, [iso(a, 0, 37), iso(b, 0, 37), iso(b, 0, 86), iso(a, 0, 86)], '#dac7db')
+  pane(a - 0.1, b + 0.1, 35, 89, '#8e778e')
+  pane(a, b, 37, 86, '#dac7db')
   g.save()
   g.clip()
   g.fillStyle = sky
   g.fillRect(170, 55, 140, 140)
   g.restore()
-  line(g, iso(a, 0, 37), iso(b, 0, 37), '#fff1ea', 4)
-  line(g, iso((a + b) / 2, 0, 37), iso((a + b) / 2, 0, 86), '#f6edf1', 2)
+  line(g, iso(a - 0.14, 0, 37), iso(b + 0.14, 0, 37), '#fff1ea', 4)
+  line(g, iso(mid, 0, 37), iso(mid, 0, 86), '#f6edf1', 2)
   line(g, iso(a, 0, 61), iso(b, 0, 61), '#f6edf1', 2)
-  pane(a - 0.15, a + (closed ? (b - a) / 2 : 0.27), 31, 90, '#997ca5')
-  pane(b - (closed ? (b - a) / 2 : 0.27), b + 0.15, 31, 90, '#b093b4')
-  const rug: Point[] = [
-    [0.33, 0.33],
-    [0.76, 0.33],
-    [0.76, 0.78],
-    [0.33, 0.78],
-  ].map(([u, v]) => iso(u! * depth, v! * depth))
-  poly(g, rug, '#9c84ae', '#f2d3da')
-  poly(
-    g,
-    [
-      [0.38, 0.38],
-      [0.71, 0.38],
-      [0.71, 0.73],
-      [0.38, 0.73],
-    ].map(([u, v]) => iso(u! * depth, v! * depth)),
-    '#b99ab9',
-    '#d9b4cd',
-  )
-  const [rugX, rugY] = iso(depth * 0.55, depth * 0.56)
-  dot(g, rugX, rugY, 19, 8, '#e3bed0')
-  dot(g, rugX, rugY, 9, 4, '#fae4de')
+  line(g, iso(a - 0.35, 0, 94), iso(b + 0.35, 0, 94), '#ae8866', 2.5)
+  for (const [edge, direction] of [
+    [a, 1],
+    [b, -1],
+  ] as const) {
+    const curtain = (offset: number, z: number) => iso(edge + direction * offset, 0, z)
+    const reach = closed ? (b - a) / 2 : 0.42
+    poly(
+      g,
+      [
+        curtain(-0.24, 92),
+        curtain(reach, 92),
+        curtain(closed ? reach : 0.08, 56),
+        curtain(reach, 31),
+        curtain(-0.28, 31),
+      ],
+      direction > 0 ? '#77709b' : '#8f7fa8',
+      '#716689',
+    )
+    line(g, curtain(-0.08, 90), curtain(-0.13, 33), '#c6b4cb85', 2)
+    if (!closed) line(g, curtain(-0.25, 55), curtain(0.13, 55), '#eacb91', 2)
+  }
+}
+
+function drawRug(g: Brush, depth: number) {
+  const at = (u: number, v: number) => iso(u * depth, v * depth, 1)
+  const patch = (a: number, b: number, c: number, d: number, color: string, edge: string) =>
+    poly(g, [at(a, b), at(c, b), at(c, d), at(a, d)], color, edge)
+  patch(0.33, 0.33, 0.77, 0.79, '#766488', '#f2d3bd')
+  patch(0.36, 0.36, 0.74, 0.76, '#a18ba6', '#dcbfa9')
+  patch(0.39, 0.39, 0.71, 0.73, '#af96ac', '#d0aec0')
+  poly(g, [at(0.55, 0.43), at(0.67, 0.56), at(0.55, 0.69), at(0.43, 0.56)], '#caabb7', '#e6cbbf')
+  const [x, y] = at(0.55, 0.56)
+  dot(g, x, y, 9, 4, '#f0d8c2')
+  for (let u = 0.35; u < 0.77; u += 0.035) line(g, at(u, 0.79), at(u, 0.808), '#ecd5ba')
+}
+
+function drawDoor(g: Brush, depth: number) {
+  const left = depth * 0.47,
+    right = depth * 0.82
+  const panel = (a: number, b: number, bottom: number, top: number, fill: string, edge: string) =>
+    poly(g, [iso(0, a, bottom), iso(0, b, bottom), iso(0, b, top), iso(0, a, top)], fill, edge)
+  panel(left - 0.12, right + 0.12, 0, 69, '#e3cab8', '#af8c93')
+  panel(left, right, 0, 66, '#926f7c', '#765965')
+  panel(left + 0.22, right - 0.22, 36, 61, '#a9818b', '#c29aa0')
+  panel(left + 0.22, right - 0.22, 7, 24, '#a6818b', '#c29aa0')
+  const [x, y] = iso(0, left + 0.37, 30)
+  dot(g, x, y, 2.7, 3.6, '#775965')
+  dot(g, x + 0.7, y - 0.4, 2.3, 2.3, '#e3bc7e')
 }
 
 function furniture(g: Brush, item: WorldProp, x: number, y: number, elapsed: number) {
   dot(g, x, y + 4, 20, 7, '#473e5736')
   const ratio = item.ratio
   if (item.kind === 'tank') {
-    rect(g, x - 19, y - 35, 38, 34, '#d7edf1', 5)
-    if (ratio !== undefined)
-      rect(g, x - 16, y - 3 - ratio * 28, 32, Math.max(2, ratio * 28), item.failed ? '#8f897f' : '#64b1bf', 2)
-    line(g, [x - 14, y - 30], [x - 7, y - 30], '#fffefa', 2)
+    rect(g, x - 20, y - 36, 40, 34, '#77959f', 4)
+    rect(g, x - 18, y - 34, 36, 30, '#d8e6e8', 2)
+    if (ratio !== undefined) {
+      const surface = y - 5 - ratio * 27
+      rect(g, x - 17, surface, 34, Math.max(2, ratio * 27), item.failed ? '#958b7b' : '#619ca7', 2)
+      line(g, [x - 15, surface + 1], [x + 15, surface + 1], item.failed ? '#c9b6a1' : '#bee0e0')
+    }
+    poly(
+      g,
+      [
+        [x + 10, y - 33],
+        [x + 16, y - 33],
+        [x + 4, y - 7],
+        [x, y - 7],
+      ],
+      '#f2ffff52',
+    )
+    line(g, [x - 15, y - 30], [x - 15, y - 19], '#f3fcfa', 1.5)
     if (item.running)
       for (let i = 0; i < 3; i++)
-        dot(g, x - 9 + i * 7, y - 4 - ((elapsed / 75 + i * 8) % 24), 2, 2, '#fffefa')
-    rect(g, x - 20, y - 4, 40, 6, '#827890')
+        dot(g, x - 9 + i * 7, y - 5 - ((elapsed / 75 + i * 8) % 24), 1.6, 1.6, '#fffefabf')
+    rect(g, x - 21, y - 5, 42, 7, '#755461')
+    line(g, [x - 19, y - 3], [x + 19, y - 3], '#c79a74')
   } else if (item.kind === 'books') {
-    rect(g, x - 18, y - 42, 36, 44, '#936a73')
+    rect(g, x - 19, y - 43, 38, 43, '#7d5965')
+    poly(
+      g,
+      [
+        [x + 19, y - 43],
+        [x + 24, y - 47],
+        [x + 24, y - 5],
+        [x + 19, y],
+      ],
+      '#5c485b',
+    )
+    poly(
+      g,
+      [
+        [x - 19, y - 43],
+        [x - 14, y - 47],
+        [x + 24, y - 47],
+        [x + 19, y - 43],
+      ],
+      '#aa827b',
+    )
     for (let row = 0; row < 2; row++) {
-      rect(g, x - 15, y - 39 + row * 20, 30, 16, '#d4ac98', 1)
+      const shelf = y - 40 + row * 19
+      rect(g, x - 16, shelf, 32, 16, '#b98c7b', 1)
+      line(g, [x - 16, shelf + 16], [x + 16, shelf + 16], '#deb899', 1.5)
       if (ratio !== undefined)
         for (let n = 0; n < 5; n++) {
           if (n + row * 5 >= Math.ceil(ratio * 10)) break
-          rect(g, x - 14 + n * 6, y - 37 + row * 20, 5, 14, ['#719da9', '#f1d6a4', '#b77a9d'][n % 3]!, 1)
+          const spine = x - 14 + n * 6
+          rect(g, spine, shelf + 3, 5, 13, ['#567987', '#e0b585', '#a5758f'][n % 3]!, 1)
+          line(g, [spine + 1, shelf + 6], [spine + 4, shelf + 6], '#f6ddad')
         }
     }
   } else if (item.kind === 'plant') {
     const height = 6 + 31 * (ratio ?? 0)
     const tip = y - 8 - height
-    line(g, [x, y - 8], [x + (item.wilted ? 10 : 0), tip], item.wilted ? '#96705a' : '#517e70', 2)
-    const leaf = item.wilted ? '#b48c67' : ratio === undefined ? '#96938c' : '#7aa486'
-    dot(g, x - 6, tip + 5, 8, 4, leaf)
-    dot(g, x + 6, tip + 2, 7, 4, leaf)
+    const lean = item.wilted ? 8 : 0
+    const leaf = item.wilted ? '#a78167' : ratio === undefined ? '#8f9188' : '#6a9b80'
+    line(g, [x, y - 9], [x + lean, tip], item.wilted ? '#96705a' : '#497460', 1.5)
+    dot(g, x + lean - 6, tip + 5, 7.5, 3.8, leaf)
+    dot(g, x + lean + 5, tip + 1, 6, 3.4, leaf)
+    line(g, [x + lean - 10, tip + 5], [x + lean - 3, tip + 7], '#f0e8ba68')
+    line(g, [x + lean + 2, tip + 3], [x + lean + 8, tip + 1], '#f0e8ba68')
     poly(
       g,
       [
-        [x - 12, y - 11],
-        [x + 12, y - 11],
-        [x + 8, y + 2],
-        [x - 8, y + 2],
+        [x - 11, y - 11],
+        [x + 11, y - 11],
+        [x + 7, y + 2],
+        [x - 7, y + 2],
       ],
-      '#b67473',
+      '#769295',
+      '#556f78',
     )
-    dot(g, x, y - 11, 12, 3, '#775b5a')
+    line(g, [x - 8, y - 4], [x + 8, y - 4], '#ded1ad', 2)
+    dot(g, x, y - 11, 11, 3.6, '#b9c7b6')
+    dot(g, x, y - 11, 8.5, 2.1, '#78655b')
   } else if (item.kind === 'lamp') {
     if (item.running) {
       const halo = g.createRadialGradient(x, y - 19, 1, x, y - 19, 41)
@@ -200,25 +285,39 @@ function furniture(g: Brush, item: WorldProp, x: number, y: number, elapsed: num
       g.fillStyle = halo
       g.fillRect(x - 42, y - 62, 84, 84)
     }
-    line(g, [x, y], [x, y - 27], '#956d60', 3)
+    dot(g, x, y, 10, 3, '#87675d')
+    line(g, [x, y], [x, y - 29], '#a78459', 2.5)
+    line(g, [x - 1, y - 3], [x - 1, y - 18], '#d9b680')
     poly(
       g,
       [
-        [x - 7, y - 32],
-        [x + 7, y - 32],
-        [x + 15, y - 17],
-        [x - 15, y - 17],
+        [x - 7, y - 34],
+        [x + 7, y - 34],
+        [x + 14, y - 18],
+        [x - 14, y - 18],
       ],
-      item.running ? '#ffe3a3' : '#b6a6ab',
+      item.running ? '#ffe2a1' : '#d9c6b6',
+      '#ae8f7a',
     )
-    dot(g, x, y, 10, 3, '#976e75')
+    for (const pleat of [-1, 0, 1]) line(g, [x + pleat * 4, y - 33], [x + pleat * 8, y - 19], '#f7e1bc')
+    dot(g, x, y - 18, 13, 2, item.running ? '#fff3c3' : '#a7877b')
   } else {
-    rect(g, x - 12, y - 5, 24, 7, '#845d6f')
-    dot(g, x, y - 13, 10, 9, '#dfaeb5')
-    dot(g, x - 7, y - 21, 4, 4, '#dfaeb5')
-    dot(g, x + 7, y - 21, 4, 4, '#dfaeb5')
-    dot(g, x - 3, y - 15, 1.4, 1.4, '#654866')
-    dot(g, x + 3, y - 15, 1.4, 1.4, '#654866')
+    rect(g, x - 14, y - 5, 28, 7, '#725761')
+    line(g, [x - 11, y - 3], [x + 11, y - 3], '#bd906d')
+    poly(
+      g,
+      [
+        [x - 8, y - 11],
+        [x - 15, y - 20],
+        [x - 9, y - 19],
+        [x - 5, y - 13],
+      ],
+      '#92b6bc',
+    )
+    dot(g, x + 2, y - 11, 11, 6, '#b9cfd0')
+    dot(g, x + 7, y - 13, 1, 1, '#566477')
+    line(g, [x + 1, y - 20], [x + 1, y - 24], '#bacdd0')
+    dot(g, x + 4, y - 24, 1.4, 1.1, '#e0ece8')
   }
   if (item.failed) dot(g, x + 13, y - 29, 4, 4, '#ae515e')
   if (ratio !== undefined) {
@@ -249,18 +348,53 @@ function desk(g: Brush, u: number, v: number) {
     [0.78, 0.5],
     [-0.78, 0.5],
   ]
-  for (const [du, dv] of corners) line(g, corner(du, dv), corner(du, dv, 33), '#946675', 4)
+  for (const [du, dv] of corners) {
+    line(g, corner(du, dv), corner(du, dv, 33), '#78525d', 3.5)
+    line(g, corner(du, dv), corner(du, dv, 4), '#c1966d', 2.5)
+  }
   const top = corners.map(([du, dv]) => corner(du, dv, 37))
   const rim = corners.map(([du, dv]) => corner(du, dv, 32))
-  poly(g, [top[1]!, top[2]!, rim[2]!, rim[1]!], '#a27179')
-  poly(g, [top[2]!, top[3]!, rim[3]!, rim[2]!], '#92616e')
-  poly(g, top, '#ddb195', '#ac7c7f')
+  poly(g, [top[1]!, top[2]!, rim[2]!, rim[1]!], '#9c6970')
+  poly(g, [top[2]!, top[3]!, rim[3]!, rim[2]!], '#79545f')
   poly(
     g,
-    [corner(-0.25, -0.26, 38), corner(0.38, -0.26, 38), corner(0.38, 0.17, 38), corner(-0.25, 0.17, 38)],
+    [corner(-0.53, 0.49, 32), corner(0.52, 0.49, 32), corner(0.52, 0.49, 22), corner(-0.53, 0.49, 22)],
+    '#94636c',
+    '#75525d',
+  )
+  line(g, corner(-0.12, 0.5, 27), corner(0.12, 0.5, 27), '#e2b878', 2)
+  poly(g, top, '#d1a181', '#a27173')
+  line(g, corner(-0.74, -0.45, 38), corner(0.74, -0.45, 38), '#e8b997')
+  line(g, corner(-0.74, 0.45, 38), corner(0.74, 0.45, 38), '#e8b997')
+  poly(
+    g,
+    [corner(-0.54, -0.14, 38), corner(0.15, -0.14, 38), corner(0.15, 0.29, 38), corner(-0.54, 0.29, 38)],
     '#fff3df',
   )
-  line(g, corner(-0.09, -0.14, 38), corner(0.23, -0.14, 38), '#b58b7c')
+  for (const row of [-0.04, 0.07, 0.18]) line(g, corner(-0.41, row, 38), corner(0.04, row, 38), '#b59c92')
+  const [cupX, cupY] = corner(0.43, -0.13, 38)
+  dot(g, cupX, cupY, 6.2, 3, '#f7ead2')
+  dot(g, cupX + 3.3, cupY - 3.2, 2.6, 2.4, '#d8e7df')
+  rect(g, cupX - 3.6, cupY - 6, 7.4, 6, '#b5ccc7', 2)
+  dot(g, cupX, cupY - 6, 3.6, 1.7, '#e9efe0')
+  dot(g, cupX, cupY - 5.6, 2.4, 1, '#8b6555')
+}
+
+function bed(g: Brush) {
+  const point = (u: number, v: number, height: number) => iso(2.55 + u, 1 + v, height)
+  const bedding = (from: number, to: number, z: number, color: string, edge: string) =>
+    poly(g, [point(from, 0, z), point(to, 0, z), point(to, 1.55, z), point(from, 1.55, z)], color, edge)
+  poly(g, [point(0, 0, 0), point(2.65, 0, 0), point(2.65, 1.55, 0), point(0, 1.55, 0)], '#4d384b30')
+  poly(g, [point(0, 1.55, 2), point(2.65, 1.55, 2), point(2.65, 1.55, 20), point(0, 1.55, 20)], '#785b70')
+  poly(g, [point(2.65, 0, 2), point(2.65, 1.55, 2), point(2.65, 1.55, 20), point(2.65, 0, 20)], '#a1818c')
+  bedding(0, 2.65, 20, '#f0dfd2', '#ae929c')
+  poly(g, [point(0, 0, 19), point(0, 1.55, 19), point(0, 1.55, 43), point(0, 0, 43)], '#876779', '#6a566d')
+  line(g, point(0, 0.18, 38), point(0, 1.38, 38), '#d0a88f', 2)
+  bedding(0.93, 2.56, 22, '#9ca4bc', '#7883a0')
+  for (const stitch of [1.15, 1.48, 1.82, 2.15, 2.48])
+    line(g, point(stitch, 0.09, 23), point(stitch, 1.44, 23), '#c0bdce')
+  const [x, y] = point(0.44, 0.77, 24)
+  dot(g, x, y, 16, 7, '#fff4e9')
 }
 
 const shadeFor = { dawn: 0.24, day: 0, evening: 0.39, night: 0.77 }
@@ -337,15 +471,7 @@ export function drawWorld(
     shell(g, depth, !!room?.paused || (id === 'hall' && world.gateClosed), shade)
     if (room) {
       tag(28, 47, 300, 247, 'goal', id)
-      const door = [
-        iso(0, depth * 0.47),
-        iso(0, depth * 0.82),
-        iso(0, depth * 0.82, 67),
-        iso(0, depth * 0.47, 67),
-      ]
-      poly(g, door, '#a97782', '#f3d8dc')
-      const [knobX, knobY] = iso(0, depth * 0.55, 31)
-      dot(g, knobX, knobY, 3, 3, '#f3cb83')
+      drawDoor(g, depth)
       const props: { item?: WorldProp; at: Point }[] = room.items
         .slice(0, room.slots)
         .map((item, index) => ({ item, at: propPlaces[index]! }))
@@ -371,20 +497,21 @@ export function drawWorld(
         if (elapsed) dot(g, dx + Math.sin(i + elapsed / 450) * 4, dy - 11, 2, 1, '#f9e6ce')
       }
     } else {
-      const [fx, fy] = iso(3.9, 1.4)
-      if (id === 'bedroom') {
-        rect(g, fx - 31, fy - 23, 63, 34, '#815d79', 9)
-        rect(g, fx - 28, fy - 21, 58, 23, '#dbc1de', 8)
-        rect(g, fx + 8, fy - 19, 19, 16, '#f8e1e9', 6)
-      }
+      if (id === 'bedroom') bed(g)
       if (id === 'hall' || id === 'kitchen') desk(g, deskPlace[0] * depth, deskPlace[1] * depth)
       if (id === 'gallery') {
-        rect(g, 100, 157, 153, 58, '#936b7c', 9)
-        rect(g, 107, 163, 139, 45, '#dfbca9', 6)
+        rect(g, 106, 208, 7, 11, '#7b5565')
+        rect(g, 240, 208, 7, 11, '#7b5565')
+        rect(g, 100, 157, 153, 58, '#815d6f', 6)
+        rect(g, 105, 161, 143, 47, '#c99d7e', 4)
+        rect(g, 109, 165, 135, 38, '#cdb2ac', 3)
+        line(g, [109, 199], [244, 199], '#e8c1a1', 2)
         world.gallery.slice(0, 6).forEach((item, index) => {
           const cx = 119 + 22 * index
-          dot(g, cx, 185, 7, 9, '#efc680')
-          rect(g, cx - 6, 193, 12, 4, '#8c6470')
+          dot(g, cx, 184, 7, 9, '#bb8d60')
+          dot(g, cx, 183.5, 5.2, 6.5, '#e9c78e')
+          dot(g, cx - 1.2, 182, 1.8, 2.7, '#fae3a9')
+          rect(g, cx - 6, 193, 12, 4, '#856370')
           tag(cx - 10, 169, 21, 33, 'gallery', item.id)
         })
         if (world.gallery.length > 6) {
@@ -472,8 +599,10 @@ export function drawWorld(
       }
       const extra = room.cabinet.length + Math.max(0, room.items.length - room.slots)
       if (extra) {
-        rect(g, 45, 207, 39, 30, '#a4717a')
-        line(g, [49, 221], [80, 221], '#f3c5b1', 2)
+        rect(g, 45, 207, 39, 30, '#795969')
+        rect(g, 49, 210, 31, 10, '#9a6f76', 1)
+        rect(g, 49, 223, 31, 10, '#9a6f76', 1)
+        line(g, [60, 228], [69, 228], '#dcb67e', 2)
         print(g, `+${extra}`, 64, 218, '#fff0db', 10)
         tag(41, 202, 47, 40, 'cabinet', id)
       }
