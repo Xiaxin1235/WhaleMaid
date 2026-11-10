@@ -44,7 +44,13 @@ Windows 上用 DSH 0.2.2-rc.1 的隔离配置 `whaledot-p02` 安装本地完整�
 
 按作者反馈，在项目房间加上工作桌，缩小舞台角色和静止立绘。新版单间画面中，大肥鱼的坐姿高度与工作桌接近。用同样的 Windows 隔离夹具重装完整包，确认白天、夜晚、静止回退、点击表情、桌宠暂离和返回、房间切换以及楼层总览通过。截图对比与复测结果在 `.dsh-dev/p27-home-eUtCkS/evidence-1794321671952/` 的 `room-scale-comparison.jpg`、`mansion-night.png`、`mansion-static.png` 和 `result.json`。
 
-更新后的本地完整包在 `.dsh-dev/local-release/dsh-whalemaid-full.tgz`，对应源码提交 `4376e4d952f59cda3aec4c29e85fc88522802831`，SHA-256 为 `f6d865c936b3efafe5c9167641f4da23d9d047670f9ea04f286eb519de710ad6`。
+该轮完整包对应源码提交 `4376e4d952f59cda3aec4c29e85fc88522802831`，SHA-256 为 `f6d865c936b3efafe5c9167641f4da23d9d047670f9ea04f286eb519de710ad6`。
+
+## 陈设打磨
+
+保留单间尺寸与桌宠比例，采用暖木、蓝紫织物和旧铜的配色。工作桌有抽屉与茶杯，房间加了护墙板、束帘和织纹地毯，任务摆件保留原有进度与状态反馈。用 Windows 隔离夹具重装，查看了白天、夜晚、待决定房间、失败房间、卧室和陈列室，并复测舞台、信件、便签和陈列品的交互。截图对比 `mansion-furnishings-comparison.jpg` 和结果 `result.json` 在 `.dsh-dev/p27-home-9OOWRZ/evidence-1794322091741/`。单间采样 3.50 秒，约 22.0 帧/秒，主渲染线程任务时间约 16.2%。
+
+当前本地完整包在 `.dsh-dev/local-release/dsh-whalemaid-full.tgz`，对应源码提交 `81d1c181232834b4e093ad653fb9c2e1ba0e00cb`，SHA-256 为 `ce9c08f50a903c1588f9296d35be9a3c425f21415c4d0c0d0dc039ed0d687ed6`。
 
 ## 已知限制
 
