@@ -62,7 +62,13 @@ Windows 上用 DSH 0.2.2-rc.1 的隔离配置 `whaledot-p02` 安装本地完整�
 
 工作桌靠窗，台灯和文件放上桌面。书架贴墙，水缸和小摆件放在边柜上，工具箱和收纳篮优先放边角。桌宠在桌旁，门内和地毯前留出走道。Windows 隔离实测查看了四任务小房、八任务大房和待决定房间，并复测舞台、信件、便签及陈列品交互。前后对比 `mansion-layout-comparison.jpg`、小房截图和 `result.json` 位于 `.dsh-dev/p27-home-zyrhvE/evidence-1794323169666/`。
 
-当前本地完整包在 `.dsh-dev/local-release/dsh-whalemaid-full.tgz`，对应源码提交 `40fd5a6266a370c8c376922934dbdb7cf38a8cc5`，SHA-256 为 `fad4ef06d503bf79fd66b913c0fd3f004b12981939e80d03d3528253fc0163e3`。
+该轮完整包对应源码提交 `40fd5a6266a370c8c376922934dbdb7cf38a8cc5`，SHA-256 为 `fad4ef06d503bf79fd66b913c0fd3f004b12981939e80d03d3528253fc0163e3`。
+
+## 柜子朝向
+
+项目房间的书架、边柜和水缸使用与房间一致的等距投影。柜体按所在墙面计算正面、侧面和顶面，水缸的水位与气泡随玻璃面绘制。前后对比 `mansion-cabinet-angle-comparison.jpg` 和 Windows 隔离复测记录位于 `.dsh-dev/p27-home-TTlqe4/evidence-1794323616807/`。
+
+当前本地完整包在 `.dsh-dev/local-release/dsh-whalemaid-full.tgz`，对应源码提交 `8396d363e81d2f091896a58f74a0cec16568f424`，SHA-256 为 `9fe5c2d9ed7b55beee7be7c48ea8640017615dbc73852980d38947bb2674fbf3`。
 
 ## 已知限制
 
