@@ -375,19 +375,48 @@ function furniture(g: Brush, item: WorldProp, x: number, y: number, elapsed: num
   }
 }
 
-const propPlaces: Point[] = [
-  [0.15, 0.29],
-  [0.31, 0.15],
-  [0.17, 0.52],
-  [0.53, 0.17],
-  [0.22, 0.76],
-  [0.76, 0.22],
-  [0.51, 0.84],
-  [0.84, 0.51],
-]
-const deskPlace: Point = [0.65, 0.41]
+const deskPlace: Point = [3.65, 1.42]
+const workSeat = iso(deskPlace[0] - 0.65, deskPlace[1] + 1.25)
 
-function desk(g: Brush, u: number, v: number) {
+function drawRoomFurniture(g: Brush, room: WorldRoom, depth: number, elapsed: number) {
+  const pieces = room.items.slice(0, room.slots)
+  const take = (kinds: readonly WorldProp['kind'][]) => {
+    const index = pieces.findIndex(({ kind }) => kinds.includes(kind))
+    return index < 0 ? undefined : pieces.splice(index, 1)[0]
+  }
+  const lamp = take(['lamp'])
+  const papers = take(['tray']) ?? take(['files'])
+  const sites: { at: Point; kinds: readonly WorldProp['kind'][] }[] = [
+    { at: [0.55, depth * 0.29], kinds: ['books'] },
+    { at: [2.11, 0.55], kinds: ['tank'] },
+    { at: [0.58, depth - 0.53], kinds: ['toolbox', 'basket'] },
+    { at: [depth - 0.48, 1.81], kinds: ['basket', 'toolbox'] },
+    { at: [0.53, 0.47], kinds: ['plant'] },
+    { at: [0.58, depth * 0.65 - 1.03], kinds: ['keepsake'] },
+    { at: [depth - 0.65, 0.54], kinds: ['files', 'tray'] },
+    { at: [3.42, 0.54], kinds: [] },
+  ]
+  const preferred = sites.map(({ kinds }) => take(kinds))
+  const placements = sites.map(({ at }, i) => ({ at, piece: preferred[i] ?? pieces.shift() }))
+  placements.push({ at: deskPlace, piece: undefined })
+  placements.sort((a, b) => a.at[0] + a.at[1] - b.at[0] - b.at[1])
+  for (const { at, piece } of placements) {
+    if (at === deskPlace) {
+      desk(g, ...at, elapsed, lamp, papers)
+      continue
+    }
+    if (!piece) continue
+    const [x, y] = iso(...at)
+    if (piece.kind === 'tank' || piece.kind === 'files' || piece.kind === 'keepsake') {
+      rect(g, x - 14, y - 12, 28, 13, '#795a67', 2)
+      rect(g, x - 17, y - 14, 34, 4, '#bd937e', 1)
+      line(g, [x - 4, y - 6], [x + 4, y - 6], '#d6ae78', 1.5)
+      furniture(g, piece, x, y - 13, elapsed)
+    } else furniture(g, piece, x, y, elapsed)
+  }
+}
+
+function desk(g: Brush, u: number, v: number, elapsed: number, lamp?: WorldProp, papers?: WorldProp) {
   const corner = (du: number, dv: number, z = 0) => iso(u + du, v + dv, z)
   const [x, y] = iso(u, v)
   dot(g, x, y + 5, 34, 11, '#72527240')
@@ -415,18 +444,33 @@ function desk(g: Brush, u: number, v: number) {
   poly(g, top, '#d1a181', '#a27173')
   line(g, corner(-0.74, -0.45, 38), corner(0.74, -0.45, 38), '#e8b997')
   line(g, corner(-0.74, 0.45, 38), corner(0.74, 0.45, 38), '#e8b997')
-  poly(
-    g,
-    [corner(-0.54, -0.14, 38), corner(0.15, -0.14, 38), corner(0.15, 0.29, 38), corner(-0.54, 0.29, 38)],
-    '#fff3df',
-  )
-  for (const row of [-0.04, 0.07, 0.18]) line(g, corner(-0.41, row, 38), corner(0.04, row, 38), '#b59c92')
-  const [cupX, cupY] = corner(0.43, -0.13, 38)
-  dot(g, cupX, cupY, 6.2, 3, '#f7ead2')
-  dot(g, cupX + 3.3, cupY - 3.2, 2.6, 2.4, '#d8e7df')
-  rect(g, cupX - 3.6, cupY - 6, 7.4, 6, '#b5ccc7', 2)
-  dot(g, cupX, cupY - 6, 3.6, 1.7, '#e9efe0')
-  dot(g, cupX, cupY - 5.6, 2.4, 1, '#8b6555')
+  if (!papers) {
+    poly(
+      g,
+      [corner(-0.54, -0.14, 38), corner(0.15, -0.14, 38), corner(0.15, 0.29, 38), corner(-0.54, 0.29, 38)],
+      '#fff3df',
+    )
+    for (const row of [-0.04, 0.07, 0.18]) line(g, corner(-0.41, row, 38), corner(0.04, row, 38), '#b59c92')
+  }
+  if (!lamp) {
+    const [cupX, cupY] = corner(0.43, -0.13, 38)
+    dot(g, cupX, cupY, 6.2, 3, '#f7ead2')
+    dot(g, cupX + 3.3, cupY - 3.2, 2.6, 2.4, '#d8e7df')
+    rect(g, cupX - 3.6, cupY - 6, 7.4, 6, '#b5ccc7', 2)
+    dot(g, cupX, cupY - 6, 3.6, 1.7, '#e9efe0')
+    dot(g, cupX, cupY - 5.6, 2.4, 1, '#8b6555')
+  }
+  for (const [piece, at] of [
+    [papers, corner(-0.37, 0.06, 37)],
+    [lamp, corner(0.39, -0.2, 37)],
+  ] as const) {
+    if (!piece) continue
+    g.save()
+    g.translate(...at)
+    g.scale(0.62, 0.62)
+    furniture(g, piece, 0, 0, elapsed)
+    g.restore()
+  }
 }
 
 function bed(g: Brush) {
@@ -456,11 +500,10 @@ export function actorPoint(
   offset: { x: number; y: number },
 ) {
   const room = layout.find((r) => r.id === actor.room) ?? layout[0]!
+  const [x, y] = actor.door ? [263, 256] : actor.motion === 'sit-work' ? workSeat : [178, 221]
   return {
-    x:
-      (room.x + (actor.door ? 263 : actor.motion === 'sit-work' ? 153 : 178) - camera.x) * camera.zoom +
-      offset.x,
-    y: (room.y + (actor.door ? 256 : 221) - camera.y) * camera.zoom + offset.y,
+    x: (room.x + x - camera.x) * camera.zoom + offset.x,
+    y: (room.y + y - camera.y) * camera.zoom + offset.y,
     scale: camera.zoom,
   }
 }
@@ -521,16 +564,7 @@ export function drawWorld(
     if (room) {
       tag(28, 47, 300, 247, 'goal', id)
       drawDoor(g, depth)
-      const props: { item?: WorldProp; at: Point }[] = room.items
-        .slice(0, room.slots)
-        .map((item, index) => ({ item, at: propPlaces[index]! }))
-      props.push({ at: deskPlace })
-      props
-        .sort((a, b) => a.at[0] + a.at[1] - b.at[0] - b.at[1])
-        .forEach(({ item, at: [u, v] }) => {
-          if (item) furniture(g, item, ...iso(u * depth, v * depth), elapsed)
-          else desk(g, u * depth, v * depth)
-        })
+      drawRoomFurniture(g, room, depth, elapsed)
       for (let i = 0; i < room.mess * 2; i++) {
         const [dx, dy] = iso(depth * (0.37 + i * 0.072), depth * (0.75 - (i % 3) * 0.12))
         poly(
@@ -547,7 +581,7 @@ export function drawWorld(
       }
     } else {
       if (id === 'bedroom') bed(g)
-      if (id === 'hall' || id === 'kitchen') desk(g, deskPlace[0] * depth, deskPlace[1] * depth)
+      if (id === 'hall' || id === 'kitchen') desk(g, ...deskPlace, elapsed)
       if (id === 'gallery') {
         rect(g, 106, 208, 7, 11, '#7b5565')
         rect(g, 240, 208, 7, 11, '#7b5565')
@@ -584,11 +618,12 @@ export function drawWorld(
         `rgba(32,31,73,${glow})`,
       )
     if (room?.working) {
-      const light = g.createRadialGradient(178, 201, 4, 178, 201, 72)
+      const [lightX, lightY] = iso(...deskPlace, 20)
+      const light = g.createRadialGradient(lightX, lightY, 4, lightX, lightY, 72)
       light.addColorStop(0, '#ffd98448')
       light.addColorStop(1, '#ffd98400')
       g.fillStyle = light
-      g.fillRect(106, 129, 144, 144)
+      g.fillRect(lightX - 72, lightY - 72, 144, 144)
     }
     if (room?.flicker && elapsed)
       dot(g, 214, 126, 10, 8, Math.floor(elapsed / 600) % 2 ? '#e9bf6c' : '#f5d29c55')
