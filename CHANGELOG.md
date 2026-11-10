@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.0
+
+- Added the experimental Mansion, off by default. Enable it in Settings → WhaleMaid or next to Initiative. Rooms, task furnishings, letters, and keepsakes reflect project records and link to existing views.
+- The complete package includes Coopanion 0.6.0. Da Fei Yu can work, walk, and sleep in the mansion. The desktop pet’s visit is a separate opt-in. A list view is available and is the default under reduced motion.
+
+### 中文
+
+- 新增实验功能「宅邸」，默认关闭。在设置 → WhaleMaid 或主动性卡片旁开启。房间、摆件、信件和纪念品反映项目记录，可打开已有界面。
+- 完整包配套 Coopanion 0.6.0。大肥鱼会在宅邸里走动、工作和睡觉。桌宠暂离桌面需单独开启。开启减少动态效果时默认使用列表视图。
+
 ## 1.5.0
 
 Includes the previously unreleased 1.4.0 initiative updates. There was no standalone 1.4.0 release.

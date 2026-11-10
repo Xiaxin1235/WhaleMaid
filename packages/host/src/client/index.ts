@@ -34,6 +34,8 @@ import { InitiativeView } from './initiative.js'
 import { EverydayApprovalsView } from './everyday-approvals.js'
 import { CodexView } from './codex.js'
 import { AboutSettings, openWelcome, WelcomeOverlay } from './welcome.js'
+import { MansionView, worldCopy, WorldSwitch } from './world.js'
+import type { Exhibit } from './world.js'
 
 export const inject = ['slots', 'locale', 'connection']
 const PANEL_ID = 'whaledot'
@@ -57,6 +59,20 @@ function Panel({ ctx, connection }: Face) {
   const [revision, refresh] = useState(0)
   const [creating, setCreating] = useState(false)
   const [initialDraftId, setInitialDraftId] = useState<string>()
+  const [mansionOpen, setMansionOpen] = useState(false)
+  const [exhibit, setExhibit] = useState<Exhibit>()
+  const panelInfo = (ctx.get('layout') as Context['layout'] | undefined)?.panelInfo
+  const visible = useSyncExternalStore(
+    (change) => {
+      const stop = panelInfo?.subscribe(change)
+      document.addEventListener('visibilitychange', change)
+      return () => {
+        stop?.()
+        document.removeEventListener('visibilitychange', change)
+      }
+    },
+    () => !document.hidden && (!panelInfo || panelInfo.getSnapshot().activePanelId === PANEL_ID),
+  )
   const [selectedGoal, setSelectedGoal] = useState(() =>
     pendingNavigation?.kind === 'goal' ? pendingNavigation.id : undefined,
   )
@@ -72,6 +88,8 @@ function Panel({ ctx, connection }: Face) {
     const open = (event: Event) => {
       const navigation = (event as CustomEvent<NoticeNavigation>).detail
       setSelectedGoal(navigation.kind === 'goal' ? navigation.id : undefined)
+      setExhibit(undefined)
+      if (navigation.kind === 'evidence') setMansionOpen(false)
       setNotificationsOpen(navigation.kind === 'notice')
       setNotificationId(navigation.kind === 'notice' ? navigation.id : undefined)
       setInitiativeEvidence(navigation.kind === 'evidence' ? navigation.id : undefined)
@@ -82,6 +100,12 @@ function Panel({ ctx, connection }: Face) {
   }, [])
   const locale = resolveLocale(status?.language ?? 'auto', hostLocale.active)
   const text = (key: Parameters<typeof t>[1]) => t(locale, key)
+  const mansionText = worldCopy(locale)
+  const mansionEnabled = status?.world?.enabled
+  const updateMansion = (enabled: boolean) => {
+    setStatus((previous) => previous && { ...previous, world: { enabled } })
+    if (!enabled) setMansionOpen(false)
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -245,13 +269,55 @@ function Panel({ ctx, connection }: Face) {
         connection,
         locale,
         goalId: selectedGoal,
+        ...(exhibit ? { exhibit } : {}),
         onOpenSession: (id: string) =>
           (ctx.get('uiWorkspace') as UiWorkspace | undefined)?.openSession(id as SessionId),
         onBack: () => {
           setSelectedGoal(undefined)
+          setExhibit(undefined)
           refresh((value) => value + 1)
         },
       }),
+    )
+
+  const tabs =
+    mansionEnabled &&
+    h(
+      'nav',
+      { className: 'whalemaid-world-tabs', 'aria-label': 'WhaleMaid' },
+      h(
+        'button',
+        { type: 'button', 'aria-pressed': !mansionOpen, onClick: () => setMansionOpen(false) },
+        mansionText.goals,
+      ),
+      h(
+        'button',
+        { type: 'button', 'aria-pressed': mansionOpen, onClick: () => setMansionOpen(true) },
+        mansionText.title,
+        ' ',
+        h('small', null, mansionText.experimental),
+      ),
+    )
+  if (mansionOpen && mansionEnabled)
+    return h(
+      'main',
+      { className: 'whaledot-panel', 'data-whaledot-panel': '', lang: locale },
+      tabs,
+      h(WorldSwitch, { connection, locale, enabled: mansionEnabled, changed: updateMansion }),
+      visible &&
+        h(MansionView, {
+          connection,
+          locale,
+          onNotice: openNotice,
+          onGoal: (id: string) => {
+            setExhibit(undefined)
+            setSelectedGoal(id)
+          },
+          onExhibit: (item: Exhibit) => {
+            setExhibit(item)
+            setSelectedGoal(item.id)
+          },
+        }),
     )
 
   return h(
@@ -274,6 +340,7 @@ function Panel({ ctx, connection }: Face) {
       h('button', { onClick: () => refresh((value) => value + 1) }, text('refresh')),
       h('button', { onClick: () => setNotificationsOpen(true) }, text('notificationCenter')),
     ),
+    tabs,
     error && h('p', { role: 'alert' }, t(locale, 'requestFailed', { code: error })),
     h(DailyBriefView, {
       connection,
@@ -291,6 +358,7 @@ function Panel({ ctx, connection }: Face) {
       onDraft: openDraft,
       evidenceId: initiativeEvidence,
     }),
+    h(WorldSwitch, { connection, locale, enabled: mansionEnabled, changed: updateMansion }),
     h(
       'section',
       { 'aria-label': text('status') },
@@ -505,6 +573,7 @@ function LanguageSettings({ ctx, connection }: Face) {
   const [ready, setReady] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string>()
+  const [mansionEnabled, setMansionEnabled] = useState<boolean>()
   const locale = resolveLocale(language, host.active)
   useEffect(() => {
     const controller = new AbortController()
@@ -515,6 +584,7 @@ function LanguageSettings({ ctx, connection }: Face) {
         const value = StatusSchema.parse(reply.value)
         if (!controller.signal.aborted) {
           setLanguage(value.language)
+          setMansionEnabled(value.world?.enabled)
           setReady(true)
         }
       })
@@ -563,6 +633,7 @@ function LanguageSettings({ ctx, connection }: Face) {
       ),
     ),
     saving && h('p', { role: 'status' }, t(locale, 'saving')),
+    h(WorldSwitch, { connection, locale, enabled: mansionEnabled, changed: setMansionEnabled }),
     h(EverydayApprovalsView, { connection, locale }),
     h(CodexView, { connection, locale }),
     h(AboutSettings, { locale }),

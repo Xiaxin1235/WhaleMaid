@@ -74,6 +74,7 @@ import type { Migration } from './migrations.js'
 import { EverydayApprovalPanelSchema, EverydayApprovalRecordSchema } from '../everyday-approval/contract.js'
 import type { EverydayApprovalRecord } from '../everyday-approval/contract.js'
 import { CodexSettingsSchema } from '../codex/contract.js'
+import { WorldPreferencesSchema } from '@whalemaid/core'
 
 export const productionClock: Clock = { now: () => Date.now() }
 export const productionIdGen: IdGen = { next: (prefix) => `${prefix}_${randomUUID()}` }
@@ -792,6 +793,17 @@ export class WhaleStore {
     this.changed()
   }
 
+  worldPreferences() {
+    return this.one('kv_settings', 'world.preferences', WorldPreferencesSchema)
+  }
+  setWorldPreferences(input: unknown): void {
+    const value = WorldPreferencesSchema.parse(input)
+    this.writer()
+      .prepare(
+        "INSERT INTO kv_settings(id,data) VALUES('world.preferences',?) ON CONFLICT(id) DO UPDATE SET data=excluded.data",
+      )
+      .run(JSON.stringify(value))
+  }
   codexSettings(): ReturnType<typeof CodexSettingsSchema.parse> {
     const value =
       this.one('kv_settings', 'codex.settings', CodexSettingsSchema) ?? CodexSettingsSchema.parse({})

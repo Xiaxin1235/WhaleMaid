@@ -1,3 +1,5 @@
+import { worldCopy } from './world.js'
+import type { Exhibit } from './world.js'
 import { AutopilotView } from './autopilot.js'
 import { GoalRadarView } from './radar.js'
 import { VerificationView } from './verification.js'
@@ -789,10 +791,12 @@ export function GoalDetailView({
   goalId,
   onBack,
   onOpenSession,
+  exhibit,
 }: {
   connection: ConnectionHandle
   locale: Locale
   goalId: string
+  exhibit?: Exhibit
   onBack(): void
   onOpenSession(id: string): void
 }) {
@@ -862,6 +866,25 @@ export function GoalDetailView({
           'div',
           null,
           h('h2', null, detail.goal.title),
+          exhibit &&
+            h(
+              'section',
+              { className: 'whalemaid-world-exhibit' },
+              h('h3', null, worldCopy(locale).summary),
+              h('p', null, exhibit.summary),
+              h('p', null, `${exhibit.passed}/${exhibit.taskCount} ${worldCopy(locale).verifiedTasks}`),
+              exhibit.experiences.length > 0 &&
+                h(
+                  'div',
+                  null,
+                  h('h4', null, worldCopy(locale).experiences),
+                  h(
+                    'ul',
+                    null,
+                    ...exhibit.experiences.map((experience, index) => h('li', { key: index }, experience)),
+                  ),
+                ),
+            ),
           detail.goal.inboxSessionId &&
             h(
               'button',

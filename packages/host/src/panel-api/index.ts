@@ -1,5 +1,8 @@
 import type { WhaleStore } from '../store/index.js'
-import { welcomeArt } from '../welcome-art.js'
+import { welcomeArt, worldArt } from '../welcome-art.js'
+import type { Mansion } from '../world.js'
+import { WorldPreferencePatchSchema, WorldPreferencesSchema } from '@whalemaid/core'
+import { EmptyRequestSchema, WorldArtSchema, WorldViewSchema } from './contract.js'
 import type { NotificationDeliverer } from '../notify/deliverer.js'
 import type { CompanionMemory } from '../companion/memory.js'
 import type { MemoryDrafts } from '../companion/drafts.js'
@@ -75,6 +78,7 @@ import { EverydayApprovalPanelSchema, EverydayApprovalSettingsSchema } from '../
 import { status, goals, languagePatch, LanguageResponseSchema, failure, panelError } from './handlers.js'
 
 export interface PanelRuntime {
+  mansion?: Mansion
   welcome?: Pick<WhaleStore, 'welcomeStatus' | 'markWelcomeSeen'>
   codex?: ConversationCodex
   everydayApprovals?: EverydayApprovals
@@ -124,6 +128,19 @@ export function createPanelHandler(runtime: PanelRuntime): ConnectionRpcHandler 
     try {
       signal.throwIfAborted()
       switch (method) {
+        case 'world':
+          EmptyRequestSchema.parse(input)
+          result = WorldViewSchema.parse(runtime.mansion!.snapshot())
+          break
+        case 'world-preferences':
+          result = WorldPreferencesSchema.parse(
+            runtime.mansion!.update(WorldPreferencePatchSchema.parse(input)),
+          )
+          break
+        case 'world-art':
+          EmptyRequestSchema.parse(input)
+          result = WorldArtSchema.parse(runtime.mansion?.preferences().enabled ? await worldArt() : {})
+          break
         case 'welcome-status':
           z.strictObject({}).parse(input)
           result = WelcomeStatusSchema.parse({
@@ -493,6 +510,7 @@ export function installPanelApi(
   storage: Pick<
     PanelRuntime,
     | 'welcome'
+    | 'mansion'
     | 'goals'
     | 'setPaused'
     | 'revokeScope'

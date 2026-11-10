@@ -41,6 +41,8 @@ mkdirSync(out, { recursive: true })
 const stage = mkdtempSync(join(out, 'stage-'))
 for (const name of ['lib', 'companion', 'welcome', 'LICENSE', 'THIRD_PARTY_NOTICES.md'])
   cpSync(join(root, 'packages/host', name), join(stage, name), { recursive: true })
+const worldArt = join(root, 'packages/host/world')
+if (existsSync(worldArt)) cpSync(worldArt, join(stage, 'world'), { recursive: true })
 cpSync(join(root, 'packages/core/lib'), join(stage, 'vendor/core/lib'), { recursive: true })
 cpSync(join(root, 'packages/core/LICENSE'), join(stage, 'vendor/core/LICENSE'))
 

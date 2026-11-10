@@ -12,8 +12,8 @@ const files: Record<WelcomeArtKind, [string, string][]> = {
 }
 const cache = new Map<WelcomeArtKind, Promise<string | undefined>>()
 
-async function read(kind: WelcomeArtKind, root: URL): Promise<string | undefined> {
-  for (const [name, mime] of files[kind]) {
+async function read(choices: [string, string][], root: URL): Promise<string | undefined> {
+  for (const [name, mime] of choices) {
     try {
       const bytes = await readFile(new URL(name, root))
       return 'data:' + mime + ';base64,' + bytes.toString('base64')
@@ -26,11 +26,23 @@ async function read(kind: WelcomeArtKind, root: URL): Promise<string | undefined
 
 /** Missing artwork is not an error: the dialog renders without an image. */
 export function welcomeArt(kind: WelcomeArtKind, root: URL = directory): Promise<string | undefined> {
-  if (root !== directory) return read(kind, root)
+  if (root !== directory) return read(files[kind], root)
   let pending = cache.get(kind)
   if (!pending) {
-    pending = read(kind, root)
+    pending = read(files[kind], root)
     cache.set(kind, pending)
   }
   return pending
+}
+
+let mansionArt: Promise<Record<string, string>> | undefined
+export function worldArt() {
+  const root = new URL('../world/', import.meta.url)
+  mansionArt ??= Promise.all(
+    ['letter', 'bell', 'note'].map(async (kind) => {
+      const src = await read([[kind + '.png', 'image/png']], root)
+      return src ? [[kind, src]] : []
+    }),
+  ).then((entries) => Object.fromEntries(entries.flat()))
+  return mansionArt
 }

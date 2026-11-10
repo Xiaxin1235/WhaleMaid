@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { WorldPreferencesSchema, WorldSnapshotSchema } from '@whalemaid/core'
 import {
   ProjectGoalSchema,
   SuggestionSchema,
@@ -37,6 +38,15 @@ import {
 } from '@whalemaid/core'
 
 export const LanguageSchema = z.enum(['auto', 'zh-CN', 'en'])
+export const WorldViewSchema = z.strictObject({
+  preferences: WorldPreferencesSchema,
+  snapshot: WorldSnapshotSchema,
+})
+export const WorldArtSchema = z.strictObject({
+  letter: z.string().optional(),
+  bell: z.string().optional(),
+  note: z.string().optional(),
+})
 export const EmptyRequestSchema = z.strictObject({})
 export const DailyBriefPanelSchema = z.strictObject({
   enabled: z.boolean(),
@@ -192,6 +202,9 @@ export const WelcomeArtRequestSchema = z.strictObject({ kind: z.enum(['motion', 
 export const WelcomeArtSchema = z.strictObject({ src: z.string().startsWith('data:image/').optional() })
 
 export const PANEL_METHODS = [
+  'world',
+  'world-preferences',
+  'world-art',
   'welcome-status',
   'welcome-seen',
   'welcome-art',
@@ -348,6 +361,7 @@ export const StatusSchema = z.strictObject({
   }),
   paused: z.boolean(),
   companion: CompanionStatusSchema.optional(),
+  world: WorldPreferencesSchema.pick({ enabled: true }).optional(),
 })
 export const GoalsSchema = z.array(ProjectGoalSchema)
 export const LanguageResponseSchema = z.strictObject({ language: LanguageSchema })

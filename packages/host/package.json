@@ -1,6 +1,6 @@
 {
   "name": "dsh-whalemaid",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "Authorized project autopilot, independent verification and companion conversations for DeepSeek Harness",
   "repository": {
     "type": "git",
@@ -57,6 +57,7 @@
     "lib/types/**/*.d.ts",
     "companion/*.md",
     "welcome/*",
+    "world/*.png",
     "cordis.patch.yml",
     "LICENSE",
     "THIRD_PARTY_NOTICES.md"

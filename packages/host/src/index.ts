@@ -55,6 +55,7 @@ import type { RadarConfig } from './radar/config.js'
 import { RadarService } from './radar/service.js'
 import type { CredentialRef } from '@deepseek-ai/dsh-credentials'
 import type { RadarSettings } from '@whalemaid/core'
+import { Mansion } from './world.js'
 
 export const name = 'whaledot'
 // Event observation needs no mandatory service. Availability probes use optional injection.
@@ -80,6 +81,7 @@ export interface CompanionConfig {
 export interface Config {
   initiative?: InitiativeConfig
   radar?: RadarConfig
+  world?: { enabled?: boolean; petWalksIn?: boolean }
   maxConcurrentRuns?: number
   dataDir?: string
   debugLogSignals?: boolean
@@ -100,6 +102,10 @@ type ConfigInput = Omit<Config, 'language' | 'companion' | 'initiative' | 'radar
 export const Config: Schema<ConfigInput, Config> = Schema.object({
   initiative: InitiativeConfigSchema,
   radar: RadarConfigSchema,
+  world: Schema.object({
+    enabled: Schema.boolean().default(false),
+    petWalksIn: Schema.boolean().default(false),
+  }).default({}),
   maxConcurrentRuns: Schema.number().min(1).step(1).default(1),
   dataDir: Schema.string().description('Data directory; defaults to <DSH_HOME>/whaledot'),
   debugLogSignals: Schema.boolean().default(false),
@@ -272,6 +278,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
       notificationLocale,
       radar,
     )
+    const mansion = new Mansion(store, radar, config.world)
     const notificationRouter = new NotificationRouter(
       store,
       scopes,
@@ -456,6 +463,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
           language: LanguageSchema.parse(config.language?.get() ?? 'auto'),
           store: store.status(),
           paused,
+          world: { enabled: mansion.preferences().enabled },
           companion: companionSessions.status(),
         }
       },
@@ -488,6 +496,7 @@ export async function apply(ctx: Context, config: Config = {}): Promise<void> {
         brief,
         initiative,
         radar,
+        mansion,
         everydayApprovals,
         codex,
       },

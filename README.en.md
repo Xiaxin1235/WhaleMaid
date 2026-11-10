@@ -6,7 +6,7 @@
 
 WhaleMaid is a project autopilot plugin for DeepSeek Harness (DSH): it plans and executes tasks within the scope you confirm, independently verifies results, and asks you when a decision is needed.
 
-Documentation for **1.5.0**. Requires DSH Desktop **0.2.x from 0.2.1-rc.2**. Source builds require Node.js ≥22.19. Preview limitations still apply; see the [usage guide](docs/usage.en.md).
+Documentation for **1.6.0**. Requires DSH Desktop **0.2.x from 0.2.1-rc.2**. Source builds require Node.js ≥22.19. See the [usage guide](docs/usage.en.md) for preview limitations.
 
 ## What it can do
 
@@ -17,6 +17,7 @@ Documentation for **1.5.0**. Requires DSH Desktop **0.2.x from 0.2.1-rc.2**. Sou
 | Notifications and decisions            | Use the notification center and native DSH questions for pending decisions, with quiet hours, muting, rate limits, pausing, and owner-operated abandonment or changes of direction. Failed deliveries retry automatically, and interrupted questions return after a restart or unmute.          |
 | Initiative                             | Rule-based findings for repeated failures, looming stalls, budgets running low, decisions left waiting and more, with suggestion cards, evidence, snoozing, feedback, and 7-day and 30-day results. Rule evaluation uses no model calls. See the [usage guide](docs/usage.en.md#initiative).    |
 | Project Radar                          | Opt in per goal to watch direct npm/PyPI dependencies, local Git and GitHub. A confirmed external conflict holds new runs for that goal. See the [usage guide](docs/usage.en.md#project-radar).                                                                                                 |
+| Mansion (experimental)                 | Off by default. Goals become rooms, furnishings show task progress, and letters and notes open existing decisions and suggestions. See the [Mansion guide](docs/usage.en.md#mansion-experimental).                                                                                              |
 | Da Fei Yu                              | A dedicated companion conversation, confirmed long-term memories, conversation recaps and experiences, management proposals requiring your confirmation, and a progress brief on the first chat of the day.                                                                                     |
 | Trusted command execution              | Separately confirm this mode for writable goals to allow ordinary commands. Recognized dangerous commands still require live, one-time approval. Command text cannot fully constrain what an arbitrary script does internally.                                                                  |
 | Everyday auto-approval                 | Off by default. When on, commands in ordinary sessions recognized as ordinary are allowed once automatically; deletion, publishing, installs and other dangerous operations still go to you. Goal task sessions are unaffected. See the [usage guide](docs/usage.en.md#everyday-auto-approval). |
@@ -75,14 +76,14 @@ You can also add our own index `https://raw.githubusercontent.com/Xiaxin1235/Wha
 Alternatively, in **Plugins → Add plugin**, enter the complete-package URL:
 
 ```text
-https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.5.0/dsh-whalemaid-full-1.5.0.tgz
+https://github.com/Xiaxin1235/WhaleMaid/releases/latest/download/dsh-whalemaid-full.tgz
 ```
 
 Or, with Harness fully closed and no test DSH_HOME set, use its bundled CLI:
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.5.0/dsh-whalemaid-full-1.5.0.tgz'
+& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/latest/download/dsh-whalemaid-full.tgz'
 ```
 
 Reopen Harness: the **WhaleMaid** panel and **Settings → Desktop pet** should both be available. Existing users who installed the two source bundles separately should first follow the backup and migration instructions in the [installation guide](docs/install.en.md#complete-installation). Your goals, memories and pet settings are retained. Decisions API expressions are configured separately in pet settings and remain off by default.

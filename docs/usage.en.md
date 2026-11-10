@@ -153,6 +153,14 @@ The global switch defaults to off. You can turn off individual sources or a goal
 
 A proven external conflict holds new runs for the affected goal. Runs already underway finish normally. Use **View changes** to review commit and path evidence, then choose **Continue** or **Pause goal**. If both suggestion channels are off, resolve the hold in the goal details.
 
+## Mansion (experimental)
+
+Turn on **Enable Mansion (experimental)** in **Settings → WhaleMaid** or next to the Initiative card, then open the **Mansion** tab. Furnishings reflect task, run, and verification records. Select a room, letter, note, or keepsake to open its goal, pending decision, suggestion, or completion summary.
+
+The default view focuses on Da Fei Yu’s room. Pick another room or open the floor overview to see the mansion. Drag to pan, use `+` and `−` to zoom, or go to Da Fei Yu. The list shows the same records and lets you move rooms to storage or bring them back. Goals continue independently. Reduced motion opens the list by default.
+
+The complete package with Coopanion 0.6.0 shows Da Fei Yu moving around the mansion. Enable **Pet visits the mansion** separately to let the desktop pet visit. Leaving the tab returns her to the desktop if you had her visible. Share feedback in QQ group **1001092170** or on [GitHub Issues](https://github.com/Xiaxin1235/WhaleMaid/issues).
+
 ## Everyday auto-approval
 
 Enable **Settings → WhaleMaid → Everyday auto-approval** and confirm the risk notice. It is off by default and needs no goal. For an approval in an ordinary session, WhaleMaid reuses trusted command classification against the session working directory. Parseable shell commands without a recognized dangerous category receive “allow once”.
