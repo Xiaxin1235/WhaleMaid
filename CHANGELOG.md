@@ -3,11 +3,13 @@
 ## 1.5.1
 
 - Bundle Coopanion 0.5.9. The pet prepares its Electron runtime in the background and reports download, permission, disk and extraction failures in Settings.
+- On network errors or timeouts, the pet retries the Electron download through npmmirror and verifies it against the bundled checksums.
 - Add Windows desktop troubleshooting and Chinese and emoji font fallbacks.
 
 ### 中文
 
 - 完整包内置 Coopanion 0.5.9。桌宠在后台准备 Electron 运行组件，设置页会分别提示下载、权限、磁盘空间或解压失败。
+- 桌宠运行组件遇到网络错误或超时时会改用国内镜像下载，并按随包校验值核对。
 - 补充 Windows 桌宠启动排查和中文、表情字体回退。
 
 ## 1.5.0
