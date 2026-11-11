@@ -35,7 +35,7 @@ WhaleMaid 基线 `942a0d3` 在 Windows 11 完成冻结依赖安装、构建、1,
 | 正式 1.5.0 完整包  | Windows 11，DSH Desktop 0.2.2-rc.1 自带 CLI，新隔离 profile，运行组件缺失。镜像返回 503 后，设置状态得到与截图一致的通用 Electron 报错。证据 `.dsh-dev/p28-audit/before-E1Tonm/result.json`。                                                                  |
 | 本地 1.5.1 完整包  | 同一宿主版本和新隔离 profile。暂停下载响应时仍能读取宿主状态；镜像返回 503 后得到 `network` 分类。提供同版 Electron 官方 ZIP 后，在同一 profile 重启即下载、解压并启动可见原生桌宠；随后热启动未请求下载。证据 `.dsh-dev/p28-audit/after-XSkGc0/result.json`。 |
 
-本地 WhaleMaid 完整包 `D:/dsh_plugins/WhaleMaid-p28-audit/.dsh-dev/local-release/dsh-whalemaid-full-1.5.1.tgz` 由 `7a2a9f4dda59a7b90b44b1a1861a56103245621d` 构建，SHA-256 `56a7f88e70af14aaacab30d2b0ed659027e838bde392368e74172a4cdaaa2bf2`。内置的 Coopanion 候选包 SHA-256 `ee9e9190bb3d11eff9010c3b9f193b22bf7281de229301ee5f28adaab671b687`。
+本地 WhaleMaid 完整包 `D:/dsh_plugins/WhaleMaid-p28-audit/.dsh-dev/p28-original-release/dsh-whalemaid-full-1.5.1.tgz` 由 `7a2a9f4dda59a7b90b44b1a1861a56103245621d` 构建，SHA-256 `56a7f88e70af14aaacab30d2b0ed659027e838bde392368e74172a4cdaaa2bf2`。内置的 Coopanion 候选包 SHA-256 `ee9e9190bb3d11eff9010c3b9f193b22bf7281de229301ee5f28adaab671b687`。
 
 另有 Windows x64 试装包 `.dsh-dev/p28-audit/windows-x64/dsh-whalemaid-full-1.5.1-win-x64.tgz`，内置官方 Electron 44.7.0 和许可文件，约 185 MB。Electron ZIP 与官方发布摘要、Electron npm 包内的校验清单均一致。Windows 11 上使用 DSH Desktop 0.2.2-rc.1 的自带 CLI 验证了干净安装和从 1.5.0 更新。两次验收都使用空缓存和始终返回 503 的 Electron 下载地址，首次启动与重启均显示原生桌宠，Electron 下载请求均为零。记录分别在 `.dsh-dev/p28-audit/offline-bbQq7r/result.json` 和 `.dsh-dev/p28-audit/offline-kYoyAN/result.json`。试装包 SHA-256 为 `4cd7959ac24b2bac2bc86e03ba4b1c56b1ed23232c3bca9accf89273fd38a500`。[Electron 44.7.0 官方发布](https://github.com/electron/electron/releases/tag/v44.7.0)
 
@@ -44,3 +44,24 @@ WhaleMaid 基线 `942a0d3` 在 Windows 11 完成冻结依赖安装、构建、1,
 本轮虚拟机验收覆盖完整包安装和桌宠启动故障。用户的 Windows 10 实机、市场更新、混合缩放、多显示器、系统通知、提问和审批未在本轮复测。1.6 宅邸舞台随对应版本另验。
 
 发布顺序为 Coopanion 0.5.9 先发布，核对其 Release 产物与 `market/companion.json`，再发布 WhaleMaid 1.5.1。之后将 WhaleMaid 修补同步到 1.6。当前阶段只准备本地候选。
+
+## P28B 镜像备用
+
+Electron 44.7.0 的 `npm/install.js` 默认把随包的 `checksums.json` 传给 `@electron/get`。`@electron/get` 按平台文件名核对 SHA-256，随后安装器才解压并写入 `path.txt`。缓存文件也经过校验。`electron_use_remote_checksums` 及其 npm 配置别名能改用远端校验表，`ELECTRON_CUSTOM_VERSION` 及其别名能改变下载版本，因此准备运行组件时从子进程环境移除这些覆盖项。已有的有效安装和显式配置的本地 Electron 路径仍可直接使用。 [Electron 44.7.0 安装器](https://github.com/electron/electron/blob/v44.7.0/npm/install.js) · [@electron/get 5.1.0 校验流程](https://github.com/electron/get/blob/v5.1.0/src/index.ts)
+
+`@electron/get` 按 npm 配置、npm 包配置、`ELECTRON_*`、调用选项、默认值的顺序解析镜像。`ELECTRON_MIRROR` 是基础地址，`ELECTRON_CUSTOM_DIR` 替换版本目录，`ELECTRON_CUSTOM_FILENAME` 替换远端文件名。P28 原有安装器继承这些变量。P28B 检测到自设镜像时只使用该镜像，并保留其目录及文件名。内置镜像使用 `https://registry.npmmirror.com/-/binary/electron/`，沿用默认 `v44.7.0` 目录及官方文件名。向 Windows x64、macOS arm64、macOS x64、Linux x64 的 ZIP 各发送一次范围请求，均重定向到 `cdn.npmmirror.com` 并返回 `206` 和一个字节。 [@electron/get 5.1.0 地址解析](https://github.com/electron/get/blob/v5.1.0/src/artifact-utils.ts) · [npmmirror 二进制镜像目录](https://registry.npmmirror.com/-/binary/electron/v44.7.0/)
+
+桌宠设置新增「运行组件下载源」，默认自动，官方源遇到网络错误或超时才改用镜像一次。也可选择仅官方或仅镜像。单次最多 120 秒，两次共用 240 秒上限。停止桌宠会取消下载并等待安装子进程退出。双源网络失败会提示已尝试两处，校验错误按 `archive` 返回。设置状态只记录本次宿主最近成功使用的来源类别。
+
+| 验收                        | 结果                                                                                                                                                                                                  |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Coopanion 0.5.9             | 348 项 Vitest 和 12 项 Node 测试通过，11 项沿用原有跳过。构建、类型检查、元数据、包校验及 `test:inbox-ui` 通过。                                                                                      |
+| 镜像专项                    | 10 项测试覆盖 503、超时、双源故障、权限／磁盘错误、单源选择、自设镜像和取消。篡改 ZIP 由真实安装器拒绝，未解压出可执行文件。                                                                          |
+| Coopanion 0.6.0             | 同步到 `whaledot-local`，361 项 Vitest 和 12 项 Node 测试通过，11 项沿用原有跳过。构建、类型检查、元数据及 `test:stage-ui` 通过。                                                                     |
+| WhaleMaid 1.5.1             | 完整包重新打包，3 项打包测试通过。默认完整包由宿主安装 Electron npm 依赖，首次启动再准备平台二进制。                                                                                                  |
+| Windows 11 / DSH 0.2.2-rc.1 | 同一完整包在新 profile 和空缓存中安装。官方请求定向至本地 503，随后从 npmmirror 实际下载、校验并显示桌宠。停止后再次启动仍可见，下载请求没有增加。证据 `.dsh-dev/p28b-audit/dsh-0.2.2-rc.1-1CDr2M/`。 |
+| Windows 11 / DSH 0.2.1-rc.3 | 以独立 profile 和空缓存重复同一安装验收，官方 503、镜像 200，桌宠首次启动及重启正常，重启未下载。证据 `.dsh-dev/p28b-audit/dsh-0.2.1-rc.3-lLFhC4/`。                                                  |
+
+两轮下载的 Windows x64 ZIP SHA-256 均为 `eee30dc8fa1f5ea95490e59f44e46ea68dd24c6e93d22facf70fe5c2d4c2665c`，与 Electron 随包校验值一致。验收使用本地 DSH CLI，结束后关闭隔离宿主和桌宠。Windows 10 的虚拟机记录属于 P28 内置 Electron 的试装包，P28B 镜像路径在 Windows 11 验收。
+
+Coopanion 0.5.9 候选 `b3cd805ba3d4652478c4722589a7675b96146dcc`，0.6.0 同步提交 `7fdb597`，WhaleMaid 完整包候选 `fd55e61089eabc391ea0ed9380c25c47f65b6d99`。新版完整包 `D:/dsh_plugins/WhaleMaid-p28-audit/.dsh-dev/local-release/dsh-whalemaid-full-1.5.1.tgz` 的 SHA-256 为 `351e7784daebda95209ac794b7809b030e7c7d98add7d6c692049ea67b1f3386`。当前产物和提交均在本地。
