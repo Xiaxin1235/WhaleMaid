@@ -781,8 +781,9 @@ function bed(g: Brush) {
     line(g, point(stitch, 0.09, 23), point(stitch, 1.44, 23), '#c9d6ee')
   const [x, y] = point(0.44, 0.77, 24)
   dot(g, x, y, 16, 7, '#fff4e9')
-  box(g, 1.55, 0.15, 0, 0.75, 0.7, 22, C.woodTop, C.wood, C.woodDark)
-  const [lx, ly] = iso(1.92, 0.5, 22)
+  // Nightstand with a lamp beside the head of the bed.
+  box(g, 2.6, 2.75, 0, 0.7, 0.7, 22, C.woodTop, C.wood, C.woodDark)
+  const [lx, ly] = iso(2.95, 3.1, 22)
   line(g, [lx, ly], [lx, ly - 12], '#c9a26a', 2)
   poly(
     g,
