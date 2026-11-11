@@ -2,7 +2,7 @@
 
 中文 | [English](install.en.md)
 
-适用于 WhaleMaid 1.5.0。以下面向首次获取仓库的用户。核心授权与执行支持 Windows、macOS、Linux；Linux 桌宠使用 X11，需要 `/usr/bin/python3` 与 libX11，Wayland 桌宠未声明支持。验收范围见[市场发布报告](market-release-report.md)，功能和权限边界见[使用说明](usage.md)。
+适用于 WhaleMaid 1.5.1。以下面向首次获取仓库的用户。核心授权与执行支持 Windows、macOS、Linux；Linux 桌宠使用 X11，需要 `/usr/bin/python3` 与 libX11，Wayland 桌宠未声明支持。验收范围见[市场发布报告](market-release-report.md)，功能和权限边界见[使用说明](usage.md)。
 
 <a id="complete-installation"></a>
 
@@ -12,11 +12,17 @@
 
 **不要再单独安装任何版本的 Coopanion**（包括原版 `@takboo/dsh-coopanion`）：完整版已自带配套桌宠，两份桌宠同时启用会冲突。
 
-也可以在 Harness **插件 → 添加插件** 中输入 [WhaleMaid 完整版 1.5.0 安装包](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.5.0/dsh-whalemaid-full-1.5.0.tgz) 的链接。安装后按提示点击“立即启用”。一次安装自动带上适配版 Coopanion，无需另装前置插件，也无需 Git、pnpm 或自行构建。先在 Harness 中配置可用模型。
+也可以在 Harness **插件 → 添加插件** 中输入 [WhaleMaid 完整版 1.5.1 安装包](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.5.1/dsh-whalemaid-full-1.5.1.tgz) 的链接。安装后按提示点击“立即启用”。一次安装自动带上适配版 Coopanion，无需另装前置插件，也无需 Git、pnpm 或自行构建。先在 Harness 中配置可用模型。
 
 如果原来分别装过两个插件：完全退出 Harness，按下文备份 profile 配置及数据；使用桌面版自带 CLI，先运行 `dsh plugin --profile desktop remove @takboo/dsh-coopanion` 和 `dsh plugin --profile desktop remove dsh-whalemaid` 取消旧安装，再添加完整包链接。不要删除数据目录。新版由同一个完整包管理两个配置节点，顶层 bundles 只需含 `dsh-whalemaid`，无需另列桌宠依赖。
 
 更新时安装下个完整包版本；卸载 `dsh-whalemaid` 会移除两部分配置，保留存储数据。WhaleMaid 自有代码使用 MIT，自动安装的桌宠依赖继续使用 AGPL-3.0-or-later，其对应源码和第三方声明保持独立。
+
+### Windows 桌宠启动
+
+- Electron 44 的 Windows 桌宠需要 Windows 10 或更新版本和 64 位运行环境。Windows 10 的排查以 **22H2（内部版本 19045）** 为目标，实际兼容性见 [P28 报告](p28-report.md)。[Electron 44 平台说明](https://github.com/electron/electron/blob/v44.7.0/README.md#platform-support) · [Windows 10 版本说明](https://learn.microsoft.com/windows/release-health/release-information)
+- 首次启动桌宠时需要从 GitHub Releases 下载 Electron。若 **设置 → 桌宠** 提示网络、目录写入、磁盘空间或解压失败，处理对应原因后点击「重启」。网络受限时可以使用 Electron 支持的代理或镜像。[Electron 安装说明](https://www.electronjs.org/docs/latest/tutorial/installation#custom-mirrors-and-caches)
+- 动画角色需要 WebGL。旧显卡、虚拟机或远程桌面可能无法绘制角色，此时仍可使用 Harness 面板。
 
 下面保留源码开发及旧安装方式的操作说明。
 
@@ -26,7 +32,7 @@
 - npm 安装的 DSH 0.2.2-rc.1 CLI 需要 Node.js **≥24.9**。从源码构建 WhaleMaid 需要 Node.js **≥22.19**、Git，以及 `package.json` 指定版本的 pnpm。先运行 `corepack enable` 启用 pnpm；首次使用时 Corepack 可能需要下载该版本。
 - 源码位于公开的 GitHub 仓库 [`Xiaxin1235/WhaleMaid`](https://github.com/Xiaxin1235/WhaleMaid)。
 
-下面的示例使用 PowerShell。在日常安装或更新前，完全退出 Harness，并备份目标 profile 的配置。不要把密钥、凭据文件或带登录 token 的网址发给别人。
+下面的示例可在 Windows PowerShell 5.1 中执行。在日常安装或更新前，完全退出 Harness，并备份目标 profile 的配置。不要把密钥、凭据文件或带登录 token 的网址发给别人。
 
 ## 2. 获取代码并构建
 

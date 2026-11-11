@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.5.1
+
+- Bundle Coopanion 0.5.9. The pet prepares its Electron runtime in the background and reports download, permission, disk and extraction failures in Settings.
+- Add Windows desktop troubleshooting and Chinese and emoji font fallbacks.
+
+### 中文
+
+- 完整包内置 Coopanion 0.5.9。桌宠在后台准备 Electron 运行组件，设置页会分别提示下载、权限、磁盘空间或解压失败。
+- 补充 Windows 桌宠启动排查和中文、表情字体回退。
+
 ## 1.5.0
 
 Includes the previously unreleased 1.4.0 initiative updates. There was no standalone 1.4.0 release.
