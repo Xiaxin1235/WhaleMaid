@@ -37,6 +37,8 @@ WhaleMaid 基线 `942a0d3` 在 Windows 11 完成冻结依赖安装、构建、1,
 
 本地 WhaleMaid 完整包 `D:/dsh_plugins/WhaleMaid-p28-audit/.dsh-dev/local-release/dsh-whalemaid-full-1.5.1.tgz` 由 `7a2a9f4dda59a7b90b44b1a1861a56103245621d` 构建，SHA-256 `56a7f88e70af14aaacab30d2b0ed659027e838bde392368e74172a4cdaaa2bf2`。内置的 Coopanion 候选包 SHA-256 `ee9e9190bb3d11eff9010c3b9f193b22bf7281de229301ee5f28adaab671b687`。
 
+另有 Windows x64 试装包 `.dsh-dev/p28-audit/windows-x64/dsh-whalemaid-full-1.5.1-win-x64.tgz`，内置官方 Electron 44.7.0 和许可文件，约 185 MB。Electron ZIP 与官方发布摘要、Electron npm 包内的校验清单均一致。Windows 11 上使用 DSH Desktop 0.2.2-rc.1 的自带 CLI 验证了干净安装和从 1.5.0 更新。两次验收都使用空缓存和始终返回 503 的 Electron 下载地址，首次启动与重启均显示原生桌宠，Electron 下载请求均为零。记录分别在 `.dsh-dev/p28-audit/offline-bbQq7r/result.json` 和 `.dsh-dev/p28-audit/offline-kYoyAN/result.json`。试装包 SHA-256 为 `4cd7959ac24b2bac2bc86e03ba4b1c56b1ed23232c3bca9accf89273fd38a500`。[Electron 44.7.0 官方发布](https://github.com/electron/electron/releases/tag/v44.7.0)
+
 **未在真实 Windows 10 上验证。** 本机为 Windows 11 Home，未找到已配置的 Windows 10 虚拟机。待在 Windows 10 22H2 x64 的新 profile 安装完整包，记录 `winver`、DSH 版本、首次启动状态与重启。接着核对 100%／125%／150% 混合缩放、任务栏不同位置、桌宠显隐和恢复，以及通知、提问和审批。若仍失败，请保留桌宠状态下方的分类和同一时段的安装日志。1.6 宅邸舞台随对应版本另验。
 
 发布顺序为 Coopanion 0.5.9 先发布，核对其 Release 产物与 `market/companion.json`，再发布 WhaleMaid 1.5.1。之后将 WhaleMaid 修补同步到 1.6。当前阶段只准备本地候选。
