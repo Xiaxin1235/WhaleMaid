@@ -26,7 +26,10 @@ test('staged complete manifest loads the private core and declares both componen
   assert.equal(patch.match(/id: dsh-coopanion\b/g)?.length, 1)
   assert.equal(patch.match(/^\s+- id: whaledot\s*$/gm)?.length, 1)
   assert.ok(patch.includes('id: preset-whaledot-companion'))
-  assert.deepEqual(readdirSync(join(stage, 'vendor')), ['core'])
+  // A per-release core directory keeps hot updates from reusing the previous core module.
+  assert.deepEqual(readdirSync(join(stage, 'vendor')), [`core-${pkg.version}`])
+  assert.equal(pkg.imports['#whalemaid/core'].default, `./vendor/core-${pkg.version}/lib/index.js`)
+  assert.ok(existsSync(join(stage, `vendor/core-${pkg.version}/lib/index.js`)))
   assert.ok(!readdirSync(stage).includes('desktop'))
   assert.ok(pkg.files.includes('lib/**/*.js'))
   assert.ok(pkg.files.includes('THIRD_PARTY_NOTICES.md'))

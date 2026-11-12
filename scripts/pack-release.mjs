@@ -43,8 +43,13 @@ for (const name of ['lib', 'companion', 'welcome', 'LICENSE', 'THIRD_PARTY_NOTIC
   cpSync(join(root, 'packages/host', name), join(stage, name), { recursive: true })
 const worldArt = join(root, 'packages/host/world')
 if (existsSync(worldArt)) cpSync(worldArt, join(stage, 'world'), { recursive: true })
-cpSync(join(root, 'packages/core/lib'), join(stage, 'vendor/core/lib'), { recursive: true })
-cpSync(join(root, 'packages/core/LICENSE'), join(stage, 'vendor/core/LICENSE'))
+// The vendored core lives under a versioned directory. Harness updates a running profile
+// in place (hot reload), and Node keeps evaluated modules cached by URL: a fixed
+// vendor/core path made the new host import the previous version's cached core
+// ("does not provide an export named ..."). A new path per release is always fresh.
+const vendorCore = `vendor/core-${host.version}`
+cpSync(join(root, 'packages/core/lib'), join(stage, vendorCore, 'lib'), { recursive: true })
+cpSync(join(root, 'packages/core/LICENSE'), join(stage, vendorCore, 'LICENSE'))
 
 // Keep the original module/resource layout. The private import is local to this
 // package, so installation never needs the unpublished workspace core package.
@@ -71,14 +76,14 @@ pkg.dependencies['@takboo/dsh-coopanion'] = companion.version
 pkg.bundledDependencies = ['@takboo/dsh-coopanion']
 pkg.imports = {
   '#whalemaid/core': {
-    types: './vendor/core/lib/types/index.d.ts',
-    default: './vendor/core/lib/index.js',
+    types: `./${vendorCore}/lib/types/index.d.ts`,
+    default: `./${vendorCore}/lib/index.js`,
   },
 }
 pkg.files.push(
-  'vendor/core/lib/**/*.js',
-  'vendor/core/lib/types/**/*.d.ts',
-  'vendor/core/LICENSE',
+  `${vendorCore}/lib/**/*.js`,
+  `${vendorCore}/lib/types/**/*.d.ts`,
+  `${vendorCore}/LICENSE`,
   'DISTRIBUTION.md',
   'release-source.json',
 )

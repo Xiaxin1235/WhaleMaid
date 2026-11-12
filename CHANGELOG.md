@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.1
+
+- Fix updating from the plugin market while Harness is running. 1.6.0 installed correctly, but loading it into the running Harness failed ("does not provide an export named WorldPreferencesSchema"), so the market reported the update as failed until Harness was restarted. The bundled core now lives in a per-release directory, so a live update always loads the new version.
+- If an update to 1.6.0 reported failure, fully quit and reopen Harness; 1.6.0 is already installed. Updating to 1.6.1 from the market also works.
+
+### 中文
+
+- 修复 Harness 运行时从插件市场更新失败的问题。1.6.0 其实已经装好，但在运行中的 Harness 里加载时报错（"does not provide an export named WorldPreferencesSchema"），插件市场因此显示更新失败，要重启 Harness 才正常。内置核心改为按版本存放，运行中更新也会加载新版本。
+- 如果更新到 1.6.0 时提示失败，完全退出并重新打开 Harness 即可，1.6.0 已经装好；也可以直接从插件市场更新到 1.6.1。
+
 ## 1.6.0
 
 - Added the experimental Mansion, off by default. Enable it in Settings → WhaleMaid or next to Initiative. Rooms, task furnishings, letters, and keepsakes reflect project records and link to existing views.
