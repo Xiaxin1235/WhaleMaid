@@ -169,8 +169,23 @@ try {
   assert.equal(await page.getByRole('alert').count(), 0, 'WhaleMaid status API is healthy')
   await mkdir('artifacts', { recursive: true })
   await page.screenshot({ path: 'artifacts/complete-host.png' })
-  petBrowser = await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
-  const petPage = petBrowser.contexts()[0].pages()[0]
+  // Since Coopanion 0.5.9 the pet prepares its Electron runtime in the background (a first
+  // run may download it, trying the official source and then the mirror for up to 240 s),
+  // so its window and debug port appear some time after the host UI.
+  const petDeadline = Date.now() + 300000
+  let petPage
+  while (!petPage) {
+    try {
+      petBrowser ??= await chromium.connectOverCDP(`http://127.0.0.1:${port}`)
+      petPage = petBrowser.contexts()[0]?.pages()[0]
+    } catch (error) {
+      if (Date.now() > petDeadline) throw error
+    }
+    if (!petPage) {
+      assert.ok(Date.now() <= petDeadline, 'The native pet did not start within 300 s')
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+    }
+  }
   await petPage.waitForSelector('#pet[data-host-ready=true][data-character=whale][data-mode]')
   assert.ok(
     await petPage.locator('#pet').evaluate((element) => {

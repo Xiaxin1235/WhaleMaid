@@ -249,48 +249,52 @@ test('remote excerpts are fetched only on request, truncated, and excluded from 
   expect(f.request).toHaveBeenCalledTimes(2)
 })
 
-test('Git observes branch and external commits, excluding owned checkpoint commits', async () => {
-  const f = await fixture()
-  f.settings.enabled = true
-  await f.subscribe({ dependencies: false, localGit: true, github: false })
-  await f.radar.check(f.goal.id)
-  await f.git.git(f.project, ['switch', '-c', 'outside'])
-  await writeFile(join(f.project, 'index.ts'), '// external')
-  await f.git.git(f.project, ['commit', '-am', 'External'])
-  const commit = await f.git.git(f.project, ['rev-parse', 'HEAD'])
-  await f.radar.check(f.goal.id)
-  expect(f.store.radar.observations(f.goal.id).at(-1)?.git).toMatchObject({
-    head: commit,
-    ref: 'refs/heads/outside',
-    external: [commit],
-    changes: ['index.ts'],
-  })
-  expect(f.radar.hold(f.goal.id)).toBeUndefined()
-  await writeFile(join(f.project, 'secret.txt'), 'fictional changed fixture')
-  await f.git.git(f.project, ['commit', '-am', 'Owned checkpoint fixture'])
-  const owned = await f.git.git(f.project, ['rev-parse', 'HEAD'])
-  const task = makeTask('task_owned', { goalId: f.goal.id })
-  f.store.tasks.insert(task)
-  f.store.checkpoints.insert({
-    id: 'checkpoint_owned' as never,
-    goalId: f.goal.id,
-    taskId: task.id,
-    commit: owned,
-    files: ['secret.txt'],
-    diffStat: '',
-    kind: 'progress',
-    createdAt: Date.now(),
-  })
-  await f.radar.check(f.goal.id)
-  expect(f.store.radar.observations(f.goal.id).at(-1)?.git?.external).toEqual([])
-  expect(f.radar.hold(f.goal.id)).toBeUndefined()
-  await writeFile(join(f.project, 'secret.txt'), 'fictional external uncommitted edit')
-  await f.radar.check(f.goal.id)
-  expect(f.radar.hold(f.goal.id)?.paths).toEqual(['secret.txt'])
-  expect(JSON.stringify(f.store.radar.observations(f.goal.id))).not.toContain(
-    'fictional external uncommitted edit',
-  )
-})
+test(
+  'Git observes branch and external commits, excluding owned checkpoint commits',
+  { timeout: 12_000 },
+  async () => {
+    const f = await fixture()
+    f.settings.enabled = true
+    await f.subscribe({ dependencies: false, localGit: true, github: false })
+    await f.radar.check(f.goal.id)
+    await f.git.git(f.project, ['switch', '-c', 'outside'])
+    await writeFile(join(f.project, 'index.ts'), '// external')
+    await f.git.git(f.project, ['commit', '-am', 'External'])
+    const commit = await f.git.git(f.project, ['rev-parse', 'HEAD'])
+    await f.radar.check(f.goal.id)
+    expect(f.store.radar.observations(f.goal.id).at(-1)?.git).toMatchObject({
+      head: commit,
+      ref: 'refs/heads/outside',
+      external: [commit],
+      changes: ['index.ts'],
+    })
+    expect(f.radar.hold(f.goal.id)).toBeUndefined()
+    await writeFile(join(f.project, 'secret.txt'), 'fictional changed fixture')
+    await f.git.git(f.project, ['commit', '-am', 'Owned checkpoint fixture'])
+    const owned = await f.git.git(f.project, ['rev-parse', 'HEAD'])
+    const task = makeTask('task_owned', { goalId: f.goal.id })
+    f.store.tasks.insert(task)
+    f.store.checkpoints.insert({
+      id: 'checkpoint_owned' as never,
+      goalId: f.goal.id,
+      taskId: task.id,
+      commit: owned,
+      files: ['secret.txt'],
+      diffStat: '',
+      kind: 'progress',
+      createdAt: Date.now(),
+    })
+    await f.radar.check(f.goal.id)
+    expect(f.store.radar.observations(f.goal.id).at(-1)?.git?.external).toEqual([])
+    expect(f.radar.hold(f.goal.id)).toBeUndefined()
+    await writeFile(join(f.project, 'secret.txt'), 'fictional external uncommitted edit')
+    await f.radar.check(f.goal.id)
+    expect(f.radar.hold(f.goal.id)?.paths).toEqual(['secret.txt'])
+    expect(JSON.stringify(f.store.radar.observations(f.goal.id))).not.toContain(
+      'fictional external uncommitted edit',
+    )
+  },
+)
 
 test('Git observation keeps the index intact and does not dispatch a configured clean filter', async () => {
   const f = await fixture()

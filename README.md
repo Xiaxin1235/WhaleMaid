@@ -76,14 +76,14 @@ WhaleMaid 是 DeepSeek Harness（DSH）的项目自动推进插件：在你确�
 也可在 **插件 → 添加插件** 中填写完整安装包地址：
 
 ```text
-https://github.com/Xiaxin1235/WhaleMaid/releases/latest/download/dsh-whalemaid-full.tgz
+https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.6.0/dsh-whalemaid-full-1.6.0.tgz
 ```
 
 也可完全退出 Harness，在未设置测试 DSH_HOME 的终端里使用桌面版自带 CLI：
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/latest/download/dsh-whalemaid-full.tgz'
+& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.6.0/dsh-whalemaid-full-1.6.0.tgz'
 ```
 
 重新打开 Harness，应同时看到 **WhaleMaid** 面板和 **Settings → 桌宠**。原来分别安装两份源码的用户，请先按[安装说明](docs/install.md#complete-installation)备份和迁移，避免同时启用两份桌宠；目标、记忆和桌宠设置保留。Decisions API 表情仍需在桌宠设置中单独配置，默认关闭。

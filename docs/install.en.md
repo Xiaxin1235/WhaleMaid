@@ -2,7 +2,7 @@
 
 [中文](install.md) | English
 
-For WhaleMaid 1.5.0. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](market-release-report.md) for evidence and the [usage guide](usage.en.md) for features and permission boundaries.
+For WhaleMaid 1.6.0. Core authorization and execution support Windows, macOS and Linux. The Linux pet uses X11 and requires `/usr/bin/python3` and libX11; Wayland pet behavior is not declared supported. See the [market release report](market-release-report.md) for evidence and the [usage guide](usage.en.md) for features and permission boundaries.
 
 <a id="complete-installation"></a>
 
@@ -12,11 +12,17 @@ The easiest route is the Harness plugin market ([dsh-market](https://github.com/
 
 **Do not install any other Coopanion build alongside it** (including the original `@takboo/dsh-coopanion`): the complete package already includes the companion pet, and two pets enabled at once conflict.
 
-You can also install the prebuilt [WhaleMaid Complete 1.5.0 package](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.5.0/dsh-whalemaid-full-1.5.0.tgz) through Harness **Plugins → Add plugin**. It installs WhaleMaid and its compatible Coopanion fork in one operation; choose **Enable now** when prompted. No Git, pnpm or source build is needed for this route. Configure a model in Harness first.
+You can also install the prebuilt [WhaleMaid Complete 1.6.0 package](https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.6.0/dsh-whalemaid-full-1.6.0.tgz) through Harness **Plugins → Add plugin**. It installs WhaleMaid and its compatible Coopanion fork in one operation; choose **Enable now** when prompted. No Git, pnpm or source build is needed for this route. Configure a model in Harness first.
 
 Before upgrading from separate installations, fully exit Harness and back up the profile and data as described below. Remove the old top-level pet bundle with `dsh plugin --profile desktop remove @takboo/dsh-coopanion` and the old WhaleMaid bundle with `dsh plugin --profile desktop remove dsh-whalemaid`, then add the complete-package URL. Use Harness's bundled CLI, not an old global CLI. Do not delete data directories. The complete package owns both configuration nodes; only `dsh-whalemaid` needs to appear as a top-level bundle.
 
 Updates use the next complete-package URL. Removing `dsh-whalemaid` removes both bundle nodes, while retaining stored data. Core services are MIT licensed; the automatically installed pet remains AGPL-3.0-or-later with its own source and notices.
+
+### Starting the pet on Windows
+
+- The Electron 44 pet requires 64-bit Windows 10 or later. The Windows 10 target for compatibility checks is **22H2 (build 19045)**. See the [P28 report](p28-report.md) for verification status. [Electron 44 platform support](https://github.com/electron/electron/blob/v44.7.0/README.md#platform-support) · [Windows 10 release information](https://learn.microsoft.com/windows/release-health/release-information)
+- The pet downloads Electron from GitHub Releases on first start. If **Settings → Desktop pet** reports a network, write, disk space or extraction problem, resolve it and select **Restart**. On a restricted network, Electron supports proxies and mirrors. [Electron installation guide](https://www.electronjs.org/docs/latest/tutorial/installation#custom-mirrors-and-caches)
+- Animated characters require WebGL. Older GPUs, virtual machines and remote desktop sessions may fail to render the pet. The Harness panel remains available.
 
 The remaining instructions cover development from source and earlier separate installations.
 
@@ -26,7 +32,7 @@ The remaining instructions cover development from source and earlier separate in
 - The npm-installed DSH 0.2.2-rc.1 CLI requires Node.js **≥24.9**. To build WhaleMaid from source, use Node.js **≥22.19**, Git, and the pnpm version specified in `package.json`. Run `corepack enable` to enable pnpm; Corepack may need to download that version on first use.
 - The source is in the public GitHub repository [`Xiaxin1235/WhaleMaid`](https://github.com/Xiaxin1235/WhaleMaid).
 
-The examples use PowerShell. Completely exit Harness and back up the target profile's configuration before installing or updating your everyday environment. Do not share keys, credential files or URLs containing login tokens.
+The examples run in Windows PowerShell 5.1. Completely exit Harness and back up the target profile's configuration before installing or updating your everyday environment. Do not share keys, credential files or URLs containing login tokens.
 
 ## 2. Obtain and build the code
 
