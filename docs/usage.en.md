@@ -159,7 +159,7 @@ Turn on **Enable Mansion (experimental)** in **Settings → WhaleMaid** or next 
 
 The default view focuses on Da Fei Yu’s room. Pick another room or open the floor overview to see the mansion. Drag to pan, use `+` and `−` to zoom, or go to Da Fei Yu. The list shows the same records and lets you move rooms to storage or bring them back. Goals continue independently. Reduced motion opens the list by default.
 
-The complete package with Coopanion 0.6.0 shows Da Fei Yu moving around the mansion. Enable **Pet visits the mansion** separately to let the desktop pet visit. Leaving the tab returns her to the desktop if you had her visible. Share feedback in QQ group **1001092170** or on [GitHub Issues](https://github.com/Xiaxin1235/WhaleMaid/issues).
+With the complete package (Coopanion 0.6.0), turn on **Pet visits the mansion** and Da Fei Yu steps from the desktop into the mansion; with it off she stays on the desktop, so only one Da Fei Yu appears at a time. Leaving the tab returns her to the desktop if you had her visible. Share feedback in QQ group **1001092170** or on [GitHub Issues](https://github.com/Xiaxin1235/WhaleMaid/issues).
 
 ## Everyday auto-approval
 

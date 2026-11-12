@@ -499,6 +499,11 @@
   height: 100%;
   border: 0;
   pointer-events: auto;
+  /* The stage document declares no color scheme (light). When the embedding element's scheme
+     differs (Harness in dark mode), Chromium paints an opaque backdrop behind the frame; match it
+     so the transparent stage stays transparent. */
+  color-scheme: light;
+  background: transparent;
 }
 .whalemaid-world-actor img {
   margin-bottom: 12px;

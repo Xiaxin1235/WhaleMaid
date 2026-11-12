@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.2
+
+- Only one Da Fei Yu at a time. With Pet visits the mansion off she stays on the desktop and the mansion shows no second copy; turn it on and the desktop pet steps into the mansion.
+- Fix the white box behind Da Fei Yu in the mansion when Harness uses the dark theme.
+
+### 中文
+
+- 同一时间只会有一只大肥鱼。「桌宠走进宅邸」关闭时她只留在桌面，宅邸里不再出现第二只；开启后桌面上的大肥鱼会走进宅邸。
+- 修复 Harness 使用深色主题时，宅邸里大肥鱼身后出现白色方框的问题。
+
 ## 1.6.1
 
 - Fix updating from the plugin market while Harness is running. 1.6.0 installed correctly, but loading it into the running Harness failed ("does not provide an export named WorldPreferencesSchema"), so the market reported the update as failed until Harness was restarted. The bundled core now lives in a per-release directory, so a live update always loads the new version.

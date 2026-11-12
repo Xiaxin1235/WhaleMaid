@@ -703,7 +703,10 @@ function WorldCanvas({
       },
       onPointerLeave: () => setHover(undefined),
     }),
+    // One Da Fei Yu at a time: she stays on the desktop until the owner lets the pet visit;
+    // then the stage takes the lease and the desktop pet steps into the mansion.
     size.width > 0 &&
+      away &&
       h(WorldStage, {
         position: actor,
         actor: snapshot.actor,

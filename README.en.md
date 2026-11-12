@@ -6,7 +6,7 @@
 
 WhaleMaid is a project autopilot plugin for DeepSeek Harness (DSH): it plans and executes tasks within the scope you confirm, independently verifies results, and asks you when a decision is needed.
 
-Documentation for **1.6.1**. Requires DSH Desktop **0.2.x from 0.2.1-rc.2**. Source builds require Node.js ≥22.19. See the [usage guide](docs/usage.en.md) for preview limitations.
+Documentation for **1.6.2**. Requires DSH Desktop **0.2.x from 0.2.1-rc.2**. Source builds require Node.js ≥22.19. See the [usage guide](docs/usage.en.md) for preview limitations.
 
 ## What it can do
 
@@ -76,14 +76,14 @@ You can also add our own index `https://raw.githubusercontent.com/Xiaxin1235/Wha
 Alternatively, in **Plugins → Add plugin**, enter the complete-package URL:
 
 ```text
-https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.6.1/dsh-whalemaid-full-1.6.1.tgz
+https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.6.2/dsh-whalemaid-full-1.6.2.tgz
 ```
 
 Or, with Harness fully closed and no test DSH_HOME set, use its bundled CLI:
 
 ```powershell
 $dsh = Join-Path $env:LOCALAPPDATA 'Programs\DeepSeek Harness\resources\runtime\cli\bin\dsh.cmd'
-& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.6.1/dsh-whalemaid-full-1.6.1.tgz'
+& $dsh plugin --profile desktop add 'https://github.com/Xiaxin1235/WhaleMaid/releases/download/v1.6.2/dsh-whalemaid-full-1.6.2.tgz'
 ```
 
 Reopen Harness: the **WhaleMaid** panel and **Settings → Desktop pet** should both be available. Existing users who installed the two source bundles separately should first follow the backup and migration instructions in the [installation guide](docs/install.en.md#complete-installation). Your goals, memories and pet settings are retained. Decisions API expressions are configured separately in pet settings and remain off by default.
