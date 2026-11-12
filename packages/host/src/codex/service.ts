@@ -35,7 +35,7 @@ export class ConversationCodex {
     if (
       !agents ||
       agents.get(session.id) !== agent ||
-      !agents.roots().includes(agent) ||
+      (typeof agents.roots === 'function' && !agents.roots().includes(agent)) ||
       !workspace ||
       workspace.archivedSessionIds.includes(session.id) ||
       header.agentPreset === 'whaledot-companion' ||

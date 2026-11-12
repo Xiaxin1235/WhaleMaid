@@ -71,7 +71,7 @@ export class EverydayApprovals {
       if (
         !agents ||
         agents.get(session.id) !== agent ||
-        !agents.roots().includes(agent) ||
+        (typeof agents.roots === 'function' && !agents.roots().includes(agent)) ||
         header.origin === 'subagent' ||
         header.parentSession ||
         header.agentPreset === 'whaledot-companion' ||
@@ -161,7 +161,7 @@ export class EverydayApprovals {
         this.registry.has(session.id) ||
         !currentAgents ||
         currentAgents.get(session.id) !== agent ||
-        !currentAgents.roots().includes(agent) ||
+        (typeof currentAgents.roots === 'function' && !currentAgents.roots().includes(agent)) ||
         workspace.archivedSessionIds.includes(session.id)
       )
         return next()

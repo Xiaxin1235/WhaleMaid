@@ -10,6 +10,7 @@ import { dirname, join, resolve } from 'node:path'
 import { createServer } from 'node:net'
 import { createHash } from 'node:crypto'
 import { createRequire } from 'node:module'
+import { URL } from 'node:url'
 import { chromium } from 'playwright-core'
 
 const root = await realpath(await mkdtemp(join(tmpdir(), 'whalemaid-complete-')))
@@ -163,6 +164,17 @@ try {
   await page.screenshot({ path: 'artifacts/complete-welcome.png' })
   await welcome.getByRole('button', { name: /^(Get started|开始使用)$/ }).click()
   await welcome.waitFor({ state: 'detached' })
+  const creation = await page.request.post(new URL('/api/session/create', page.url()).href, {
+    headers: { Origin: new URL(page.url()).origin },
+    data: {
+      type: 'client-request',
+      rpcId: 'complete-install-session',
+      method: 'session/create',
+      payload: { args: { request: { cwd: root } } },
+    },
+  })
+  const session = (await creation.json()).result
+  assert.ok(session?.ok && session.value?.sessionId, JSON.stringify(session))
   await page.getByRole('button', { name: 'WhaleMaid', exact: true }).click()
   await page.getByRole('heading', { name: 'WhaleMaid', exact: true }).waitFor()
   await page.getByText(report.version, { exact: true }).waitFor()
@@ -218,6 +230,7 @@ try {
         companion: pet.version,
         singleBundle: true,
         hostUi: true,
+        sessionCreated: true,
         nativePet: true,
         uninstalled: true,
         modelCalls: 0,

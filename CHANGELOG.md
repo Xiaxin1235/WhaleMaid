@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.3
+
+- Restore new and existing conversations on DSH 0.2.2-rc.2. The complete package includes Coopanion 0.6.1 with the matching inbox fix.
+
+### 中文
+
+- 修复 DSH 0.2.2-rc.2 无法新建或继续会话的问题。完整包内置 Coopanion 0.6.1，同步修复桌宠信封的提问兼容性。
+
 ## 1.6.2
 
 - Only one Da Fei Yu at a time. With Pet visits the mansion off she stays on the desktop and the mansion shows no second copy; turn it on and the desktop pet steps into the mansion.

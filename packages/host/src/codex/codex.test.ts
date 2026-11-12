@@ -228,7 +228,7 @@ test('logs retain the latest 100 complete calls', async () => {
   expect(records.some((r) => r.task === 'call 0')).toBe(false)
 }, 30000)
 
-async function serviceFixture() {
+async function serviceFixture({ hasRoots = true } = {}) {
   const f = await fixture(),
     ctx = new Context()
   cleanups.push(() => ctx.fiber.dispose())
@@ -242,12 +242,17 @@ async function serviceFixture() {
   const agent = {
     session: {
       id: 'ordinary',
-      header: { cwd: f.dir, agentPreset: 'standard', origin: undefined as string | undefined },
+      header: {
+        cwd: f.dir,
+        agentPreset: 'standard',
+        origin: undefined as string | undefined,
+        parentSession: undefined as string | undefined,
+      },
       snapshotEvents: () => events,
     },
     ctx: { get: () => scopeTools },
   }
-  const agents = { get: () => agent, roots: () => [agent], list: () => [agent] }
+  const agents = { get: () => agent, list: () => [agent], ...(hasRoots ? { roots: () => [agent] } : {}) }
   const workspace = { archivedSessionIds: [] as string[] }
   const approval = {
     request: vi.fn(async (request: unknown) => {
@@ -263,6 +268,16 @@ async function serviceFixture() {
   const exec = { agent, callId: 'call-1', signal: new AbortController().signal } as unknown as ToolRunContext
   return { ...f, ctx, store, events, agent, approval, workspace, registry, service, exec, scopeTools }
 }
+test('the rc.2 agent registry admits root sessions and excludes subagents', async () => {
+  const f = await serviceFixture({ hasRoots: false })
+  expect(f.service.eligible(f.exec.agent)).toBe(true)
+  f.agent.session.header.origin = 'subagent'
+  expect(f.service.eligible(f.exec.agent)).toBe(false)
+  f.agent.session.header.origin = undefined
+  f.agent.session.header.parentSession = 'parent'
+  expect(f.service.eligible(f.exec.agent)).toBe(false)
+})
+
 test('disabled calls never ask or spawn; owner opt-in is persistent', async () => {
   const f = await serviceFixture(),
     run = vi.spyOn(f.runner, 'run')
