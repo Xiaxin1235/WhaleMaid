@@ -2,12 +2,12 @@
 
 ## 1.6.4
 
-- Include Coopanion 0.6.2: the desktop whale now shows DeepSeek API peak/off-peak pricing (off-peak is 50% cheaper), a countdown to the next billing-period change, and a persistent right-click display toggle. Times follow Beijing time, Chinese public holidays and weekends.
+- Include Coopanion 0.6.3: the desktop whale now shows DeepSeek API peak/off-peak pricing (off-peak is 50% cheaper), a countdown to the next billing-period change, and a persistent right-click display toggle. Times follow Beijing time, Chinese public holidays and weekends.
 - Preserve the DSH 0.2.2-rc.2 conversation compatibility fixes from 1.6.3.
 
 ### 中文
 
-- 完整包更新至 Coopanion 0.6.2：大肥鱼桌宠显示 DeepSeek API 峰谷计费时段、谷期半价提醒、下一次切换倒计时，右键可关闭或重新开启。北京时间及中国法定节假日、周末按官方规则判断。
+- 完整包更新至 Coopanion 0.6.3：大肥鱼桌宠显示 DeepSeek API 峰谷计费时段、谷期半价提醒、下一次切换倒计时，右键可关闭或重新开启。北京时间及中国法定节假日、周末按官方规则判断。
 - 保留 1.6.3 对 DSH 0.2.2-rc.2 会话创建与恢复的兼容性修复。
 
 ## 1.6.3
