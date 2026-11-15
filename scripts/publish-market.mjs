@@ -112,7 +112,7 @@ const entry = {
   name: pkg.name,
   title: { en: 'WhaleMaid Complete', zh: 'WhaleMaid 完整版' },
   description: {
-    en: 'Project autopilot, memory and companion conversations, with the compatible desktop pet installed automatically.',
+    en: 'Project autopilot, memory and companion conversations, with the compatible desktop pet and DeepSeek API peak/off-peak pricing badge installed automatically.',
     zh: '项目自动推进、长期记忆和大肥鱼对话，一次安装自动带上配套桌宠。',
   },
   author: 'Xiaxin1235',
