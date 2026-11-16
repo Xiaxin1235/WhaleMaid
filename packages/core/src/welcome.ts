@@ -5,7 +5,7 @@ import type { Locale } from './i18n/index.js'
  * notable changes, bump this value and replace the notes alongside CHANGELOG.
  * Leave it unchanged for a release that needs no announcement.
  */
-export const WELCOME_RELEASE = '1.6.4'
+export const WELCOME_RELEASE = '1.6.5'
 
 /** Short what's-new notes for WELCOME_RELEASE, three to five lines each. */
 export const WELCOME_NOTES: Record<Locale, readonly string[]> = {

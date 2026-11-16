@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.5
+
+- Refresh the bilingual Welcome & About dialog to show the DeepSeek API peak/off-peak pricing badge, Beijing-time billing windows, the next-switch countdown, and fixes introduced in 1.6.1–1.6.4. Existing users receive the new welcome announcement once after updating.
+- Keep the complete package on Coopanion 0.6.4. No changes to billing rules, runtime behavior, permissions, or the installation compatibility matrix.
+
+### 中文
+
+- 同步中英文欢迎页至最新内容：介绍 DeepSeek API 峰谷计费徽标、北京时间的峰谷时段、切换倒计时及 1.6.1–1.6.4 的兼容性修复。旧版本用户升级后会再次看到一次更新提示。
+- 完整包继续内置 Coopanion 0.6.4，不修改峰谷计费规则、运行权限或 DSH 兼容范围。
+
 ## 1.6.4
 
 - Include Coopanion 0.6.4: the desktop whale now shows DeepSeek API peak/off-peak pricing (off-peak is 50% cheaper), a countdown to the next billing-period change, and a persistent right-click display toggle. Times follow Beijing time, Chinese public holidays and weekends.
