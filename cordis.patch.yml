@@ -1,0 +1,48 @@
+- insert:
+    - id: whaledot
+      name: 'dsh-whalemaid'
+    # The companion "大肥鱼": an agent preset whose sessions get a persona and WhaleMaid's companion
+    # tools on top of the profile's global tools. WhaleMaid creates one long-lived session with it; DSH's
+    # permission preset and approvals govern her file and command work like any ordinary conversation.
+    - id: preset-whaledot-companion
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: whaledot-companion
+        # Shown in Settings → Agent presets and the composer's preset menu. WhaleMaid opens 大肥鱼's
+        # conversation with this preset itself, so the description says not to pick it by hand.
+        name: '大肥鱼 (WhaleMaid)'
+        description: 'WhaleMaid 伙伴“大肥鱼”的专属对话：人设、记忆与伙伴工具。由 WhaleMaid 自动使用，无需手动选择。 / Companion preset for WhaleMaid; used automatically.'
+        order: 50
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: "{{whaledot_persona}}\n\n{{whaledot_memory}}\n\n{{whaledot_recall}}\n\n{{whaledot_brief}}\n\n{{whaledot_memory_guidance}}"
+              complete: true
+          - id: whaledot-companion
+            name: 'dsh-whalemaid/companion'
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: compaction
+            name: cordis:group
+            group: true
+            isolate:
+              compaction: true
+            config:
+              - id: compaction-basic
+                name: '@deepseek-ai/dsh-compaction-basic'
+              - id: command-compact
+                name: '@deepseek-ai/dsh-command-compact'
+
+- insert:
+    - id: dsh-coopanion
+      name: '@takboo/dsh-coopanion'
+      config:
+        autoStart: true
+        roam: true
+        size: 150
+        notifications: true
+        bubbleDurationMs: 12000
+        defaultChatTarget: companion
