@@ -6,7 +6,7 @@
       "name": "dsh-whalemaid",
       "title": { "en": "WhaleMaid Complete", "zh": "WhaleMaid 完整版" },
       "description": {
-        "en": "Project autopilot, memory and companion conversations, with the compatible desktop pet installed automatically.",
+        "en": "Project autopilot, memory and companion conversations, with the compatible desktop pet and DeepSeek API peak/off-peak pricing badge installed automatically.",
         "zh": "项目自动推进、长期记忆和大肥鱼对话，一次安装自动带上配套桌宠。"
       },
       "author": "Xiaxin1235",
@@ -14,6 +14,16 @@
       "repository": { "url": "https://github.com/Xiaxin1235/WhaleMaid", "directory": "packages/host" },
       "metadata": { "keywords": ["whalemaid", "companion", "memory", "autopilot", "桌宠", "大肥鱼"] },
       "versions": [
+        {
+          "version": "1.6.4",
+          "publishTimestamp": 1794798377,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/Xiaxin1235/WhaleMaid.git",
+            "commit": "1d6b41280f00c3b45c372c4531131b87dcfb2797"
+          },
+          "engines": { "dsh": ">=0.2.1-rc.2 <0.3.0-0" }
+        },
         {
           "version": "1.6.2",
           "publishTimestamp": 1794465620,
