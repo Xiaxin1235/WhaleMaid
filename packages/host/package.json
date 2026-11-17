@@ -1,6 +1,6 @@
 {
   "name": "dsh-whalemaid",
-  "version": "1.6.6",
+  "version": "1.6.7",
   "description": "项目自动推进、范围授权、独立验收、可编辑长期记忆与大肥鱼桌宠。 Project autopilot, scoped authorization, independent verification, editable memory, and the Da Fei Yu desktop companion.",
   "repository": {
     "type": "git",

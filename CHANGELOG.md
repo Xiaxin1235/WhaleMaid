@@ -1,6 +1,6 @@
 # Changelog
 
-## 1.6.6
+## 1.6.7
 
 - Load Coopanion from the complete package so an old development link cannot hide the updated desktop pet and its billing badge.
 - Add a bilingual package description for marketplaces that read installed package metadata.
