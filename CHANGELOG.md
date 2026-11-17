@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.6.6
+
+- Load Coopanion from the complete package so an old development link cannot hide the updated desktop pet and its billing badge.
+- Add a bilingual package description for marketplaces that read installed package metadata.
+
+### 中文
+
+- 完整包直接加载内置 Coopanion，避免旧开发链接抢占新版桌宠，导致峰谷计费徽标和倒计时不显示。
+- 为读取已安装包信息的市场界面提供中英文简介。
+
 ## 1.6.5
 
 - Refresh the bilingual Welcome & About dialog to show the DeepSeek API peak/off-peak pricing badge, Beijing-time billing windows, the next-switch countdown, and fixes introduced in 1.6.1–1.6.4. Existing users receive the new welcome announcement once after updating.
