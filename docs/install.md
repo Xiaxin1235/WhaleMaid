@@ -18,6 +18,8 @@
 
 更新时安装下个完整包版本；卸载 `dsh-whalemaid` 会移除两部分配置，保留存储数据。WhaleMaid 自有代码使用 MIT，自动安装的桌宠依赖继续使用 AGPL-3.0-or-later，其对应源码和第三方声明保持独立。
 
+如果曾用开发版桌宠，在桌面配置 `cordis.patch.yml` 中找到以 `id: dsh-coopanion` 定位的设置段。如果该段写有 `name: '@takboo/dsh-coopanion'`，只删除这行 `name`，保留 `id`、`config` 和原有设置。完整包改用内置副本的入口，旧的 `name` 会让 Harness 跳过这段设置。
+
 ### Windows 桌宠启动
 
 - Electron 44 的 Windows 桌宠需要 Windows 10 或更新版本和 64 位运行环境。Windows 10 的排查以 **22H2（内部版本 19045）** 为目标，实际兼容性见 [P28 报告](p28-report.md)。[Electron 44 平台说明](https://github.com/electron/electron/blob/v44.7.0/README.md#platform-support) · [Windows 10 版本说明](https://learn.microsoft.com/windows/release-health/release-information)

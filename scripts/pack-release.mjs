@@ -91,7 +91,9 @@ saveJson(join(stage, 'package.json'), pkg)
 writeFileSync(
   join(stage, 'cordis.patch.yml'),
   readFileSync(join(root, 'packages/host/cordis.patch.yml'), 'utf8') +
-    "\n- insert:\n    - id: dsh-coopanion\n      name: '@takboo/dsh-coopanion'\n      config:\n        autoStart: true\n        roam: true\n        size: 150\n        notifications: true\n        bubbleDurationMs: 12000\n        defaultChatTarget: companion\n",
+    // DSH resolves inserted relative paths beside this patch. Keep a profile's
+    // top-level development link from shadowing the bundled pet.
+    "\n- insert:\n    - id: dsh-coopanion\n      name: './node_modules/@takboo/dsh-coopanion/dist/index.js'\n      config:\n        autoStart: true\n        roam: true\n        size: 150\n        notifications: true\n        bubbleDurationMs: 12000\n        defaultChatTarget: companion\n",
 )
 writeFileSync(
   join(stage, 'DISTRIBUTION.md'),

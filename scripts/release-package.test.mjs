@@ -24,6 +24,10 @@ test('staged complete manifest loads the private core and declares both componen
   assert.ok(!JSON.stringify(pkg).includes('workspace:'))
   const patch = readFileSync(join(stage, 'cordis.patch.yml'), 'utf8')
   assert.equal(patch.match(/id: dsh-coopanion\b/g)?.length, 1)
+  assert.match(
+    patch,
+    /id: dsh-coopanion\n\s+name: '\.\/node_modules\/@takboo\/dsh-coopanion\/dist\/index\.js'/,
+  )
   assert.equal(patch.match(/^\s+- id: whaledot\s*$/gm)?.length, 1)
   assert.ok(patch.includes('id: preset-whaledot-companion'))
   // A per-release core directory keeps hot updates from reusing the previous core module.

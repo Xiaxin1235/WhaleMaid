@@ -3,13 +3,12 @@ import process from 'node:process'
 import { setTimeout, clearTimeout } from 'node:timers'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, mkdir, readFile, writeFile, realpath, rm } from 'node:fs/promises'
+import { mkdtemp, mkdir, readFile, writeFile, realpath, rm, symlink } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { createServer } from 'node:net'
 import { createHash } from 'node:crypto'
-import { createRequire } from 'node:module'
 import { URL } from 'node:url'
 import { chromium } from 'playwright-core'
 
@@ -100,13 +99,28 @@ try {
     'one complete bundle owns both components',
   )
   const maid = JSON.parse(await readFile(join(profile, 'node_modules/dsh-whalemaid/package.json'), 'utf8'))
-  const petEntry = createRequire(join(profile, 'node_modules/dsh-whalemaid/package.json')).resolve(
-    '@takboo/dsh-coopanion',
-  )
-  const petManifest = join(dirname(petEntry), '../package.json')
+  const petDirectory = join(profile, 'node_modules/dsh-whalemaid/node_modules/@takboo/dsh-coopanion')
+  const petManifest = join(petDirectory, 'package.json')
   const pet = JSON.parse(await readFile(petManifest, 'utf8'))
   assert.equal(maid.version, report.version)
   assert.equal(pet.version, report.companion.version)
+  // An old profile link must never run when the complete bundle starts.
+  const oldPet = join(root, 'old-pet')
+  const scope = join(profile, 'node_modules/@takboo')
+  const staleLink = join(scope, 'dsh-coopanion')
+  await mkdir(oldPet)
+  await mkdir(scope, { recursive: true })
+  await writeFile(
+    join(oldPet, 'package.json'),
+    JSON.stringify({
+      name: '@takboo/dsh-coopanion',
+      version: '0.0.0',
+      type: 'module',
+      main: './index.js',
+    }),
+  )
+  await writeFile(join(oldPet, 'index.js'), 'throw new Error("stale Coopanion was loaded");\n')
+  await symlink(oldPet, staleLink, 'junction')
   const source = JSON.parse(
     await readFile(join(profile, 'node_modules/dsh-whalemaid/release-source.json'), 'utf8'),
   )

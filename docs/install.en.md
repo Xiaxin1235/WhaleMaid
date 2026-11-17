@@ -16,6 +16,8 @@ You can also install the prebuilt [WhaleMaid Complete 1.6.5 package](https://git
 
 Before upgrading from separate installations, fully exit Harness and back up the profile and data as described below. Remove the old top-level pet bundle with `dsh plugin --profile desktop remove @takboo/dsh-coopanion` and the old WhaleMaid bundle with `dsh plugin --profile desktop remove dsh-whalemaid`, then add the complete-package URL. Use Harness's bundled CLI, not an old global CLI. Do not delete data directories. The complete package owns both configuration nodes; only `dsh-whalemaid` needs to appear as a top-level bundle.
 
+If you used a development build of the pet, check the `id: dsh-coopanion` settings entry in your desktop profile's `cordis.patch.yml`. Remove its `name: '@takboo/dsh-coopanion'` line if present and keep the `id`, `config`, and existing settings. The complete package now uses the bundled entry point. Harness skips settings whose `name` no longer matches.
+
 Updates use the next complete-package URL. Removing `dsh-whalemaid` removes both bundle nodes, while retaining stored data. Core services are MIT licensed; the automatically installed pet remains AGPL-3.0-or-later with its own source and notices.
 
 ### Starting the pet on Windows
