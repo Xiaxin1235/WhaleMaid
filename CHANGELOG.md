@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.8
+
+- Bundle Coopanion 0.6.6 to fix desktop pet preferences failing to save when the configured plugin ID differs from the default. Both the pet menu and Harness settings use the active configuration entry.
+
+### 中文
+
+- 完整包内置 Coopanion 0.6.6，修复使用自定义插件条目 ID 时桌宠设置无法保存的问题。桌宠菜单和 Harness 设置页都写入当前桌宠的配置，重启后恢复。
+
 ## 1.6.7
 
 - Load Coopanion from the complete package so an old development link cannot hide the updated desktop pet and its billing badge.
