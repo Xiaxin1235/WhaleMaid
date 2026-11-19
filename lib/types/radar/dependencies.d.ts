@@ -1,0 +1,10 @@
+import type { AuthorizationScope, RadarDependency, RadarVersion } from '#whalemaid/core';
+export declare const record: (value: unknown) => Record<string, unknown>;
+export declare const list: (value: unknown) => unknown[];
+export declare const string: (value: unknown) => string | undefined;
+export declare function npmDependencies(value: unknown): RadarDependency[];
+export declare function pythonDependency(requirement: unknown): RadarDependency[];
+export declare function tomlDependencies(text: string): RadarDependency[];
+export declare function projectDependencies(root: string, scope: AuthorizationScope): Promise<RadarDependency[]>;
+export declare function registryExcerpt(body: unknown, ecosystem: RadarDependency['ecosystem']): string;
+export declare function dependencyVersion(dependency: RadarDependency, value: unknown): RadarVersion;
