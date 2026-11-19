@@ -15,6 +15,16 @@
       "metadata": { "keywords": ["whalemaid", "companion", "memory", "autopilot", "桌宠", "大肥鱼"] },
       "versions": [
         {
+          "version": "1.6.8",
+          "publishTimestamp": 1795085630,
+          "source": {
+            "type": "git",
+            "url": "https://github.com/Xiaxin1235/WhaleMaid.git",
+            "commit": "064872a6634fbc8bea06114e968b2fb5adc170d4"
+          },
+          "engines": { "dsh": ">=0.2.1-rc.2 <0.3.0-0" }
+        },
+        {
           "version": "1.6.7",
           "publishTimestamp": 1794923453,
           "source": {
